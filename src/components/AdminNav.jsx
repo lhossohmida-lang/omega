@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-  IoGrid, IoReceipt, IoFastFood, IoCube, IoCar,
-  IoSparkles, IoSettings, IoBarChart, IoLogOut, IoClose, IoMenu,
+  IoApps, IoClipboard, IoRestaurant, IoArchive, IoCar,
+  IoBulb, IoSettings, IoTrendingUp, IoLogOut, IoClose, IoMenu,
   IoPersonCircle
 } from 'react-icons/io5';
 import { useState } from 'react';
@@ -17,23 +17,23 @@ export default function AdminNav() {
     {
       title: 'الرئيسية',
       links: [
-        { to: '/admin', icon: IoGrid, label: 'لوحة التحكم' },
-        { to: '/admin/orders', icon: IoReceipt, label: 'الطلبات' },
+        { to: '/admin', icon: IoApps, label: 'لوحة التحكم' },
+        { to: '/admin/orders', icon: IoClipboard, label: 'الطلبات' },
       ]
     },
     {
       title: 'إدارة',
       links: [
-        { to: '/admin/products', icon: IoFastFood, label: 'المنتجات' },
-        { to: '/admin/inventory', icon: IoCube, label: 'المخزون' },
+        { to: '/admin/products', icon: IoRestaurant, label: 'المنتجات' },
+        { to: '/admin/inventory', icon: IoArchive, label: 'المخزون' },
         { to: '/admin/drivers', icon: IoCar, label: 'السائقون' },
       ]
     },
     {
       title: 'الذكاء والتقارير',
       links: [
-        { to: '/admin/ai', icon: IoSparkles, label: 'الذكاء الاصطناعي' },
-        { to: '/admin/reports', icon: IoBarChart, label: 'التقارير' },
+        { to: '/admin/ai', icon: IoBulb, label: 'الذكاء الاصطناعي' },
+        { to: '/admin/reports', icon: IoTrendingUp, label: 'التقارير' },
         { to: '/admin/settings', icon: IoSettings, label: 'الإعدادات' },
       ]
     }
