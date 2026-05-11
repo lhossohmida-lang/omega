@@ -51,7 +51,7 @@ export async function getProduct(productId) {
 export async function addProduct(productData) {
   const data = {
     ...productData,
-    isAvailable: productData.stock > 0 ? (productData.isAvailable !== false) : false,
+    isAvailable: productData.isAvailable !== false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -64,8 +64,6 @@ export async function updateProduct(productId, updates) {
   const docRef = doc(db, PRODUCTS_COL, productId);
   await updateDoc(docRef, {
     ...updates,
-    // عند stock = 0 اجعل المنتج غير متوفر تلقائياً
-    ...(updates.stock !== undefined && updates.stock <= 0 ? { isAvailable: false } : {}),
     updatedAt: serverTimestamp(),
   });
 }
