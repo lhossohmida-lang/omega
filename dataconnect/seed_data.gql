@@ -1,0 +1,30 @@
+mutation CreateSeedData @transaction @auth(level: USER, insecureReason: "Seed data is for logged-in users to initialize their database.") {
+  account_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      name: "Sample Account One",
+      balance: 1000.00
+    },
+    {
+      id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
+      name: "Sample Account Two",
+      balance: 500.50
+    }
+  ])
+  product_insertMany(data: [
+    {
+      id: "c3d4e5f6-a7b8-9012-3456-7890abcdef12",
+      name: "Product Alpha",
+      price: 29.99,
+      description: "A fantastic product.",
+      accountId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    },
+    {
+      id: "d4e5f6a7-b8c9-0123-4567-890abcdef345",
+      name: "Product Beta",
+      price: 9.99,
+      description: "Another great item.",
+      accountId: "b2c3d4e5-f6a7-8901-2345-67890abcdef0"
+    }
+  ])
+}
