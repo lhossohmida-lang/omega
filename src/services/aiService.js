@@ -1,7 +1,13 @@
-// خدمة الذكاء الاصطناعي - ترسل الطلبات إلى Backend فقط
-// لا يتم إرسال مفتاح API من الواجهة أبداً
+// خدمة الذكاء الاصطناعي — ترسل Firebase ID token للتحقق من الهوية على السيرفر
+import { auth } from '../firebase.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+
+async function getIdToken() {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('يجب تسجيل الدخول أولاً');
+  return token;
+}
 
 async function postAI(path, body, fallbackMessage) {
   let response;
@@ -32,19 +38,20 @@ async function postAI(path, body, fallbackMessage) {
   return data;
 }
 
-export async function sendAIChat(question, adminId) {
+export async function sendAIChat(question) {
+  const idToken = await getIdToken();
   return postAI(
     '/api/admin-ai/chat',
-    { question, adminId },
+    { question, idToken },
     'خطأ في الاتصال بالذكاء الاصطناعي'
   );
 }
 
-// تنفيذ إجراء مقترح من AI بعد تأكيد المدير
-export async function executeAIAction(action, adminId) {
+export async function executeAIAction(action) {
+  const idToken = await getIdToken();
   return postAI(
     '/api/admin-ai/execute-action',
-    { action, adminId },
+    { action, idToken },
     'خطأ في تنفيذ الإجراء'
   );
 }

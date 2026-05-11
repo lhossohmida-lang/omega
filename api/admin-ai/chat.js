@@ -1,9 +1,9 @@
 // POST /api/admin-ai/chat - Vercel serverless function
-import { getDb, verifyAdmin } from '../_lib/firebase.js';
+import { verifyAdmin } from '../_lib/firebase.js';
+import { getDoc, addDoc } from '../_lib/firebaseRest.js';
 import { gatherFullDataSummary, SYSTEM_PROMPT } from '../_lib/aiData.js';
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,18 +11,17 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
   try {
-    const { question, adminId } = req.body || {};
-    if (!question || !adminId) {
-      return res.status(400).json({ message: 'يرجى إرسال السؤال ومعرف المدير' });
+    const { question, idToken } = req.body || {};
+    if (!question || !idToken) {
+      return res.status(400).json({ message: 'يرجى إرسال السؤال ورمز المصادقة' });
     }
 
-    const adminData = await verifyAdmin(adminId);
+    const adminData = await verifyAdmin(idToken);
     if (!adminData) {
       return res.status(403).json({ message: 'غير مصرح لك باستخدام هذه الخدمة' });
     }
 
-    const db = getDb();
-    const settingsDoc = await db.collection('ai_settings').doc('config').get();
+    const settingsDoc = await getDoc('ai_settings', 'config', idToken);
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
     if (settings.isEnabled === false) {
       return res.status(403).json({ message: 'الذكاء الاصطناعي معطل حالياً' });
@@ -33,7 +32,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ message: 'مفتاح OpenRouter غير مُعد على السيرفر' });
     }
 
-    const dataSummary = await gatherFullDataSummary();
+    const dataSummary = await gatherFullDataSummary(idToken);
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -63,23 +62,21 @@ export default async function handler(req, res) {
     const aiResponse = data.choices?.[0]?.message?.content || 'لا يوجد رد';
     const tokensUsed = data.usage?.total_tokens || 0;
 
-    // استخراج suggestedActions
     let suggestedActions = [];
     try {
       const m = aiResponse.match(/suggestedActions:\s*(\[[\s\S]*?\])/);
       if (m) suggestedActions = JSON.parse(m[1]);
     } catch { /* ignore */ }
 
-    // تسجيل
-    await db.collection('ai_logs').add({
-      adminId,
+    await addDoc('ai_logs', {
+      adminId: adminData.uid,
       adminName: adminData.name,
       question,
       answer: aiResponse,
       suggestedActions,
       tokensUsed,
       createdAt: new Date(),
-    });
+    }, idToken);
 
     return res.status(200).json({ answer: aiResponse, suggestedActions, tokensUsed });
   } catch (error) {
