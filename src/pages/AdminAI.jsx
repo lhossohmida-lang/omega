@@ -30,8 +30,13 @@ export default function AdminAI() {
   useEffect(() => { scrollToBottom(); }, [messages]);
 
   const sendMessage = async (text) => {
-    const question = text || input;
-    if (!question.trim()) return;
+    const question = (text || input).trim();
+    if (!question || loading) return;
+
+    if (!userData?.uid) {
+      toast.error('تعذر التعرف على حساب المدير. أعد تسجيل الدخول.');
+      return;
+    }
 
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: question }]);
@@ -48,8 +53,9 @@ export default function AdminAI() {
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'ai', content: `❌ ${error.message}`, error: true }]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleExecuteAction = async (action) => {
@@ -70,9 +76,12 @@ export default function AdminAI() {
   };
 
   return (
-    <div className="flex flex-col h-screen pb-16" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="flex h-[100dvh] min-h-[100svh] flex-col overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
       <AdminNav />
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ paddingBottom: 'calc(11.5rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         {/* Header */}
         <div className="relative border-b border-white/8 px-4 py-4 pt-16" style={{ backgroundColor: '#0a0a0a' }}>
           <div className="max-w-3xl mx-auto flex items-center gap-3">
@@ -202,7 +211,10 @@ export default function AdminAI() {
         )}
 
         {/* Input */}
-        <div className="border-t border-white/8 p-4 lg:px-8 bg-gradient-to-t from-omega-black to-omega-dark">
+        <div
+          className="fixed inset-x-0 z-30 border-t border-white/8 px-4 py-3 lg:px-8 bg-gradient-to-t from-omega-black via-omega-black to-omega-dark"
+          style={{ bottom: 'calc(6.25rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="max-w-3xl mx-auto flex gap-2 items-end">
             <input
               type="text"

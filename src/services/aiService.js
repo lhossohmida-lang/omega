@@ -1,33 +1,50 @@
 // خدمة الذكاء الاصطناعي - ترسل الطلبات إلى Backend فقط
 // لا يتم إرسال مفتاح API من الواجهة أبداً
 
-export async function sendAIChat(question, adminId) {
-  const response = await fetch('/api/admin-ai/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, adminId }),
-  });
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'خطأ في الاتصال' }));
-    throw new Error(error.message || 'خطأ في الاتصال بالذكاء الاصطناعي');
+async function postAI(path, body, fallbackMessage) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('تعذر الاتصال بخادم الذكاء. تأكد من تشغيل السيرفر الخلفي بالأمر npm run server.');
   }
 
-  return response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json')
+    ? await response.json().catch(() => null)
+    : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || fallbackMessage);
+  }
+
+  if (!data) {
+    throw new Error('لم يصل الطلب إلى خادم الذكاء. تأكد من إعداد proxy أو VITE_API_BASE_URL.');
+  }
+
+  return data;
+}
+
+export async function sendAIChat(question, adminId) {
+  return postAI(
+    '/api/admin-ai/chat',
+    { question, adminId },
+    'خطأ في الاتصال بالذكاء الاصطناعي'
+  );
 }
 
 // تنفيذ إجراء مقترح من AI بعد تأكيد المدير
 export async function executeAIAction(action, adminId) {
-  const response = await fetch('/api/admin-ai/execute-action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, adminId }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'خطأ في تنفيذ الإجراء' }));
-    throw new Error(error.message || 'خطأ في تنفيذ الإجراء');
-  }
-
-  return response.json();
+  return postAI(
+    '/api/admin-ai/execute-action',
+    { action, adminId },
+    'خطأ في تنفيذ الإجراء'
+  );
 }

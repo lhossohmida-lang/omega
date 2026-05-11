@@ -4,6 +4,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getAllOrders } from '../services/orderService';
 import { formatCurrency } from '../utils/formatCurrency';
 import AdminNav from '../components/AdminNav';
+import AdminHeader from '../components/AdminHeader';
 import {
   IoCar, IoCheckmarkCircle, IoCall, IoMail,
   IoStar, IoFlash, IoTrophy
@@ -32,21 +33,10 @@ export default function AdminDrivers() {
     .sort((a, b) => b.deliveredCount - a.deliveredCount)[0];
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="admin-page">
       <AdminNav />
-      <div className="px-4 pt-28">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="page-header-icon">
-                <IoCar size={22} />
-              </div>
-              <div>
-                <h1 className="page-title">إدارة السائقين</h1>
-                <p className="page-subtitle">{drivers.length} سائق مسجل</p>
-              </div>
-            </div>
-          </div>
+      <main className="admin-container">
+          <AdminHeader title="السائقين" accent="إدارة" subtitle={`${drivers.length} سائق مسجل`} />
 
           {loading ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-40" />)}</div>
@@ -129,7 +119,7 @@ export default function AdminDrivers() {
               })}
             </div>
           )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { IoHome, IoCart, IoReceipt, IoPerson } from 'react-icons/io5';
+import { IoHome, IoHomeOutline, IoCart, IoCartOutline, IoReceipt, IoReceiptOutline, IoPerson, IoPersonOutline } from 'react-icons/io5';
 import { useEffect, useState } from 'react';
 
 // شريط التنقل السفلي للزبون
@@ -7,7 +7,6 @@ export default function CustomerNav() {
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
 
-  // Sync cart count from localStorage
   useEffect(() => {
     const sync = () => {
       try {
@@ -22,49 +21,46 @@ export default function CustomerNav() {
   }, []);
 
   const links = [
-    { to: '/', icon: IoHome, label: 'الرئيسية' },
-    { to: '/cart', icon: IoCart, label: 'السلة', badge: cartCount },
-    { to: '/my-orders', icon: IoReceipt, label: 'طلباتي' },
-    { to: '/profile', icon: IoPerson, label: 'حسابي' },
+    { to: '/profile', iconActive: IoPerson, icon: IoPersonOutline, label: 'حسابي' },
+    { to: '/my-orders', iconActive: IoReceipt, icon: IoReceiptOutline, label: 'طلباتي' },
+    { to: '/cart', iconActive: IoCart, icon: IoCartOutline, label: 'السلة', badge: cartCount },
+    { to: '/', iconActive: IoHome, icon: IoHomeOutline, label: 'الرئيسية' },
   ];
 
   return (
-    <nav className="fixed bottom-3 left-3 right-3 z-50 max-w-md mx-auto">
-      <div className="relative rounded-3xl bg-omega-dark/85 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/60">
-        {/* glow */}
-        <div className="absolute inset-x-0 -top-1 h-px bg-gradient-to-r from-transparent via-omega-orange/40 to-transparent" />
+    <nav className="fixed bottom-3 left-3 right-3 z-50 max-w-lg mx-auto">
+      <div className="relative rounded-[1.75rem] bg-omega-dark/90 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/70">
+        <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-omega-orange/60 to-transparent" />
 
-        <div className="flex items-center justify-around h-16 px-2">
-          {links.map(({ to, icon: Icon, label, badge }) => {
-            const isActive = location.pathname === to;
+        <div className="flex items-center justify-around h-[68px] px-2">
+          {links.map(({ to, icon: Icon, iconActive: IconActive, label, badge }) => {
+            const isActive = location.pathname === to || (to === '/' && location.pathname === '/');
+            const DisplayIcon = isActive ? IconActive : Icon;
             return (
               <NavLink
                 key={to}
                 to={to}
-                className="flex flex-col items-center gap-0.5 py-1 px-3 relative group"
+                end={to === '/'}
+                className="flex flex-col items-center gap-1 py-2 px-3 relative group min-w-[64px]"
               >
-                {/* active pill background */}
-                {isActive && (
-                  <span className="absolute inset-0 bg-gradient-to-br from-omega-orange/15 to-omega-red/10 rounded-2xl border border-omega-orange/20 animate-scale-in" />
-                )}
-
-                <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${
-                  isActive
-                    ? 'text-omega-orange -translate-y-0.5'
-                    : 'text-omega-text-muted group-hover:text-omega-orange group-hover:-translate-y-0.5'
+                <div className={`relative transition-all duration-300 ${
+                  isActive ? 'text-omega-orange -translate-y-0.5' : 'text-white/50 group-hover:text-white'
                 }`}>
-                  <Icon size={22} />
+                  <DisplayIcon size={24} />
                   {badge > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-gradient-to-br from-omega-red to-omega-red-light text-white text-[10px] font-black flex items-center justify-center border-2 border-omega-dark animate-scale-in">
+                    <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-omega-orange text-white text-[10px] font-black flex items-center justify-center border-2 border-omega-dark">
                       {badge > 9 ? '9+' : badge}
                     </span>
                   )}
                 </div>
                 <span className={`relative text-[10px] font-bold transition-colors ${
-                  isActive ? 'text-omega-orange' : 'text-omega-text-muted'
+                  isActive ? 'text-omega-orange' : 'text-white/50'
                 }`}>
                   {label}
                 </span>
+                {isActive && (
+                  <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-omega-orange shadow-[0_0_8px_rgba(255,107,0,0.8)]" />
+                )}
               </NavLink>
             );
           })}

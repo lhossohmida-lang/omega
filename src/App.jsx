@@ -27,7 +27,6 @@ import AdminProducts from './pages/AdminProducts';
 import AdminInventory from './pages/AdminInventory';
 import AdminDrivers from './pages/AdminDrivers';
 import AdminAI from './pages/AdminAI';
-import AdminAISettings from './pages/AdminAISettings';
 import AdminReports from './pages/AdminReports';
 
 export default function App() {
@@ -74,7 +73,6 @@ export default function App() {
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventory /></ProtectedRoute>} />
       <Route path="/admin/drivers" element={<ProtectedRoute allowedRoles={['admin']}><AdminDrivers /></ProtectedRoute>} />
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
-      <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin']}><AdminAISettings /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
 
       {/* Fallback */}

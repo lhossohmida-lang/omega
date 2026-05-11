@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../utils/formatCurrency';
 import { timeAgo } from '../utils/formatDate';
 import AdminNav from '../components/AdminNav';
+import AdminHeader from '../components/AdminHeader';
 import {
   IoCube, IoAdd, IoRemove, IoClose, IoSwapVertical,
   IoTrendingUp, IoTrendingDown, IoWarning, IoCheckmarkCircle,
@@ -185,30 +186,26 @@ export default function AdminInventory() {
   );
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="admin-page">
       <AdminNav />
-      <div className="px-4 pt-28">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="page-header-icon">
-                <IoCube size={22} />
-              </div>
-              <div>
-                <h1 className="page-title">إدارة المخزون</h1>
-                <p className="page-subtitle">
-                  {tab === 'products'
-                    ? `${products.length} منتج`
-                    : `${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`}
-                </p>
-              </div>
-            </div>
-            {tab === 'ingredients' && (
+      <main className="admin-container">
+          <AdminHeader
+            title="المخزون"
+            accent="إدارة"
+            subtitle={tab === 'products'
+              ? `${products.length} منتج`
+              : `${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`
+            }
+          />
+
+          {/* Action button row (only on ingredients) */}
+          {tab === 'ingredients' && (
+            <div className="mb-4 flex justify-end">
               <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
-                <IoAdd size={18} /> <span className="hidden sm:inline">خانة جديدة</span>
+                <IoAdd size={18} /> <span>خانة جديدة</span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-md">
@@ -426,7 +423,7 @@ export default function AdminInventory() {
               )}
             </>
           )}
-      </div>
+      </main>
 
       {/* Product Movement Modal */}
       {showModal && (() => {

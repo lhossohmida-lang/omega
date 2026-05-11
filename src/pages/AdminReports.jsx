@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { isToday, isThisMonth } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
 import AdminNav from '../components/AdminNav';
+import AdminHeader from '../components/AdminHeader';
 import { IoBarChart, IoTrendingUp, IoTrophy, IoStatsChart } from 'react-icons/io5';
 
 const catLabels = {
@@ -72,21 +73,10 @@ export default function AdminReports() {
   ];
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="admin-page">
       <AdminNav />
-      <div className="px-4 pt-28">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="page-header-icon">
-                <IoBarChart size={22} />
-              </div>
-              <div>
-                <h1 className="page-title">التقارير والإحصائيات</h1>
-                <p className="page-subtitle">تحليل أداء المطعم</p>
-              </div>
-            </div>
-          </div>
+      <main className="admin-container">
+          <AdminHeader title="والإحصائيات" accent="التقارير" subtitle="تحليل أداء المطعم" />
 
           {loading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-24" />)}</div>
@@ -175,7 +165,7 @@ export default function AdminReports() {
               </div>
             </>
           )}
-      </div>
+      </main>
     </div>
   );
 }

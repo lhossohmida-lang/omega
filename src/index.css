@@ -47,6 +47,130 @@ body {
   background-attachment: fixed;
 }
 
+#root { min-height: 100vh; }
+
+/* ============================
+   Admin chrome
+   ============================ */
+.admin-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding: 5.25rem 1rem calc(7.5rem + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(520px 320px at 90% 4%, rgba(255, 107, 0, 0.17), transparent 68%),
+    radial-gradient(420px 260px at 0% 16%, rgba(59, 130, 246, 0.08), transparent 70%),
+    linear-gradient(135deg, #07090b 0%, #0c1115 48%, #080808 100%);
+}
+
+.admin-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.035), transparent 18%, rgba(255,107,0,0.04) 55%, transparent 74%),
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,0.035), transparent 24%);
+  opacity: 0.9;
+}
+
+.admin-container {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1060px);
+  margin-inline: auto;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+  padding-inline-start: 4.5rem;
+}
+
+.admin-title {
+  color: #fff;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.admin-subtitle {
+  margin-top: 0.45rem;
+  color: var(--color-omega-text-muted);
+  font-size: 0.95rem;
+}
+
+.admin-glass {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    linear-gradient(135deg, rgba(31, 34, 39, 0.88), rgba(13, 17, 21, 0.82)),
+    radial-gradient(360px 180px at 100% 0%, rgba(255,107,0,0.11), transparent 72%);
+  box-shadow: 0 18px 50px -36px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.admin-control {
+  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(135deg, rgba(28, 31, 36, 0.88), rgba(13, 16, 19, 0.82));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.admin-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.15rem;
+  height: 3.15rem;
+  border-radius: 1.15rem;
+  color: var(--color-omega-orange);
+  border: 1px solid rgba(255,107,0,0.16);
+  background: radial-gradient(circle at 50% 20%, rgba(255,107,0,0.22), rgba(255,255,255,0.04));
+  box-shadow: 0 10px 26px -18px rgba(255,107,0,0.7);
+}
+
+.admin-bottom-nav {
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    linear-gradient(135deg, rgba(28, 31, 36, 0.93), rgba(9, 12, 15, 0.94)),
+    radial-gradient(220px 90px at 78% 0%, rgba(255,107,0,0.14), transparent 76%);
+  box-shadow: 0 18px 50px -24px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.07);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+@media (min-width: 768px) {
+  .admin-page { padding-inline: 2rem; }
+}
+
+@media (max-width: 480px) {
+  .admin-page { padding: 4.75rem 0.875rem calc(7rem + env(safe-area-inset-bottom, 0px)); }
+  .admin-header { gap: 0.7rem; padding-inline-start: 3.6rem; margin-bottom: 1.1rem; }
+  .admin-title { font-size: 1.6rem; }
+  .admin-subtitle { font-size: 0.72rem; margin-top: 0.25rem; }
+  .stat-card { padding: 0.75rem; }
+  .stat-card p.text-xl { font-size: 1rem; }
+  .card-premium { border-radius: 1rem; }
+  .page-header-icon { width: 38px; height: 38px; }
+  .page-title { font-size: 1.15rem; }
+  .page-subtitle { font-size: 0.72rem; }
+  .input-modern { padding: 0.7rem 0.85rem; font-size: 0.82rem; }
+  .btn-primary { padding: 0.7rem 1rem; font-size: 0.85rem; }
+  .chip { padding: 0.35rem 0.7rem; font-size: 0.7rem; }
+}
+
+/* Make stat-card text always readable on mobile */
+@media (max-width: 360px) {
+  .stat-card { padding: 0.6rem; }
+  .stat-card p { font-size: 0.85rem !important; }
+  .stat-card .text-\[11px\] { font-size: 0.65rem !important; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #0f0f10; }

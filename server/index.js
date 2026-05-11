@@ -157,8 +157,8 @@ app.post('/api/admin-ai/chat', aiLimiter, async (req, res) => {
     // جمع البيانات
     const dataSummary = await gatherDataSummary();
 
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    if (!OPENROUTER_API_KEY) {
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY?.trim();
+    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY === 'your_openrouter_api_key_here') {
       return res.status(500).json({ message: 'مفتاح OpenRouter غير مُعد. أضف OPENROUTER_API_KEY في ملف .env' });
     }
 
