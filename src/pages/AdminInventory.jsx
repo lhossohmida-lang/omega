@@ -185,10 +185,9 @@ export default function AdminInventory() {
   );
 
   return (
-    <div className="min-h-screen bg-omega-dark lg:flex">
+    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       <AdminNav />
-      <main className="flex-1 pb-safe">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-16 lg:pt-8">
+      <div className="px-4 pt-28">
           {/* Header */}
           <div className="flex items-start justify-between mb-6 animate-fade-in">
             <div className="flex items-center gap-3">
@@ -427,8 +426,7 @@ export default function AdminInventory() {
               )}
             </>
           )}
-        </div>
-      </main>
+      </div>
 
       {/* Product Movement Modal */}
       {showModal && (() => {
