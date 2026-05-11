@@ -70,11 +70,11 @@ export default function AdminAI() {
   };
 
   return (
-    <div className="min-h-screen bg-omega-dark lg:flex">
+    <div className="flex flex-col h-screen pb-16" style={{ backgroundColor: '#0a0a0a' }}>
       <AdminNav />
-      <main className="flex-1 flex flex-col h-screen">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="relative border-b border-white/8 px-4 lg:px-8 py-4 pt-16 lg:pt-5 bg-gradient-to-b from-omega-dark to-transparent">
+        <div className="relative border-b border-white/8 px-4 py-4 pt-16" style={{ backgroundColor: '#0a0a0a' }}>
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-omega-orange via-omega-orange-dark to-omega-red flex items-center justify-center shadow-lg shadow-omega-orange/30 animate-glow">
               <IoSparkles className="text-white" size={22} />
@@ -226,3 +226,4 @@ export default function AdminAI() {
     </div>
   );
 }
+

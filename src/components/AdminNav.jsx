@@ -1,135 +1,124 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
-  IoApps, IoClipboard, IoRestaurant, IoArchive, IoCar,
-  IoBulb, IoSettings, IoTrendingUp, IoLogOut, IoClose, IoMenu,
-  IoPersonCircle
+  IoMenu, IoClose, IoApps, IoClipboard, IoRestaurant, IoBulb,
+  IoArchive, IoBarChart, IoSettings, IoCar, IoLogOut,
 } from 'react-icons/io5';
-import { useState } from 'react';
 
-// شريط التنقل الجانبي للإدارة
+const TABS = [
+  { to: '/admin',          icon: IoApps,       label: 'الرئيسية' },
+  { to: '/admin/orders',   icon: IoClipboard,  label: 'الطلبات'  },
+  { to: '/admin/products', icon: IoRestaurant, label: 'المنتجات' },
+  { to: '/admin/ai',       icon: IoBulb,       label: 'الذكاء'   },
+];
+
+const MENU_LINKS = [
+  { to: '/admin',           icon: IoApps,       label: 'لوحة التحكم'       },
+  { to: '/admin/orders',    icon: IoClipboard,  label: 'الطلبات'            },
+  { to: '/admin/products',  icon: IoRestaurant, label: 'المنتجات والمخزون' },
+  { to: '/admin/inventory', icon: IoArchive,    label: 'المواد الخام'       },
+  { to: '/admin/drivers',   icon: IoCar,        label: 'السائقون'           },
+  { to: '/admin/ai',        icon: IoBulb,       label: 'الذكاء الاصطناعي'  },
+  { to: '/admin/reports',   icon: IoBarChart,   label: 'التقارير'           },
+  { to: '/admin/settings',  icon: IoSettings,   label: 'الإعدادات'          },
+];
+
 export default function AdminNav() {
-  const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
+  const [open, setOpen] = useState(false);
   const { logout, userData } = useAuth();
-
-  const sections = [
-    {
-      title: 'الرئيسية',
-      links: [
-        { to: '/admin', icon: IoApps, label: 'لوحة التحكم' },
-        { to: '/admin/orders', icon: IoClipboard, label: 'الطلبات' },
-      ]
-    },
-    {
-      title: 'إدارة',
-      links: [
-        { to: '/admin/products', icon: IoRestaurant, label: 'المنتجات' },
-        { to: '/admin/inventory', icon: IoArchive, label: 'المخزون' },
-        { to: '/admin/drivers', icon: IoCar, label: 'السائقون' },
-      ]
-    },
-    {
-      title: 'الذكاء والتقارير',
-      links: [
-        { to: '/admin/ai', icon: IoBulb, label: 'الذكاء الاصطناعي' },
-        { to: '/admin/reports', icon: IoTrendingUp, label: 'التقارير' },
-        { to: '/admin/settings', icon: IoSettings, label: 'الإعدادات' },
-      ]
-    }
-  ];
 
   return (
     <>
-      {/* زر القائمة للهاتف */}
+      {/* Hamburger – fixed top-left */}
       <button
-        onClick={() => setIsOpen(true)}
-        className="lg:hidden fixed top-4 right-4 z-50 p-2.5 rounded-xl bg-omega-gray/80 backdrop-blur-md text-omega-orange border border-white/10 shadow-lg shadow-black/40 hover:scale-105 active:scale-95 transition-transform"
+        onClick={() => setOpen(true)}
+        className="fixed z-40 flex items-center justify-center w-10 h-10 rounded-2xl bg-omega-gray/80 backdrop-blur-md text-omega-text-muted active:scale-95 transition-transform"
+        style={{ top: '3.5rem', left: '1rem' }}
       >
-        <IoMenu size={22} />
+        <IoMenu size={20} />
       </button>
 
-      {/* الخلفية المعتمة */}
-      {isOpen && (
+      {/* Ω brand – fixed top-right */}
+      <div
+        className="fixed z-40 flex items-center justify-center w-11 h-11 rounded-2xl shadow-lg shadow-omega-orange/30 pointer-events-none"
+        style={{ top: '3.5rem', right: '1rem', background: 'linear-gradient(135deg, #ff6b00, #e53935)' }}
+      >
+        <span className="text-white font-black text-xl">Ω</span>
+      </div>
+
+      {/* Overlay backdrop */}
+      {open && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm animate-fade-in"
-          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-fade-in"
+          onClick={() => setOpen(false)}
         />
       )}
 
-      {/* القائمة الجانبية */}
-      <aside className={`fixed top-0 right-0 h-full w-72 z-50
-        bg-gradient-to-b from-omega-dark to-omega-black
-        border-l border-white/8
-        transform transition-transform duration-300 ease-out
-        ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-        lg:translate-x-0 lg:static lg:z-auto
-        flex flex-col`}
+      {/* Slide-in menu from right (RTL start) */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-72 flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        style={{ background: 'linear-gradient(to bottom, #0f0f10, #0a0a0a)', borderLeft: '1px solid rgba(255,255,255,0.06)' }}
       >
-        {/* glow accent */}
-        <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 bg-omega-orange/10 blur-3xl rounded-full" />
-
-        {/* الشعار */}
-        <div className="relative flex items-center justify-between p-5 border-b border-white/8">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-14 pb-5 border-b border-white/6">
+          <button
+            onClick={() => setOpen(false)}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-omega-text-muted hover:text-white transition-colors"
+            style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+          >
+            <IoClose size={20} />
+          </button>
           <div className="flex items-center gap-3">
-            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-omega-orange via-omega-orange-dark to-omega-red flex items-center justify-center shadow-lg shadow-omega-orange/30">
-              <span className="text-white font-black text-xl">Ω</span>
-              <div className="absolute inset-0 rounded-2xl ring-1 ring-white/20" />
-            </div>
             <div>
-              <h1 className="text-base font-black text-white tracking-tight">OMEGA</h1>
-              <p className="text-[11px] text-omega-text-muted">لوحة الإدارة</p>
+              <p className="text-white font-black text-base">OMEGA</p>
+              <p className="text-omega-text-dim text-xs">لوحة الإدارة</p>
+            </div>
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #ff6b00, #e53935)' }}
+            >
+              <span className="text-white font-black text-lg">Ω</span>
             </div>
           </div>
-          <button onClick={() => setIsOpen(false)} className="lg:hidden text-omega-text-muted hover:text-white transition-colors">
-            <IoClose size={24} />
-          </button>
         </div>
 
-        {/* الروابط */}
-        <nav className="flex-1 p-3 overflow-y-auto no-scrollbar">
-          {sections.map((section, si) => (
-            <div key={si} className="mb-4">
-              <p className="px-3 mb-1.5 text-[10px] font-bold text-omega-text-dim uppercase tracking-wider">
-                {section.title}
-              </p>
-              <div className="space-y-0.5">
-                {section.links.map(({ to, icon: Icon, label }) => {
-                  const isActive = location.pathname === to;
-                  return (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      end={to === '/admin'}
-                      onClick={() => setIsOpen(false)}
-                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                        ${isActive
-                          ? 'bg-gradient-to-l from-omega-orange/20 to-omega-orange/5 text-white border border-omega-orange/20'
-                          : 'text-omega-text-muted hover:bg-white/5 hover:text-white border border-transparent'
-                        }`}
-                    >
-                      {/* active indicator */}
-                      {isActive && (
-                        <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-omega-orange to-omega-red rounded-l-full shadow-lg shadow-omega-orange/40" />
-                      )}
-                      <Icon size={19} className={isActive ? 'text-omega-orange' : 'group-hover:text-omega-orange transition-colors'} />
-                      <span>{label}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
+        {/* Nav links */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar">
+          {MENU_LINKS.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/admin'}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 mb-1 rounded-2xl text-sm font-bold transition-all ${
+                  isActive
+                    ? 'bg-omega-orange/15 text-omega-orange'
+                    : 'text-omega-text-muted hover:bg-white/5 hover:text-white'
+                }`
+              }
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </NavLink>
           ))}
         </nav>
 
-        {/* User profile + logout */}
-        <div className="relative p-3 border-t border-white/8 space-y-2">
+        {/* User + logout */}
+        <div className="px-3 pb-8 pt-3 border-t border-white/6 space-y-2">
           {userData && (
-            <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl bg-white/5 border border-white/5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {userData.name?.[0] || <IoPersonCircle size={20} />}
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+              style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+            >
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #ff6b00, #e53935)' }}
+              >
+                {userData.name?.[0] || 'أ'}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="text-white text-xs font-bold truncate">{userData.name || 'المدير'}</p>
                 <p className="text-omega-text-dim text-[10px] truncate">{userData.email}</p>
               </div>
@@ -137,13 +126,43 @@ export default function AdminNav() {
           )}
           <button
             onClick={logout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-omega-red hover:bg-omega-red/10 transition-all border border-transparent hover:border-omega-red/15"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm font-bold text-omega-red hover:bg-omega-red/8 transition-all"
           >
-            <IoLogOut size={19} />
+            <IoLogOut size={18} />
             <span>تسجيل الخروج</span>
           </button>
         </div>
       </aside>
+
+      {/* Bottom tab bar */}
+      <nav
+        className="fixed bottom-0 inset-x-0 z-40 border-t border-white/6"
+        style={{ backgroundColor: '#0a0a0a', paddingBottom: 'env(safe-area-inset-bottom, 4px)' }}
+      >
+        <div className="flex items-center justify-around py-1">
+          {TABS.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/admin'}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 flex-1 py-1.5 transition-all duration-200 ${
+                  isActive ? 'text-omega-orange' : 'text-omega-text-dim'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className={`p-1.5 rounded-xl transition-all duration-200 ${isActive ? 'bg-omega-orange/15' : ''}`}>
+                    <Icon size={22} />
+                  </div>
+                  <span className="text-[10px] font-bold">{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </>
   );
 }
