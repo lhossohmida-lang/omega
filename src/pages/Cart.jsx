@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomerNav from '../components/CustomerNav';
 import { formatCurrency } from '../utils/formatCurrency';
-import { IoTrash, IoAdd, IoRemove, IoArrowForward, IoCart } from 'react-icons/io5';
+import { IoTrash, IoAdd, IoRemove, IoArrowForward, IoCart, IoBag } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
 function getCart() { try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; } }
@@ -10,6 +10,7 @@ function saveCart(cart) { localStorage.setItem('omega_cart', JSON.stringify(cart
 
 export default function Cart() {
   const [cart, setCart] = useState([]);
+  const [removingId, setRemovingId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => { setCart(getCart()); }, []);
@@ -27,101 +28,140 @@ export default function Cart() {
   };
 
   const removeItem = (productId) => {
-    const updated = cart.filter(item => item.productId !== productId);
-    setCart(updated);
-    saveCart(updated);
-    toast.success('تمت الإزالة من السلة');
+    setRemovingId(productId);
+    setTimeout(() => {
+      const updated = cart.filter(item => item.productId !== productId);
+      setCart(updated);
+      saveCart(updated);
+      setRemovingId(null);
+      toast.success('تمت الإزالة');
+    }, 250);
   };
 
   const clearCart = () => {
+    if (!confirm('هل تريد تفريغ السلة؟')) return;
     setCart([]);
     saveCart([]);
     toast.success('تم تفريغ السلة');
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-omega-dark pb-safe">
+    <div className="min-h-screen pb-32 relative overflow-hidden">
+      <div className="pointer-events-none fixed top-0 left-0 w-72 h-72 bg-omega-orange/10 rounded-full blur-3xl" />
+
       {/* Header */}
-      <div className="sticky top-0 z-30 glass">
+      <div className="sticky top-0 z-30 backdrop-blur-xl bg-omega-dark/70 border-b border-white/5">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-omega-text-muted hover:text-white transition-colors">
-              <IoArrowForward size={22} />
+            <button onClick={() => navigate(-1)}
+              className="w-10 h-10 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center text-white hover:bg-white/10 transition-colors">
+              <IoArrowForward size={20} />
             </button>
-            <h1 className="text-lg font-bold text-white">سلة التسوق</h1>
+            <div>
+              <h1 className="text-lg font-black text-white">سلة التسوق</h1>
+              <p className="text-omega-text-dim text-[11px]">{itemCount} منتج</p>
+            </div>
           </div>
           {cart.length > 0 && (
-            <button onClick={clearCart} className="text-omega-red text-xs hover:text-omega-red-light transition-colors">تفريغ السلة</button>
+            <button onClick={clearCart} className="flex items-center gap-1 text-omega-red text-xs font-bold hover:text-omega-red-light transition-colors">
+              <IoTrash size={14} /> تفريغ
+            </button>
           )}
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 mt-4">
+      <div className="max-w-lg mx-auto px-4 mt-4 relative">
         {cart.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="text-6xl mb-4">🛒</div>
-            <h3 className="text-white font-bold text-lg mb-2">السلة فارغة</h3>
-            <p className="text-omega-text-muted text-sm mb-6">أضف بعض الوجبات اللذيذة!</p>
-            <button onClick={() => navigate('/')}
-              className="px-6 py-2.5 rounded-xl bg-omega-orange text-white font-medium hover:bg-omega-orange-light transition-colors">
-              تصفح المنتجات
+          <div className="text-center py-20 animate-fade-in">
+            <div className="relative inline-block mb-6">
+              <div className="text-7xl animate-float">🛒</div>
+              <div className="absolute inset-0 bg-omega-orange/20 blur-3xl rounded-full" />
+            </div>
+            <h3 className="text-white font-black text-xl mb-2">السلة فارغة</h3>
+            <p className="text-omega-text-muted text-sm mb-7">أضف بعض الوجبات اللذيذة!</p>
+            <button onClick={() => navigate('/')} className="btn-primary inline-flex items-center gap-2">
+              <IoBag size={18} /> تصفح المنتجات
             </button>
           </div>
         ) : (
           <>
-            {/* عناصر السلة */}
-            <div className="space-y-3 mb-4">
-              {cart.map((item, idx) => (
-                <div key={item.productId} className="glass rounded-xl p-3 flex gap-3 animate-fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
-                  <div className="w-16 h-16 rounded-xl bg-omega-gray overflow-hidden flex-shrink-0">
+            {/* Cart items */}
+            <div className="space-y-2.5 mb-4 stagger">
+              {cart.map((item) => (
+                <div
+                  key={item.productId}
+                  className={`relative overflow-hidden rounded-2xl bg-gradient-to-l from-white/5 to-white/3 backdrop-blur-sm border border-white/8 p-3 flex gap-3 transition-all duration-300 ${
+                    removingId === item.productId ? 'opacity-0 -translate-x-full scale-95' : 'hover:border-omega-orange/20'
+                  }`}
+                >
+                  {/* Image */}
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border border-white/8 bg-omega-gray">
                     {item.image ? (
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">🍽️</div>
+                      <div className="w-full h-full flex items-center justify-center text-3xl bg-gradient-to-br from-omega-gray to-omega-dark">🍽️</div>
                     )}
                   </div>
+
+                  {/* Details */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-white text-sm font-bold truncate">{item.name}</h4>
-                    <p className="text-omega-orange text-sm font-bold">{formatCurrency(item.price)}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h4 className="text-white text-sm font-bold truncate flex-1">{item.name}</h4>
+                      <button onClick={() => removeItem(item.productId)}
+                        className="w-7 h-7 rounded-lg bg-omega-red/10 text-omega-red hover:bg-omega-red/20 flex items-center justify-center transition-colors flex-shrink-0">
+                        <IoTrash size={14} />
+                      </button>
+                    </div>
+                    <p className="gradient-text font-black text-base">{formatCurrency(item.price)}</p>
+
+                    {/* Qty controls */}
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-1 bg-white/5 border border-white/8 rounded-xl p-0.5">
                         <button onClick={() => updateQuantity(item.productId, -1)}
-                          className="w-7 h-7 rounded-lg bg-omega-dark/50 flex items-center justify-center text-white text-xs hover:bg-omega-orange/20 transition-colors">
+                          className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-white hover:bg-omega-red/20 hover:text-omega-red transition-all active:scale-90">
                           <IoRemove size={14} />
                         </button>
-                        <span className="text-white font-bold text-sm">{item.quantity}</span>
+                        <span className="text-white font-black text-sm min-w-[24px] text-center">{item.quantity}</span>
                         <button onClick={() => updateQuantity(item.productId, 1)}
-                          className="w-7 h-7 rounded-lg bg-omega-dark/50 flex items-center justify-center text-white text-xs hover:bg-omega-orange/20 transition-colors">
+                          className="w-7 h-7 rounded-lg bg-omega-orange/15 flex items-center justify-center text-omega-orange hover:bg-omega-orange/30 transition-all active:scale-90">
                           <IoAdd size={14} />
                         </button>
                       </div>
-                      <button onClick={() => removeItem(item.productId)} className="text-omega-red hover:text-omega-red-light transition-colors">
-                        <IoTrash size={16} />
-                      </button>
+                      <p className="text-white text-xs font-bold">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* الملخص */}
-            <div className="glass rounded-2xl p-4 mb-4">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-omega-text-muted text-sm">عدد المنتجات</span>
-                <span className="text-white font-bold">{cart.reduce((s, i) => s + i.quantity, 0)}</span>
+            {/* Summary */}
+            <div className="rounded-3xl bg-gradient-to-br from-omega-gray/40 to-omega-dark-2/40 backdrop-blur border border-white/8 p-5 mb-4 animate-fade-in">
+              <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                <IoCart className="text-omega-orange" size={16} /> ملخص الطلب
+              </h4>
+              <div className="space-y-2 mb-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-omega-text-muted">عدد المنتجات</span>
+                  <span className="text-white font-bold">{itemCount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-omega-text-muted">المجموع الفرعي</span>
+                  <span className="text-white">{formatCurrency(total)}</span>
+                </div>
               </div>
               <div className="border-t border-white/10 pt-3 flex justify-between items-center">
-                <span className="text-white font-bold">الإجمالي</span>
-                <span className="text-omega-orange font-black text-xl">{formatCurrency(total)}</span>
+                <span className="text-white font-black">الإجمالي</span>
+                <span className="gradient-text font-black text-2xl">{formatCurrency(total)}</span>
               </div>
             </div>
 
-            {/* زر الطلب */}
+            {/* CTA */}
             <button
               onClick={() => navigate('/checkout')}
-              className="w-full py-4 rounded-xl bg-gradient-to-l from-omega-orange to-omega-orange-dark text-white font-bold text-base hover:shadow-lg hover:shadow-omega-orange/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-2xl bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-base shadow-2xl shadow-omega-orange/30 hover:shadow-omega-orange/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 animate-fade-in"
             >
               <IoCart size={20} />
               <span>إتمام الطلب • {formatCurrency(total)}</span>

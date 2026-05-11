@@ -4,7 +4,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import AdminNav from '../components/AdminNav';
 import {
   IoAdd, IoCreate, IoTrash, IoClose, IoCloudUpload,
-  IoFastFood, IoSearch, IoPricetag, IoCube
+  IoFastFood, IoSearch, IoPricetag
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -24,7 +24,7 @@ export default function AdminProducts() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('all');
   const [form, setForm] = useState({
-    name: '', category: 'burger', price: '', costPrice: '', stock: '', description: '', image: '', isAvailable: true,
+    name: '', category: 'burger', price: '', description: '', image: '', isAvailable: true,
   });
 
   useEffect(() => { loadProducts(); }, []);
@@ -35,15 +35,15 @@ export default function AdminProducts() {
   };
 
   const resetForm = () => {
-    setForm({ name: '', category: 'burger', price: '', costPrice: '', stock: '', description: '', image: '', isAvailable: true });
+    setForm({ name: '', category: 'burger', price: '', description: '', image: '', isAvailable: true });
     setEditing(null);
     setShowForm(false);
   };
 
   const openEdit = (product) => {
     setForm({
-      name: product.name, category: product.category, price: product.price, costPrice: product.costPrice || '',
-      stock: product.stock, description: product.description || '', image: product.image || '', isAvailable: product.isAvailable,
+      name: product.name, category: product.category, price: product.price,
+      description: product.description || '', image: product.image || '', isAvailable: product.isAvailable,
     });
     setEditing(product.id);
     setShowForm(true);
@@ -55,8 +55,8 @@ export default function AdminProducts() {
     setSaving(true);
     try {
       const data = {
-        name: form.name, category: form.category, price: Number(form.price), costPrice: Number(form.costPrice) || 0,
-        stock: Number(form.stock) || 0, description: form.description, image: form.image, isAvailable: form.isAvailable,
+        name: form.name, category: form.category, price: Number(form.price),
+        description: form.description, image: form.image, isAvailable: form.isAvailable,
       };
       if (editing) {
         await updateProduct(editing, data);
@@ -182,18 +182,10 @@ export default function AdminProducts() {
                         <span className="flex items-center gap-1 text-omega-orange text-xs font-black">
                           <IoPricetag size={11} /> {formatCurrency(p.price)}
                         </span>
-                        <span className="text-omega-text-dim text-[10px]">تكلفة: {formatCurrency(p.costPrice)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-2">
                         <span className={`badge ${p.isAvailable ? 'bg-emerald-500/12 text-emerald-400 border-emerald-500/25' : 'bg-omega-red/12 text-omega-red border-omega-red/25'}`}>
                           {p.isAvailable ? 'متوفر' : 'غير متوفر'}
-                        </span>
-                        <span className={`badge ${
-                          p.stock === 0 ? 'bg-omega-red/12 text-omega-red border-omega-red/25' :
-                          p.stock <= 5 ? 'bg-yellow-500/12 text-yellow-400 border-yellow-500/25' :
-                          'bg-white/5 text-omega-text-muted border-white/10'
-                        }`}>
-                          <IoCube size={9} /> {p.stock}
                         </span>
                       </div>
                     </div>
@@ -237,22 +229,9 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">السعر *</label>
-                  <input type="number" placeholder="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })}
-                    className="input-modern" />
-                </div>
-                <div>
-                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">التكلفة</label>
-                  <input type="number" placeholder="0" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })}
-                    className="input-modern" />
-                </div>
-              </div>
-
               <div>
-                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">المخزون</label>
-                <input type="number" placeholder="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })}
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">السعر *</label>
+                <input type="number" placeholder="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })}
                   className="input-modern" />
               </div>
 
