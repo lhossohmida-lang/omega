@@ -2,10 +2,18 @@ import { useState, useEffect } from 'react';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, uploadProductImage } from '../services/productService';
 import { formatCurrency } from '../utils/formatCurrency';
 import AdminNav from '../components/AdminNav';
-import { IoAdd, IoCreate, IoTrash, IoClose, IoCloudUpload, IoImage } from 'react-icons/io5';
+import {
+  IoAdd, IoCreate, IoTrash, IoClose, IoCloudUpload,
+  IoFastFood, IoSearch, IoPricetag, IoCube
+} from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
-const categoryLabels = { burger: '🍔 برجر', pizza: '🍕 بيتزا', tacos: '🌮 تاكوس', drinks: '🥤 مشروبات' };
+const categoryLabels = {
+  burger: { label: 'برجر', emoji: '🍔' },
+  pizza: { label: 'بيتزا', emoji: '🍕' },
+  tacos: { label: 'تاكوس', emoji: '🌮' },
+  drinks: { label: 'مشروبات', emoji: '🥤' },
+};
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -13,6 +21,8 @@ export default function AdminProducts() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('all');
   const [form, setForm] = useState({
     name: '', category: 'burger', price: '', costPrice: '', stock: '', description: '', image: '', isAvailable: true,
   });
@@ -79,111 +89,206 @@ export default function AdminProducts() {
     } catch (err) { toast.dismiss(); toast.error('خطأ في رفع الصورة'); }
   };
 
+  const filtered = products.filter(p => {
+    if (catFilter !== 'all' && p.category !== catFilter) return false;
+    if (search && !p.name?.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-omega-dark lg:flex">
       <AdminNav />
       <main className="flex-1 pb-safe">
-        <div className="max-w-4xl mx-auto px-4 pt-16 lg:pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-black text-white">إدارة المنتجات</h1>
-            <button onClick={() => { resetForm(); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-omega-orange text-white text-sm font-medium hover:bg-omega-orange-light transition-colors">
-              <IoAdd size={18} /> إضافة
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-16 lg:pt-8">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="page-header-icon">
+                <IoFastFood size={22} />
+              </div>
+              <div>
+                <h1 className="page-title">إدارة المنتجات</h1>
+                <p className="page-subtitle">{filtered.length} منتج</p>
+              </div>
+            </div>
+            <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm">
+              <IoAdd size={18} /> <span className="hidden sm:inline">إضافة منتج</span>
             </button>
           </div>
 
+          {/* Search */}
+          <div className="relative mb-4 animate-fade-in">
+            <IoSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-omega-text-dim" size={18} />
+            <input
+              type="text"
+              placeholder="ابحث عن منتج..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="input-modern pr-11"
+            />
+          </div>
+
+          {/* Category filter */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5 pb-1">
+            <button onClick={() => setCatFilter('all')} className={`chip ${catFilter === 'all' ? 'chip-active' : ''}`}>الكل</button>
+            {Object.entries(categoryLabels).map(([k, v]) => (
+              <button key={k} onClick={() => setCatFilter(k)} className={`chip ${catFilter === k ? 'chip-active' : ''}`}>
+                <span>{v.emoji}</span> {v.label}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-20 rounded-xl" />)}</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-24" />)}</div>
+          ) : filtered.length === 0 ? (
+            <div className="card-premium p-10 text-center">
+              <IoFastFood className="text-omega-text-dim mx-auto mb-3" size={48} />
+              <p className="text-omega-text-muted">لا توجد منتجات</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {products.map((p, idx) => (
-                <div key={p.id} className="glass rounded-xl p-3 flex gap-3 animate-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
-                  <div className="w-16 h-16 rounded-xl bg-omega-gray overflow-hidden flex-shrink-0">
-                    {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> :
-                      <div className="w-full h-full flex items-center justify-center text-2xl">{categoryLabels[p.category]?.split(' ')[0]}</div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-white text-sm font-bold truncate">{p.name}</h4>
-                      <div className="flex gap-1">
-                        <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-orange hover:bg-omega-orange/10 transition-all"><IoCreate size={16} /></button>
-                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all"><IoTrash size={16} /></button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 stagger">
+              {filtered.map(p => {
+                const cat = categoryLabels[p.category];
+                return (
+                  <div key={p.id} className="card-premium p-3 flex gap-3 group">
+                    <div className="relative w-20 h-20 rounded-xl bg-gradient-to-br from-omega-gray to-omega-dark-2 overflow-hidden flex-shrink-0 border border-white/5">
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl">{cat?.emoji}</div>
+                      )}
+                      {!p.isAvailable && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-omega-red text-[10px] font-bold">غير متوفر</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-1">
+                        <div className="min-w-0">
+                          <h4 className="text-white text-sm font-bold truncate">{p.name}</h4>
+                          <p className="text-omega-text-dim text-[10px]">{cat?.label}</p>
+                        </div>
+                        <div className="flex gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-orange hover:bg-omega-orange/10 transition-all">
+                            <IoCreate size={15} />
+                          </button>
+                          <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all">
+                            <IoTrash size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="flex items-center gap-1 text-omega-orange text-xs font-black">
+                          <IoPricetag size={11} /> {formatCurrency(p.price)}
+                        </span>
+                        <span className="text-omega-text-dim text-[10px]">تكلفة: {formatCurrency(p.costPrice)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className={`badge ${p.isAvailable ? 'bg-emerald-500/12 text-emerald-400 border-emerald-500/25' : 'bg-omega-red/12 text-omega-red border-omega-red/25'}`}>
+                          {p.isAvailable ? 'متوفر' : 'غير متوفر'}
+                        </span>
+                        <span className={`badge ${
+                          p.stock === 0 ? 'bg-omega-red/12 text-omega-red border-omega-red/25' :
+                          p.stock <= 5 ? 'bg-yellow-500/12 text-yellow-400 border-yellow-500/25' :
+                          'bg-white/5 text-omega-text-muted border-white/10'
+                        }`}>
+                          <IoCube size={9} /> {p.stock}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-omega-orange text-xs font-bold">{formatCurrency(p.price)}</span>
-                      <span className="text-omega-text-muted text-[10px]">تكلفة: {formatCurrency(p.costPrice)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${p.isAvailable ? 'bg-omega-success/15 text-omega-success' : 'bg-omega-red/15 text-omega-red'}`}>
-                        {p.isAvailable ? 'متوفر' : 'غير متوفر'}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${p.stock <= 5 ? 'bg-yellow-500/15 text-yellow-500' : 'bg-omega-gray text-omega-text-muted'}`}>
-                        مخزون: {p.stock}
-                      </span>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </main>
 
-      {/* نموذج إضافة/تعديل */}
+      {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={resetForm} />
-          <div className="relative glass rounded-t-2xl lg:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 animate-slide-up">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-bold">{editing ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h3>
-              <button onClick={resetForm} className="text-omega-text-muted hover:text-white"><IoClose size={22} /></button>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={resetForm} />
+          <div className="relative card-premium rounded-t-3xl lg:rounded-3xl w-full max-w-md max-h-[92vh] overflow-y-auto no-scrollbar p-6 animate-slide-up">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-black text-lg">{editing ? 'تعديل المنتج' : 'منتج جديد'}</h3>
+              <button onClick={resetForm} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-omega-text-muted hover:text-white flex items-center justify-center transition-colors">
+                <IoClose size={20} />
+              </button>
             </div>
             <form onSubmit={handleSave} className="space-y-3">
-              <input type="text" placeholder="اسم المنتج *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50" />
-              
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm focus:outline-none focus:border-omega-orange/50">
-                {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">اسم المنتج *</label>
+                <input type="text" placeholder="مثلاً: برجر كلاسيكي" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="input-modern" />
+              </div>
+
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">الفئة</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.entries(categoryLabels).map(([k, v]) => (
+                    <button type="button" key={k} onClick={() => setForm({ ...form, category: k })}
+                      className={`py-2.5 rounded-xl border transition-all flex flex-col items-center gap-1
+                        ${form.category === k ? 'bg-omega-orange/15 border-omega-orange/40 text-white' : 'bg-white/3 border-white/8 text-omega-text-muted hover:text-white'}`}>
+                      <span className="text-xl">{v.emoji}</span>
+                      <span className="text-[10px] font-bold">{v.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="السعر *" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50" />
-                <input type="number" placeholder="التكلفة" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50" />
-              </div>
-
-              <input type="number" placeholder="المخزون" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50" />
-
-              <textarea placeholder="الوصف" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows="2"
-                className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50 resize-none" />
-
-              {/* صورة */}
-              <div className="space-y-2">
-                <input type="url" placeholder="رابط الصورة" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} dir="ltr"
-                  className="w-full px-4 py-3 rounded-xl bg-omega-dark/50 border border-white/10 text-white text-sm placeholder-omega-text-muted focus:outline-none focus:border-omega-orange/50" />
-                <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-omega-dark/50 border border-white/10 text-omega-text-muted text-sm cursor-pointer hover:border-omega-orange/30">
-                  <IoCloudUpload size={18} /> <span>أو ارفع صورة</span>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                </label>
-                {form.image && <img src={form.image} alt="preview" className="w-20 h-20 rounded-xl object-cover" />}
-              </div>
-
-              {/* التوفر */}
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div className={`w-10 h-6 rounded-full transition-colors ${form.isAvailable ? 'bg-omega-success' : 'bg-omega-gray'}`}
-                  onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })}>
-                  <div className={`w-5 h-5 rounded-full bg-white mt-0.5 transition-transform ${form.isAvailable ? 'mr-0.5' : 'mr-[18px]'}`} />
+                <div>
+                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">السعر *</label>
+                  <input type="number" placeholder="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })}
+                    className="input-modern" />
                 </div>
-                <span className="text-omega-text text-sm">متوفر</span>
-              </label>
+                <div>
+                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">التكلفة</label>
+                  <input type="number" placeholder="0" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })}
+                    className="input-modern" />
+                </div>
+              </div>
 
-              <button type="submit" disabled={saving}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-l from-omega-orange to-omega-orange-dark text-white font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>{editing ? 'حفظ التعديلات' : 'إضافة المنتج'}</span>}
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">المخزون</label>
+                <input type="number" placeholder="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })}
+                  className="input-modern" />
+              </div>
+
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">الوصف</label>
+                <textarea placeholder="وصف مختصر..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows="2"
+                  className="input-modern resize-none" />
+              </div>
+
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">الصورة</label>
+                <div className="space-y-2">
+                  <input type="url" placeholder="https://..." value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} dir="ltr"
+                    className="input-modern" />
+                  <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/3 border border-dashed border-white/15 text-omega-text-muted text-sm cursor-pointer hover:border-omega-orange/40 hover:text-omega-orange transition-all">
+                    <IoCloudUpload size={18} /> <span>أو ارفع صورة</span>
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  </label>
+                  {form.image && (
+                    <div className="flex items-center gap-2">
+                      <img src={form.image} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-white/10" />
+                      <button type="button" onClick={() => setForm({ ...form, image: '' })} className="text-omega-red text-xs">إزالة</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5">
+                <span className="text-white text-sm font-medium">متوفر للبيع</span>
+                <div className={`toggle ${form.isAvailable ? 'on' : ''}`} onClick={() => setForm({ ...form, isAvailable: !form.isAvailable })} />
+              </div>
+
+              <button type="submit" disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
+                {saving
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <span>{editing ? 'حفظ التعديلات' : 'إضافة المنتج'}</span>}
               </button>
             </form>
           </div>
