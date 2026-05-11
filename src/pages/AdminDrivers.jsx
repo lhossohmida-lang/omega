@@ -4,7 +4,10 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { getAllOrders } from '../services/orderService';
 import { formatCurrency } from '../utils/formatCurrency';
 import AdminNav from '../components/AdminNav';
-import { IoCar, IoCheckmarkCircle } from 'react-icons/io5';
+import {
+  IoCar, IoCheckmarkCircle, IoCall, IoMail,
+  IoStar, IoFlash, IoTrophy
+} from 'react-icons/io5';
 
 export default function AdminDrivers() {
   const [drivers, setDrivers] = useState([]);
@@ -23,65 +26,101 @@ export default function AdminDrivers() {
     setLoading(false);
   };
 
+  // Top driver
+  const topDriver = drivers
+    .map(d => ({ ...d, deliveredCount: orders.filter(o => o.driverId === d.id && o.status === 'delivered').length }))
+    .sort((a, b) => b.deliveredCount - a.deliveredCount)[0];
+
   return (
     <div className="min-h-screen bg-omega-dark lg:flex">
       <AdminNav />
       <main className="flex-1 pb-safe">
-        <div className="max-w-4xl mx-auto px-4 pt-16 lg:pt-6">
-          <h1 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-            <IoCar className="text-omega-orange" /> إدارة السائقين
-          </h1>
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-16 lg:pt-8">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="page-header-icon">
+                <IoCar size={22} />
+              </div>
+              <div>
+                <h1 className="page-title">إدارة السائقين</h1>
+                <p className="page-subtitle">{drivers.length} سائق مسجل</p>
+              </div>
+            </div>
+          </div>
 
           {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-28 rounded-xl" />)}</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-40" />)}</div>
           ) : drivers.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-5xl mb-4">🚗</div>
-              <p className="text-omega-text-muted">لا يوجد سائقون مسجلون</p>
+            <div className="card-premium p-12 text-center">
+              <div className="text-6xl mb-4">🚗</div>
+              <p className="text-white font-bold mb-1">لا يوجد سائقون</p>
+              <p className="text-omega-text-muted text-sm">لم يتم تسجيل أي سائق بعد</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {drivers.map((driver, idx) => {
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 stagger">
+              {drivers.map((driver) => {
                 const driverOrders = orders.filter(o => o.driverId === driver.id);
                 const delivered = driverOrders.filter(o => o.status === 'delivered');
                 const totalValue = delivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
                 const active = driverOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
+                const isTop = topDriver?.id === driver.id && delivered.length > 0;
 
                 return (
-                  <div key={driver.id} className="glass rounded-2xl p-4 animate-fade-in" style={{ animationDelay: `${idx * 50}ms` }}>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">{driver.name?.[0]}</span>
+                  <div key={driver.id} className="card-premium p-5 relative overflow-hidden">
+                    {isTop && (
+                      <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[10px] font-bold shadow-lg">
+                        <IoTrophy size={11} /> الأفضل
                       </div>
-                      <div>
-                        <h3 className="text-white font-bold">{driver.name}</h3>
-                        <p className="text-omega-text-muted text-xs" dir="ltr">{driver.phone} • {driver.email}</p>
+                    )}
+
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center shadow-lg shadow-omega-orange/25">
+                          <span className="text-white font-black text-xl">{driver.name?.[0] || 'S'}</span>
+                        </div>
+                        {active.length > 0 && (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-omega-dark flex items-center justify-center animate-blink">
+                            <span className="text-white text-[8px] font-bold">{active.length}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-white font-black text-base truncate">{driver.name}</h3>
+                        <div className="flex items-center gap-3 mt-0.5 text-omega-text-muted text-[11px]">
+                          <span className="flex items-center gap-1" dir="ltr"><IoCall size={10} /> {driver.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-omega-text-dim text-[10px] truncate" dir="ltr">
+                          <IoMail size={10} /> {driver.email}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-omega-dark/30 rounded-xl p-3 text-center">
-                        <p className="text-omega-success font-black text-lg">{delivered.length}</p>
-                        <p className="text-omega-text-muted text-[10px]">تم التوصيل</p>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3 text-center">
+                        <IoCheckmarkCircle className="text-emerald-400 mx-auto mb-1" size={16} />
+                        <p className="text-emerald-400 font-black text-base">{delivered.length}</p>
+                        <p className="text-omega-text-dim text-[9px]">تم التوصيل</p>
                       </div>
-                      <div className="bg-omega-dark/30 rounded-xl p-3 text-center">
-                        <p className="text-omega-orange font-black text-lg">{active.length}</p>
-                        <p className="text-omega-text-muted text-[10px]">نشطة</p>
+                      <div className="bg-omega-orange/5 border border-omega-orange/15 rounded-xl p-3 text-center">
+                        <IoFlash className="text-omega-orange mx-auto mb-1" size={16} />
+                        <p className="text-omega-orange font-black text-base">{active.length}</p>
+                        <p className="text-omega-text-dim text-[9px]">نشطة</p>
                       </div>
-                      <div className="bg-omega-dark/30 rounded-xl p-3 text-center">
-                        <p className="text-omega-info font-black text-sm">{formatCurrency(totalValue)}</p>
-                        <p className="text-omega-text-muted text-[10px]">إجمالي القيمة</p>
+                      <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-center">
+                        <IoStar className="text-blue-400 mx-auto mb-1" size={16} />
+                        <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(totalValue)}</p>
+                        <p className="text-omega-text-dim text-[9px]">الإيراد</p>
                       </div>
                     </div>
 
-                    {/* آخر طلبات */}
                     {delivered.slice(0, 3).length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-omega-text-muted text-xs mb-2">آخر التوصيلات</p>
+                      <div className="border-t border-white/5 pt-3">
+                        <p className="text-omega-text-dim text-[10px] mb-2 font-bold">آخر التوصيلات</p>
                         {delivered.slice(0, 3).map(o => (
-                          <div key={o.id} className="flex justify-between text-xs py-1 border-b border-white/5 last:border-0">
-                            <span className="text-omega-text">#{o.id?.slice(-6)} - {o.customerName}</span>
-                            <span className="text-omega-orange">{formatCurrency(o.totalPrice)}</span>
+                          <div key={o.id} className="flex justify-between text-xs py-1">
+                            <span className="text-omega-text">#{o.id?.slice(-6)} • {o.customerName}</span>
+                            <span className="text-omega-orange font-bold">{formatCurrency(o.totalPrice)}</span>
                           </div>
                         ))}
                       </div>
