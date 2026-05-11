@@ -4,16 +4,31 @@ import { getAllProducts } from '../services/productService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { isToday, isThisMonth } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
+import { useAuth } from '../hooks/useAuth';
 import AdminNav from '../components/AdminNav';
 import {
-  IoReceipt, IoTrendingUp, IoCash, IoAlert, IoCheckmarkCircle,
-  IoTime, IoFastFood, IoStatsChart, IoFlash, IoArrowUp
+  IoCheckmarkCircle, IoCash, IoTrendingUp, IoReceipt,
+  IoStar, IoAlert,
 } from 'react-icons/io5';
+
+const STATUS_COLORS = {
+  pending:            '#f59e0b',
+  preparing:          '#ff6b00',
+  on_the_way:         '#a855f7',
+  delivered:          '#22c55e',
+  cancelled:          '#e53935',
+  accepted_by_driver: '#3b82f6',
+};
+const STATUS_LABELS = {
+  pending: 'معلقة', preparing: 'تحضير', on_the_way: 'في الطريق',
+  delivered: 'مكتملة', cancelled: 'ملغية', accepted_by_driver: 'مقبولة',
+};
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { userData } = useAuth();
 
   useEffect(() => { loadData(); }, []);
 
@@ -26,209 +41,181 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  const todayOrders = orders.filter(o => isToday(o.createdAt));
-  const monthOrders = orders.filter(o => isThisMonth(o.createdAt));
-  const deliveredOrders = orders.filter(o => o.status === 'delivered');
-  const pendingOrders = orders.filter(o => o.status === 'pending');
+  const todayOrders   = orders.filter(o => isToday(o.createdAt));
+  const deliveredAll  = orders.filter(o => o.status === 'delivered');
+  const todayDeliv    = todayOrders.filter(o => o.status === 'delivered');
+  const monthOrders   = orders.filter(o => isThisMonth(o.createdAt));
+  const monthDeliv    = monthOrders.filter(o => o.status === 'delivered');
 
-  const todayDelivered = todayOrders.filter(o => o.status === 'delivered');
-  const monthDelivered = monthOrders.filter(o => o.status === 'delivered');
+  const todaySales  = todayDeliv.reduce((s, o) => s + (o.totalPrice || 0), 0);
+  const monthSales  = monthDeliv.reduce((s, o) => s + (o.totalPrice || 0), 0);
+  const totalSales  = deliveredAll.reduce((s, o) => s + (o.totalPrice || 0), 0);
+  const todayProfit = todayDeliv.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
+  const totalProfit = deliveredAll.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
 
-  const todaySales = todayDelivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
-  const monthSales = monthDelivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
-  const totalSales = deliveredOrders.reduce((s, o) => s + (o.totalPrice || 0), 0);
+  const lowStock = products.filter(p => (p.stock ?? 999) <= 5);
 
-  const todayProfit = todayDelivered.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
-  const monthProfit = monthDelivered.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
-  const totalProfit = deliveredOrders.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
-
-  const lowStock = products.filter(p => p.stock <= 5);
-
-  // أفضل منتج مبيعاً
   const productSales = {};
-  orders.forEach(o => {
-    o.items?.forEach(item => {
-      productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
-    });
-  });
-  const bestProduct = Object.entries(productSales).sort((a, b) => b[1] - a[1])[0];
+  orders.forEach(o => o.items?.forEach(item => {
+    productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
+  }));
+  const [bestName, bestQty] = Object.entries(productSales).sort((a, b) => b[1] - a[1])[0] || [];
+  const bestProductData = products.find(p => p.name === bestName);
 
-  // الطلبات الأخيرة
   const recentOrders = [...orders]
     .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
     .slice(0, 5);
 
-  const primary = [
-    {
-      label: 'مبيعات اليوم', value: formatCurrency(todaySales), icon: IoCash,
-      bg: 'from-emerald-500 via-emerald-600 to-emerald-700',
-      sub: `${todayDelivered.length} طلب مكتمل`
-    },
-    {
-      label: 'فائدة اليوم', value: formatCurrency(todayProfit), icon: IoTrendingUp,
-      bg: 'from-omega-orange via-omega-orange-dark to-omega-red',
-      sub: 'صافي الربح'
-    },
-    {
-      label: 'طلبات معلقة', value: pendingOrders.length, icon: IoTime,
-      bg: 'from-amber-500 via-amber-600 to-orange-700',
-      sub: pendingOrders.length ? 'تحتاج متابعة' : 'لا شيء معلق'
-    },
-    {
-      label: 'الفائدة الكلية', value: formatCurrency(totalProfit), icon: IoStatsChart,
-      bg: 'from-fuchsia-500 via-purple-600 to-indigo-700',
-      sub: `من ${deliveredOrders.length} طلب`
-    },
+  const firstName = userData?.name?.split(' ')?.[0] || 'المدير';
+
+  const statRow1 = [
+    { label: 'الطلبات المكتملة', value: deliveredAll.length,       icon: IoCheckmarkCircle, color: '#ff6b00', bg: 'rgba(255,107,0,0.1)'   },
+    { label: 'إجمالي المبيعات',  value: formatCurrency(totalSales), icon: IoCash,            color: '#22c55e', bg: 'rgba(34,197,94,0.1)'   },
+    { label: 'أرباح اليوم',      value: formatCurrency(todayProfit), icon: IoTrendingUp,     color: '#3b82f6', bg: 'rgba(59,130,246,0.1)'  },
+    { label: 'مبيعات اليوم',     value: formatCurrency(todaySales), icon: IoCash,            color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
   ];
 
-  const secondary = [
-    { label: 'طلبات اليوم', value: todayOrders.length, icon: IoReceipt, color: 'text-blue-400' },
-    { label: 'إجمالي الطلبات', value: orders.length, icon: IoReceipt, color: 'text-purple-400' },
-    { label: 'مبيعات الشهر', value: formatCurrency(monthSales), icon: IoCash, color: 'text-teal-400' },
-    { label: 'فائدة الشهر', value: formatCurrency(monthProfit), icon: IoTrendingUp, color: 'text-cyan-400' },
-    { label: 'المبيعات الكلية', value: formatCurrency(totalSales), icon: IoTrendingUp, color: 'text-omega-orange' },
-    { label: 'طلبات مكتملة', value: deliveredOrders.length, icon: IoCheckmarkCircle, color: 'text-emerald-400' },
+  const statRow2 = [
+    { label: 'إجمالي المبيعات',  value: formatCurrency(monthSales),  sub: 'هذا الشهر',              bar: '#ff6b00' },
+    { label: 'إجمالي الطلبات',   value: orders.length,               sub: 'جميع الطلبات',            bar: '#22c55e' },
+    { label: 'إجمالي الأرباح',   value: formatCurrency(totalProfit), sub: 'منذ البداية',             bar: '#3b82f6' },
+    { label: 'إجمالي المنتجات',  value: products.length,             sub: `${lowStock.length} منخفض`, bar: '#f59e0b' },
   ];
 
   return (
-    <div className="min-h-screen bg-omega-dark lg:flex">
+    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       <AdminNav />
-      <main className="flex-1 pb-safe">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 pt-16 lg:pt-8">
-          {/* رأس الصفحة */}
-          <div className="flex items-start justify-between mb-6 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="page-header-icon">
-                <IoFlash size={22} />
-              </div>
-              <div>
-                <h1 className="page-title">لوحة التحكم</h1>
-                <p className="page-subtitle">نظرة عامة على أداء مطعم OMEGA</p>
-              </div>
-            </div>
-            <div className="hidden lg:flex flex-col items-end">
-              <span className="text-omega-text-muted text-xs">اليوم</span>
-              <span className="text-white text-sm font-bold">
-                {new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </span>
-            </div>
+
+      <div className="px-4 pt-28 pb-4">
+        <h1 className="text-white font-black text-3xl tracking-tight mb-0.5">OMEGA</h1>
+        <p className="text-omega-text-muted text-sm mb-5">لوحة تحكم المطعم</p>
+
+        {/* Greeting */}
+        <div
+          className="mb-5 p-4 rounded-3xl"
+          style={{ background: 'linear-gradient(135deg, rgba(255,107,0,0.12), rgba(229,57,53,0.05))', border: '1px solid rgba(255,107,0,0.15)' }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">☀️</span>
+            <span className="text-white font-black text-xl">مرحباً {firstName}</span>
           </div>
-
-          {loading ? (
-            <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                {[1,2,3,4].map(i => <div key={i} className="skeleton h-32" />)}
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton h-20" />)}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* البطاقات الرئيسية */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 stagger">
-                {primary.map((card, i) => (
-                  <div key={i} className={`stat-card bg-gradient-to-br ${card.bg}`}>
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-                          <card.icon className="text-white" size={18} />
-                        </div>
-                        <IoArrowUp className="text-white/50" size={14} />
-                      </div>
-                      <p className="text-white/85 text-[11px] font-medium mb-1">{card.label}</p>
-                      <p className="text-white font-black text-lg lg:text-xl leading-tight">{card.value}</p>
-                      <p className="text-white/70 text-[10px] mt-1">{card.sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* بطاقات ثانوية */}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6 stagger">
-                {secondary.map((card, i) => (
-                  <div key={i} className="card-premium p-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center ${card.color}`}>
-                        <card.icon size={18} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-omega-text-muted text-[10px] font-medium truncate">{card.label}</p>
-                        <p className="text-white font-bold text-base truncate">{card.value}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* صفوف معلومات */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* أفضل منتج */}
-                <div className="card-premium p-5 animate-fade-in">
-                  <h3 className="section-title">
-                    <IoFastFood className="text-omega-orange" size={18} /> أفضل منتج مبيعاً
-                  </h3>
-                  {bestProduct ? (
-                    <div className="bg-gradient-to-br from-omega-orange/10 via-transparent to-transparent rounded-xl p-5 text-center border border-omega-orange/15">
-                      <div className="text-4xl mb-2">🏆</div>
-                      <p className="gradient-text font-black text-xl">{bestProduct[0]}</p>
-                      <p className="text-omega-text-muted text-xs mt-1">{bestProduct[1]} وحدة مباعة</p>
-                    </div>
-                  ) : (
-                    <p className="text-omega-text-muted text-sm text-center py-6">لا توجد بيانات بعد</p>
-                  )}
-                </div>
-
-                {/* مخزون منخفض */}
-                <div className="card-premium p-5 animate-fade-in">
-                  <h3 className="section-title">
-                    <IoAlert className="text-omega-red" size={18} /> مخزون منخفض
-                  </h3>
-                  {lowStock.length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto no-scrollbar">
-                      {lowStock.map(p => (
-                        <div key={p.id} className="flex justify-between items-center bg-white/3 hover:bg-white/5 rounded-xl px-3 py-2 transition-colors border border-white/5">
-                          <span className="text-white text-sm">{p.name}</span>
-                          <span className={`badge ${p.stock === 0 ? 'bg-omega-red/15 text-omega-red border-omega-red/25' : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25'}`}>
-                            {p.stock} متبقي
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6">
-                      <IoCheckmarkCircle className="text-omega-success mx-auto mb-2" size={32} />
-                      <p className="text-omega-text-muted text-sm">المخزون بحالة جيدة</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* آخر الطلبات */}
-                <div className="card-premium p-5 animate-fade-in">
-                  <h3 className="section-title">
-                    <IoReceipt className="text-omega-info" size={18} /> آخر الطلبات
-                  </h3>
-                  {recentOrders.length > 0 ? (
-                    <div className="space-y-2">
-                      {recentOrders.map(o => (
-                        <div key={o.id} className="flex justify-between items-center bg-white/3 rounded-xl px-3 py-2 border border-white/5">
-                          <div className="min-w-0">
-                            <p className="text-white text-xs font-bold truncate">{o.customerName}</p>
-                            <p className="text-omega-text-dim text-[10px]">#{o.id?.slice(-6)}</p>
-                          </div>
-                          <span className="text-omega-orange font-bold text-xs">{formatCurrency(o.totalPrice)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-omega-text-muted text-sm text-center py-6">لا توجد طلبات</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+          <p className="text-omega-text-muted text-xs">إليك ملخص اليوم من OMEGA</p>
         </div>
-      </main>
+
+        {loading ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="h-28 rounded-3xl skeleton" />)}</div>
+            <div className="grid grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="h-20 rounded-3xl skeleton" />)}</div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Stats row 1 */}
+            <div className="grid grid-cols-2 gap-3">
+              {statRow1.map((s, i) => (
+                <div key={i} className="p-4 rounded-3xl" style={{ backgroundColor: '#15161a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-bold text-omega-text-muted leading-tight">{s.label}</p>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: s.bg }}>
+                      <s.icon size={16} style={{ color: s.color }} />
+                    </div>
+                  </div>
+                  <p className="text-white font-black text-xl leading-tight">{s.value}</p>
+                  <p className="text-omega-text-dim text-[10px] mt-1">{todayDeliv.length} طلب اليوم</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Stats row 2 */}
+            <div className="grid grid-cols-2 gap-3">
+              {statRow2.map((s, i) => (
+                <div key={i} className="flex items-center gap-3 p-3.5 rounded-3xl" style={{ backgroundColor: '#15161a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: s.bar, minHeight: '40px' }} />
+                  <div className="min-w-0">
+                    <p className="text-omega-text-muted text-[10px] mb-0.5">{s.label}</p>
+                    <p className="text-white font-black text-base truncate">{s.value}</p>
+                    <p className="text-omega-text-dim text-[9px]">{s.sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Best product */}
+            {bestName && (
+              <div className="p-4 rounded-3xl" style={{ backgroundColor: '#15161a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <IoStar size={16} className="text-omega-orange" />
+                  <p className="text-white text-sm font-bold">المنتج الأكثر مبيعاً</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {bestProductData?.image ? (
+                    <img src={bestProductData.image} alt={bestName} className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0" style={{ backgroundColor: '#1f2026' }}>🍕</div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-white font-black text-base truncate">{bestName}</p>
+                    <p className="text-omega-orange text-sm font-bold">{bestQty} وحدة مباعة</p>
+                    {bestProductData && <p className="text-omega-text-muted text-xs">{formatCurrency(bestProductData.price)}</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent orders */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-omega-text-muted text-xs">{recentOrders.length} آخر طلبات</p>
+                <p className="text-white font-bold text-sm">أحدث الطلبات</p>
+              </div>
+              <div className="space-y-2">
+                {recentOrders.length === 0 ? (
+                  <div className="p-8 rounded-3xl text-center" style={{ backgroundColor: '#15161a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <IoReceipt className="text-omega-text-dim mx-auto mb-3" size={36} />
+                    <p className="text-omega-text-muted text-sm">لا توجد طلبات بعد</p>
+                  </div>
+                ) : recentOrders.map(o => {
+                  const sc = STATUS_COLORS[o.status] || '#8e8e93';
+                  return (
+                    <div key={o.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ backgroundColor: '#15161a', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-bold truncate">{o.customerName}</p>
+                        <p className="text-omega-text-dim text-[10px]">#{o.id?.slice(-6)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: sc + '20', color: sc }}>
+                          {STATUS_LABELS[o.status] || o.status}
+                        </span>
+                        <p className="text-omega-orange font-black text-sm">{formatCurrency(o.totalPrice)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Low stock alert */}
+            {lowStock.length > 0 && (
+              <div className="p-4 rounded-3xl" style={{ backgroundColor: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <IoAlert size={16} className="text-omega-warning" />
+                  <p className="text-omega-warning text-sm font-bold">{lowStock.length} منتج مخزونه منخفض</p>
+                </div>
+                <div className="space-y-1.5">
+                  {lowStock.slice(0, 3).map(p => (
+                    <div key={p.id} className="flex justify-between items-center">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: p.stock === 0 ? 'rgba(229,57,53,0.15)' : 'rgba(245,158,11,0.12)', color: p.stock === 0 ? '#e53935' : '#f59e0b' }}>
+                        {p.stock ?? 0} متبقي
+                      </span>
+                      <span className="text-omega-text-muted text-xs">{p.name}</span>
+                    </div>
+                  ))}
+                  {lowStock.length > 3 && <p className="text-omega-warning/50 text-[10px] text-center pt-1">و {lowStock.length - 3} منتجات أخرى</p>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
