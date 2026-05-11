@@ -9,17 +9,28 @@ export function getDb() {
 
   if (getApps().length === 0) {
     let credential;
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (saRaw) {
       try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        const serviceAccount = JSON.parse(saRaw);
+        // Normalize private key: Vercel often stores it with literal \n
+        if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
         credential = cert(serviceAccount);
       } catch (e) {
-        console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', e);
+        throw new Error(
+          'FIREBASE_SERVICE_ACCOUNT غير صالح. تأكد من إلصاق محتوى JSON كاملاً في متغيرات Vercel.'
+        );
       }
+    } else {
+      throw new Error(
+        'FIREBASE_SERVICE_ACCOUNT غير معرّف. أضفه في Vercel → Settings → Environment Variables.'
+      );
     }
     initializeApp({
       projectId: process.env.FIREBASE_PROJECT_ID || 'basst-omeeega',
-      ...(credential ? { credential } : {}),
+      credential,
     });
   }
   dbInstance = getFirestore();
