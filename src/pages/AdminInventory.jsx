@@ -38,7 +38,7 @@ export default function AdminInventory() {
   const [selectedIng, setSelectedIng] = useState(null); // detail panel
   const [purchases, setPurchases] = useState([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
-  const [purchaseForm, setPurchaseForm] = useState({ quantity: '', unitPrice: '', note: '' });
+  const [purchaseForm, setPurchaseForm] = useState({ quantity: '', totalPrice: '', note: '' });
 
   useEffect(() => { loadData(); }, []);
 
@@ -113,7 +113,7 @@ export default function AdminInventory() {
   // ---- Purchases ----
   const openIngredientDetail = async (ing) => {
     setSelectedIng(ing);
-    setPurchaseForm({ quantity: '', unitPrice: '', note: '' });
+    setPurchaseForm({ quantity: '', totalPrice: '', note: '' });
     setLoadingPurchases(true);
     try {
       const list = await getIngredientPurchases(ing.id);
@@ -124,20 +124,23 @@ export default function AdminInventory() {
 
   const handleAddPurchase = async (e) => {
     e.preventDefault();
-    if (!purchaseForm.quantity || !purchaseForm.unitPrice) {
-      toast.error('أدخل الكمية والسعر');
+    if (!purchaseForm.quantity || !purchaseForm.totalPrice) {
+      toast.error('أدخل الكمية والسعر الكلي');
       return;
     }
+    const qty = Number(purchaseForm.quantity);
+    const total = Number(purchaseForm.totalPrice);
+    if (qty <= 0) { toast.error('الكمية غير صحيحة'); return; }
     setSaving(true);
     try {
       await addIngredientPurchase({
         ingredientId: selectedIng.id,
-        quantity: purchaseForm.quantity,
-        unitPrice: purchaseForm.unitPrice,
+        quantity: qty,
+        unitPrice: total / qty, // محسوب تلقائياً
         note: purchaseForm.note,
       });
       toast.success('تمت إضافة عملية الشراء');
-      setPurchaseForm({ quantity: '', unitPrice: '', note: '' });
+      setPurchaseForm({ quantity: '', totalPrice: '', note: '' });
       // Refresh
       const [list, allIngs] = await Promise.all([
         getIngredientPurchases(selectedIng.id),
@@ -582,9 +585,9 @@ export default function AdminInventory() {
                     className="input-modern text-center font-bold" />
                 </div>
                 <div>
-                  <label className="text-omega-text-muted text-[10px] block mb-1 mr-1">سعر الوحدة</label>
-                  <input type="number" step="0.01" placeholder="0" value={purchaseForm.unitPrice}
-                    onChange={e => setPurchaseForm({ ...purchaseForm, unitPrice: e.target.value })}
+                  <label className="text-omega-text-muted text-[10px] block mb-1 mr-1">السعر الكلي</label>
+                  <input type="number" step="0.01" placeholder="0" value={purchaseForm.totalPrice}
+                    onChange={e => setPurchaseForm({ ...purchaseForm, totalPrice: e.target.value })}
                     className="input-modern text-center font-bold" />
                 </div>
               </div>
@@ -592,11 +595,11 @@ export default function AdminInventory() {
                 onChange={e => setPurchaseForm({ ...purchaseForm, note: e.target.value })}
                 className="input-modern mb-2" />
 
-              {purchaseForm.quantity && purchaseForm.unitPrice && (
+              {purchaseForm.quantity && purchaseForm.totalPrice && Number(purchaseForm.quantity) > 0 && (
                 <div className="bg-omega-orange/10 border border-omega-orange/25 rounded-xl p-2.5 mb-2 text-center">
-                  <p className="text-omega-text-muted text-[10px]">تكلفة الشراء</p>
+                  <p className="text-omega-text-muted text-[10px]">سعر الوحدة (محسوب)</p>
                   <p className="gradient-text font-black text-base">
-                    {formatCurrency(Number(purchaseForm.quantity) * Number(purchaseForm.unitPrice))}
+                    {formatCurrency(Number(purchaseForm.totalPrice) / Number(purchaseForm.quantity))} / {selectedIng.unit}
                   </p>
                 </div>
               )}
