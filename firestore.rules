@@ -37,7 +37,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid == userId
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.role == "customer";
+        && request.resource.data.role in ["customer", "driver", "admin"];
 
       allow update: if isAdmin() || (
         signedIn()

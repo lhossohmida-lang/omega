@@ -30,7 +30,11 @@ export default function AdminProducts() {
   useEffect(() => { loadProducts(); }, []);
 
   const loadProducts = async () => {
-    try { setProducts(await getAllProducts()); } catch (err) { console.error(err); }
+    try { setProducts(await getAllProducts()); }
+    catch (err) {
+      console.error('loadProducts error:', err);
+      toast.error(`تعذّر جلب المنتجات: ${err?.code || err?.message || 'خطأ غير معروف'}`);
+    }
     setLoading(false);
   };
 
@@ -67,7 +71,10 @@ export default function AdminProducts() {
       }
       resetForm();
       loadProducts();
-    } catch (err) { toast.error('حدث خطأ'); console.error(err); }
+    } catch (err) {
+      console.error('Product save error:', err);
+      toast.error(err?.message || err?.code || 'حدث خطأ');
+    }
     setSaving(false);
   };
 
