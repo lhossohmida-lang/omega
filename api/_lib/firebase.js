@@ -12,7 +12,9 @@ export function getDb() {
     const saRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (saRaw) {
       try {
-        const serviceAccount = JSON.parse(saRaw);
+        // Strip BOM (﻿) and surrounding whitespace that PowerShell/Windows tools sometimes inject
+        const cleaned = saRaw.replace(/^﻿/, '').trim();
+        const serviceAccount = JSON.parse(cleaned);
         // Normalize private key: Vercel often stores it with literal \n
         if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
           serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');

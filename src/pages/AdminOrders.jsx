@@ -142,7 +142,7 @@ export default function AdminOrders() {
           </button>
         </section>
 
-        <section className="mb-5 flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+        <section className="mb-5 grid grid-cols-5 gap-2 sm:gap-3">
           {['all', 'pending', 'preparing', 'accepted_by_driver', 'delivered'].map(key => {
             const config = statusConfig[key];
             const Icon = config.icon;
@@ -152,14 +152,12 @@ export default function AdminOrders() {
                 key={key}
                 type="button"
                 onClick={() => setFilter(key)}
-                className="admin-control flex min-w-[9.5rem] items-center justify-between rounded-[1.2rem] px-4 py-3 transition-all"
+                className="admin-control flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.2rem] px-1.5 py-3 transition-all"
                 style={active ? { borderColor: config.color, boxShadow: `0 0 26px -16px ${config.color}` } : undefined}
               >
-                <div className="text-right">
-                  <p className="font-black" style={{ color: active ? config.color : '#e6e6e6' }}>{config.label}</p>
-                  <p className="mt-1 text-sm text-omega-text-muted">{formatNumber(counts[key] || 0)}</p>
-                </div>
-                <Icon size={22} style={{ color: active ? config.color : '#8e8e93' }} />
+                <Icon size={20} style={{ color: active ? config.color : '#8e8e93' }} />
+                <p className="truncate text-[11px] font-black sm:text-xs" style={{ color: active ? config.color : '#e6e6e6' }}>{config.label}</p>
+                <p className="text-[10px] text-omega-text-muted">{formatNumber(counts[key] || 0)}</p>
               </button>
             );
           })}

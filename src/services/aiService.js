@@ -32,6 +32,76 @@ async function postAI(path, body, fallbackMessage) {
   return data;
 }
 
+// streaming chat — يبثّ النص حرفاً حرفاً عبر SSE
+export async function streamAIChat(question, adminId, handlers = {}) {
+  const { onDelta, onDone, onError } = handlers;
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/admin-ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+      body: JSON.stringify({ question, adminId }),
+    });
+  } catch {
+    throw new Error('تعذر الاتصال بخادم الذكاء. تأكد من تشغيل السيرفر الخلفي.');
+  }
+
+  const ct = response.headers.get('content-type') || '';
+
+  // لو رجع JSON (خطأ قبل البدء بالبث)
+  if (!response.ok || !ct.includes('text/event-stream')) {
+    const data = ct.includes('application/json')
+      ? await response.json().catch(() => null)
+      : null;
+    throw new Error(data?.message || 'خطأ في الاتصال بالذكاء الاصطناعي');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalPayload = { suggestedActions: [], tokensUsed: 0 };
+
+  const parseEventBlock = (block) => {
+    let event = 'message';
+    let data = '';
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      else if (line.startsWith('data:')) data += line.slice(5).trim();
+    }
+    return { event, data };
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let idx;
+    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+      const block = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      if (!block.trim()) continue;
+
+      const { event, data } = parseEventBlock(block);
+      if (!data) continue;
+      let payload;
+      try { payload = JSON.parse(data); } catch { continue; }
+
+      if (event === 'delta' && payload.content) {
+        onDelta?.(payload.content);
+      } else if (event === 'done') {
+        finalPayload = { ...finalPayload, ...payload };
+        onDone?.(finalPayload);
+      } else if (event === 'error') {
+        onError?.(payload.message || 'خطأ في البث');
+      }
+    }
+  }
+
+  return finalPayload;
+}
+
 export async function sendAIChat(question, adminId) {
   return postAI(
     '/api/admin-ai/chat',
@@ -40,7 +110,6 @@ export async function sendAIChat(question, adminId) {
   );
 }
 
-// تنفيذ إجراء مقترح من AI بعد تأكيد المدير
 export async function executeAIAction(action, adminId) {
   return postAI(
     '/api/admin-ai/execute-action',

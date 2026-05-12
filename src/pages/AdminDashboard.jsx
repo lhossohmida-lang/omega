@@ -128,8 +128,8 @@ export default function AdminDashboard() {
     };
   }, [orders]);
 
-  const lowStock = useMemo(
-    () => products.filter(product => (product.stock ?? 999) <= 5).sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
+  const inactiveProducts = useMemo(
+    () => products.filter(product => product.isAvailable === false),
     [products]
   );
 
@@ -200,24 +200,24 @@ export default function AdminDashboard() {
               <div className="admin-glass rounded-[1.55rem] p-5">
                 <div className="mb-4 flex items-center justify-between">
                   <IoNotificationsOutline className="text-omega-orange" size={23} />
-                  <h3 className="text-xl font-black text-white">تنبيه مخزون منخفض</h3>
+                  <h3 className="text-xl font-black text-white">منتجات موقوفة</h3>
                 </div>
 
-                {lowStock.length === 0 ? (
+                {inactiveProducts.length === 0 ? (
                   <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center text-sm font-bold text-emerald-400">
-                    المخزون بحالة جيدة
+                    كل المنتجات متاحة خلال ساعات العمل
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {lowStock.slice(0, 3).map(product => (
+                    {inactiveProducts.slice(0, 3).map(product => (
                       <div key={product.id} className="admin-control flex items-center justify-between rounded-2xl p-3">
-                        <span className={`rounded-full px-3 py-1 text-sm font-black ${(product.stock ?? 0) <= 2 ? 'bg-omega-red/20 text-omega-red' : 'bg-omega-warning/15 text-omega-warning'}`}>
-                          {product.stock ?? 0}
+                        <span className="rounded-full bg-omega-red/20 px-3 py-1 text-sm font-black text-omega-red">
+                          موقوف
                         </span>
                         <div className="flex items-center gap-3 text-right">
                           <div>
                             <p className="font-bold text-white">{product.name}</p>
-                            <p className="text-xs text-omega-text-muted">كمية متبقية: {product.stock ?? 0}</p>
+                            <p className="text-xs text-omega-text-muted">معطّل يدوياً</p>
                           </div>
                           <div className="h-12 w-12 overflow-hidden rounded-xl bg-white/5">
                             {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-2xl">{categoryEmoji(product.category)}</div>}
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
 
                     <Link to="/admin/products" className="admin-control flex items-center justify-center gap-2 rounded-2xl p-3 text-sm font-black text-omega-orange">
                       <IoChevronBack />
-                      عرض كل المخزون
+                      إدارة المنتجات
                     </Link>
                   </div>
                 )}

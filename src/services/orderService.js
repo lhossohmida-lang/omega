@@ -4,20 +4,24 @@ import {
   query, where, orderBy, serverTimestamp, runTransaction, limit,
   onSnapshot,
 } from 'firebase/firestore';
+import { isOpen, getStatusMessage } from '../utils/businessHours';
 
 const ORDERS_COL = 'orders';
 const PRODUCTS_COL = 'products';
-const INVENTORY_COL = 'inventory_movements';
 
-// إنشاء طلب جديد مع إنقاص المخزون
+// إنشاء طلب جديد — يتحقق من ساعات العمل وتفعيل المنتجات (بدون نظام مخزون)
 export async function createOrder(orderData) {
-  // التحقق من المخزون أولاً
+  if (!isOpen()) {
+    throw new Error(getStatusMessage().message);
+  }
+
+  // التحقق من تفعيل كل منتج
   for (const item of orderData.items) {
     const productDoc = await getDoc(doc(db, PRODUCTS_COL, item.productId));
     if (!productDoc.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
     const product = productDoc.data();
-    if (product.stock < item.quantity) {
-      throw new Error(`الكمية غير كافية من ${item.name}. المتوفر: ${product.stock}`);
+    if (product.isAvailable === false) {
+      throw new Error(`المنتج ${item.name} غير متاح حالياً`);
     }
   }
 
@@ -27,7 +31,6 @@ export async function createOrder(orderData) {
     totalCost += (item.costPrice || 0) * item.quantity;
   }
 
-  // إنشاء الطلب
   const order = {
     ...orderData,
     totalCost,
@@ -45,28 +48,14 @@ export async function createOrder(orderData) {
 
   const orderRef = await addDoc(collection(db, ORDERS_COL), order);
 
-  // إنقاص المخزون وتسجيل الحركة
+  // تحديث عدّاد المبيعات لكل منتج (لإحصائيات الأكثر مبيعاً)
   for (const item of orderData.items) {
     const productRef = doc(db, PRODUCTS_COL, item.productId);
     const productDoc = await getDoc(productRef);
-    const currentStock = productDoc.data().stock;
-    const newStock = currentStock - item.quantity;
-
+    const soldCount = (productDoc.data()?.soldCount || 0) + item.quantity;
     await updateDoc(productRef, {
-      stock: newStock,
-      isAvailable: newStock > 0,
+      soldCount,
       updatedAt: serverTimestamp(),
-    });
-
-    // تسجيل حركة المخزون
-    await addDoc(collection(db, INVENTORY_COL), {
-      productId: item.productId,
-      productName: item.name,
-      type: 'sale',
-      quantity: -item.quantity,
-      note: `بيع - طلب #${orderRef.id.slice(-6)}`,
-      createdBy: orderData.customerId,
-      createdAt: serverTimestamp(),
     });
   }
 

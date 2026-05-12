@@ -5,8 +5,10 @@ import { formatCurrency } from '../utils/formatCurrency';
 import CustomerNav from '../components/CustomerNav';
 import {
   IoArrowForward, IoAdd, IoRemove, IoCart,
-  IoHeart, IoHeartOutline, IoChevronBack, IoRestaurantOutline
+  IoHeart, IoHeartOutline, IoChevronBack, IoRestaurantOutline,
+  IoTimeOutline
 } from 'react-icons/io5';
+import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
 
 function getCart() { try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; } }
@@ -52,9 +54,14 @@ export default function ProductDetails() {
   };
 
   const totalPrice = (product?.price || 0) * quantity;
+  const businessStatus = getStatusMessage();
 
   const addToCart = () => {
     if (!product) return;
+    if (!businessStatus.open) {
+      toast.error(businessStatus.message);
+      return;
+    }
     const cart = getCart();
     const existing = cart.find(item => item.productId === product.id);
     if (existing) existing.quantity += quantity;
@@ -224,10 +231,20 @@ export default function ProductDetails() {
           </div>
           <button
             onClick={addToCart}
-            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-2xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/40 active:scale-95 transition-transform"
+            disabled={!businessStatus.open}
+            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-2xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/40 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
           >
-            <span>أضف إلى السلة</span>
-            <IoChevronBack size={16} />
+            {businessStatus.open ? (
+              <>
+                <span>أضف إلى السلة</span>
+                <IoChevronBack size={16} />
+              </>
+            ) : (
+              <>
+                <IoTimeOutline size={16} />
+                <span>المطعم مغلق</span>
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { OmegaMark } from './AdminHeader';
 import {
@@ -36,19 +36,23 @@ const menuLinks = [
 
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
+  const [clickingTo, setClickingTo] = useState(null);
   const { logout, userData } = useAuth();
+  const navigate = useNavigate();
+
+  const handleNavClick = (e, to) => {
+    e.preventDefault();
+    if (clickingTo) return;
+    setClickingTo(to);
+    setTimeout(() => {
+      setOpen(false);
+      navigate(to);
+      setClickingTo(null);
+    }, 420);
+  };
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed left-4 top-6 z-40 flex h-14 w-14 items-center justify-center rounded-[1.35rem] border border-white/10 bg-omega-gray/70 text-omega-orange shadow-[0_14px_40px_-24px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-transform active:scale-95 sm:left-8 sm:h-16 sm:w-16"
-        aria-label="فتح القائمة"
-      >
-        <IoMenu size={28} />
-      </button>
-
       {open && (
         <button
           type="button"
@@ -83,33 +87,39 @@ export default function AdminNav() {
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
-          {menuLinks.map(({ to, icon: Icon, label, end, badge, featured }) => (
-            <NavLink
-              key={`${label}-${to}`}
-              to={to}
-              end={end}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `group flex min-h-16 items-center justify-between gap-4 rounded-[1.35rem] border px-5 text-lg font-bold transition-all ${
-                  isActive || featured
-                    ? 'border-omega-orange/50 bg-omega-orange/15 text-white shadow-[0_0_28px_-18px_rgba(255,107,0,0.9)]'
-                    : 'border-white/8 bg-white/[0.035] text-omega-text hover:border-white/14 hover:bg-white/[0.055]'
-                }`
-              }
-            >
-              <div className="flex items-center gap-3">
-                {badge && (
-                  <span className="rounded-full bg-omega-orange/16 px-3 py-1 text-xs font-black text-omega-orange">
-                    {badge}
-                  </span>
+          {menuLinks.map(({ to, icon: Icon, label, end, badge }) => {
+            const isClicking = clickingTo === to;
+            return (
+              <NavLink
+                key={`${label}-${to}`}
+                to={to}
+                end={end}
+                onClick={(e) => handleNavClick(e, to)}
+                className={() =>
+                  `group relative flex items-center overflow-hidden border text-lg font-bold transition-all duration-[420ms] ease-out ${
+                    isClicking
+                      ? 'mx-auto h-16 w-16 justify-center rounded-full border-yellow-400/70 bg-yellow-400 text-black shadow-[0_0_32px_-4px_rgba(250,204,21,0.85)]'
+                      : 'min-h-16 w-full justify-between gap-4 rounded-[1.35rem] border-white/8 bg-white/[0.035] px-5 text-omega-text hover:border-white/14 hover:bg-white/[0.055]'
+                  }`
+                }
+              >
+                <div className={`flex items-center gap-3 transition-opacity duration-150 ${isClicking ? 'opacity-0' : 'opacity-100'}`}>
+                  {badge && (
+                    <span className="rounded-full bg-omega-orange/16 px-3 py-1 text-xs font-black text-omega-orange">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+                <div className={`flex items-center gap-4 transition-opacity duration-150 ${isClicking ? 'opacity-0' : 'opacity-100'}`}>
+                  <span>{label}</span>
+                  <Icon className="text-omega-text-muted group-hover:text-omega-orange" size={27} />
+                </div>
+                {isClicking && (
+                  <Icon className="absolute text-black" size={28} />
                 )}
-              </div>
-              <div className="flex items-center gap-4">
-                <span>{label}</span>
-                <Icon className="text-omega-text-muted group-hover:text-omega-orange" size={27} />
-              </div>
-            </NavLink>
-          ))}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="mt-6 space-y-3">
@@ -158,6 +168,15 @@ export default function AdminNav() {
               )}
             </NavLink>
           ))}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="relative flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-bold text-omega-text-dim transition-colors hover:text-omega-orange"
+            aria-label="فتح القائمة"
+          >
+            <IoMenu size={25} />
+            <span>القائمة</span>
+          </button>
         </div>
       </nav>
     </>

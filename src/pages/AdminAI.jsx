@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { sendAIChat, executeAIAction } from '../services/aiService';
+import { streamAIChat, executeAIAction } from '../services/aiService';
 import AdminNav from '../components/AdminNav';
 import { IoSend, IoSparkles, IoCopy, IoCheckmark, IoClose } from 'react-icons/io5';
 import toast from 'react-hot-toast';
@@ -39,20 +39,48 @@ export default function AdminAI() {
     }
 
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: question }]);
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: question },
+      { role: 'ai', content: '', streaming: true, suggestedActions: [] },
+    ]);
     setLoading(true);
 
+    const updateLastAi = (updater) => {
+      setMessages(prev => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === 'ai') {
+            next[i] = { ...next[i], ...updater(next[i]) };
+            break;
+          }
+        }
+        return next;
+      });
+    };
+
     try {
-      const response = await sendAIChat(question, userData.uid);
-      const aiMessage = {
-        role: 'ai',
-        content: response.answer || response.message || 'لا يوجد رد',
-        suggestedActions: response.suggestedActions || [],
-        tokensUsed: response.tokensUsed,
-      };
-      setMessages(prev => [...prev, aiMessage]);
+      await streamAIChat(question, userData.uid, {
+        onDelta: (chunk) => {
+          updateLastAi(msg => ({ content: (msg.content || '') + chunk }));
+        },
+        onDone: ({ suggestedActions, tokensUsed }) => {
+          updateLastAi(() => ({
+            streaming: false,
+            suggestedActions: suggestedActions || [],
+            tokensUsed,
+          }));
+        },
+        onError: (errMsg) => {
+          updateLastAi(msg => ({
+            content: (msg.content || '') + `\n❌ ${errMsg}`,
+            error: true,
+            streaming: false,
+          }));
+        },
+      });
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'ai', content: `❌ ${error.message}`, error: true }]);
+      updateLastAi(() => ({ content: `❌ ${error.message}`, error: true, streaming: false }));
     } finally {
       setLoading(false);
     }
@@ -138,7 +166,10 @@ export default function AdminAI() {
                       ? 'bg-omega-red/10 border border-omega-red/20 text-omega-red'
                       : 'card-premium text-omega-text'
                 }`}>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {msg.content}
+                    {msg.streaming && <span className="inline-block w-2 h-4 align-middle ml-0.5 bg-omega-orange animate-pulse" />}
+                  </div>
 
                   {msg.role === 'ai' && !msg.error && (
                     <div className="flex items-center gap-3 mt-3 pt-2 border-t border-white/5">
@@ -176,21 +207,6 @@ export default function AdminAI() {
                 </div>
               </div>
             ))}
-
-            {loading && (
-              <div className="flex justify-end animate-fade-in">
-                <div className="card-premium p-4 max-w-[85%]">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-omega-orange rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-omega-orange rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-omega-orange rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                    <span className="text-omega-text-muted text-xs">يفكر...</span>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>

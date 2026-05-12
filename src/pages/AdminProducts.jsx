@@ -6,16 +6,15 @@ import AdminNav from '../components/AdminNav';
 import {
   IoAdd,
   IoAddOutline,
-  IoAlertCircleOutline,
-  IoChevronBack,
   IoClose,
   IoCloudUploadOutline,
-  IoCubeOutline,
   IoCreateOutline,
   IoFlameOutline,
   IoSearch,
+  IoTimeOutline,
   IoTrashOutline,
 } from 'react-icons/io5';
+import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
 
 const categories = {
@@ -33,7 +32,6 @@ const emptyForm = {
   category: 'burger',
   price: '',
   costPrice: '',
-  stock: '',
   description: '',
   image: '',
   isAvailable: true,
@@ -98,7 +96,6 @@ export default function AdminProducts() {
       category: product.category || 'burger',
       price: product.price ?? '',
       costPrice: product.costPrice ?? '',
-      stock: product.stock ?? '',
       description: product.description || '',
       image: product.image || '',
       isAvailable: product.isAvailable !== false,
@@ -125,7 +122,6 @@ export default function AdminProducts() {
       };
 
       if (form.costPrice !== '') payload.costPrice = Number(form.costPrice);
-      if (form.stock !== '') payload.stock = Number(form.stock);
 
       if (editing) {
         await updateProduct(editing, payload);
@@ -158,22 +154,14 @@ export default function AdminProducts() {
     }
   }
 
-  async function handleStockUpdate(product) {
-    const value = prompt(`تحديث مخزون ${product.name}`, product.stock ?? 0);
-    if (value === null) return;
-    const stock = Number(value);
-    if (!Number.isFinite(stock) || stock < 0) {
-      toast.error('أدخل رقماً صحيحاً للمخزون');
-      return;
-    }
-
+  async function toggleAvailability(product) {
     try {
-      await updateProduct(product.id, { stock, isAvailable: stock > 0 });
-      toast.success('تم تحديث المخزون');
+      await updateProduct(product.id, { isAvailable: product.isAvailable === false });
+      toast.success(product.isAvailable === false ? 'تم تفعيل المنتج' : 'تم إيقاف المنتج');
       loadProducts();
     } catch (error) {
       console.error(error);
-      toast.error('تعذر تحديث المخزون');
+      toast.error('تعذر تحديث الحالة');
     }
   }
 
@@ -203,10 +191,7 @@ export default function AdminProducts() {
     });
   }, [products, search, category]);
 
-  const lowStock = useMemo(
-    () => products.filter(product => (product.stock ?? 999) <= 5).sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
-    [products]
-  );
+  const businessStatus = getStatusMessage();
 
   const mostSold = useMemo(
     () => [...products].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0))[0],
@@ -220,7 +205,7 @@ export default function AdminProducts() {
       <AdminNav />
 
       <main className="admin-container">
-        <AdminHeader title="والمخزون" accent="المنتجات" subtitle="إدارة منتجات مطعم OMEGA" />
+        <AdminHeader title="المنتجات" subtitle="إدارة قائمة طعام OMEGA" />
 
         <section className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto]">
           <label className="admin-control flex min-h-16 items-center gap-3 rounded-[1.35rem] px-5">
@@ -244,7 +229,7 @@ export default function AdminProducts() {
           </button>
         </section>
 
-        <section className="mb-5 flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+        <section className="mb-5 grid grid-cols-5 gap-1.5 sm:gap-2">
           {Object.entries(categories).slice(0, 5).map(([key, item]) => {
             const active = category === key;
             return (
@@ -252,11 +237,11 @@ export default function AdminProducts() {
                 key={key}
                 type="button"
                 onClick={() => setCategory(key)}
-                className="admin-control flex min-w-[8.8rem] items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-black transition-all"
+                className="admin-control flex min-w-0 items-center justify-center gap-1 rounded-full px-1.5 py-2.5 text-xs font-black transition-all sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
                 style={active ? { borderColor: item.color, color: item.color, boxShadow: `0 0 26px -16px ${item.color}` } : { color: '#e6e6e6' }}
               >
-                {item.emoji && <span>{item.emoji}</span>}
-                {item.label}
+                {item.emoji && <span className="text-base">{item.emoji}</span>}
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
@@ -282,14 +267,12 @@ export default function AdminProducts() {
             <div className="space-y-3">
               {filteredProducts.map(product => {
                 const categoryInfo = categories[product.category] || categories.burger;
-                const stock = product.stock ?? 0;
-                const isLow = stock <= 5;
                 const isBest = mostSold?.id === product.id && (product.soldCount || 0) > 0;
 
                 return (
                   <article
                     key={product.id}
-                    className={`rounded-[1.35rem] border bg-white/[0.025] p-4 transition-all ${isLow ? 'border-omega-orange/55 shadow-[0_0_30px_-24px_rgba(255,107,0,0.95)]' : 'border-white/8'}`}
+                    className="rounded-[1.35rem] border border-white/8 bg-white/[0.025] p-4 transition-all"
                   >
                     <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] lg:items-center">
                       <ProductImage product={product} />
@@ -307,10 +290,7 @@ export default function AdminProducts() {
                         <p className="mb-4 line-clamp-2 text-sm text-omega-text-muted">{product.description || `${categoryInfo.label} من قائمة OMEGA`}</p>
                         <div className="flex flex-wrap justify-end gap-3">
                           <span className={`rounded-full px-3 py-1 text-sm font-black ${product.isAvailable === false ? 'bg-omega-red/15 text-omega-red' : 'bg-emerald-500/15 text-emerald-400'}`}>
-                            {product.isAvailable === false ? 'غير متوفر' : 'متوفر'} ●
-                          </span>
-                          <span className="text-lg text-omega-text-muted">
-                            المخزون: <b className={isLow ? 'text-omega-orange' : 'text-white'}>{formatNumber(stock)}</b>
+                            {product.isAvailable === false ? 'موقوف' : 'متاح'} ●
                           </span>
                         </div>
                       </div>
@@ -320,11 +300,10 @@ export default function AdminProducts() {
                         <div className="flex flex-wrap justify-start gap-2">
                           <button
                             type="button"
-                            onClick={() => handleStockUpdate(product)}
-                            className="flex items-center gap-2 rounded-xl border border-omega-orange/30 bg-omega-orange/8 px-4 py-2 text-sm font-black text-omega-orange"
+                            onClick={() => toggleAvailability(product)}
+                            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-black ${product.isAvailable === false ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-omega-red/30 bg-omega-red/8 text-omega-red'}`}
                           >
-                            <IoCubeOutline />
-                            تحديث المخزون
+                            {product.isAvailable === false ? 'تفعيل' : 'إيقاف'}
                           </button>
                           <button
                             type="button"
@@ -352,36 +331,17 @@ export default function AdminProducts() {
           )}
         </section>
 
-        <section className="admin-glass rounded-[1.55rem] border-omega-orange/40 p-5">
-          <div className="mb-4 flex items-center justify-end gap-2">
-            <h2 className="text-xl font-black text-omega-orange">تنبيهات المخزون المنخفض</h2>
-            <IoAlertCircleOutline className="text-omega-orange" size={25} />
-          </div>
-
-          {lowStock.length === 0 ? (
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center text-sm font-bold text-emerald-400">
-              لا توجد تنبيهات حالياً
+        <section className={`admin-glass rounded-[1.55rem] p-5 ${businessStatus.open ? 'border-emerald-500/35' : 'border-omega-red/35'}`}>
+          <div className="flex items-center justify-end gap-3">
+            <div className="text-right">
+              <h2 className={`text-xl font-black ${businessStatus.open ? 'text-emerald-400' : 'text-omega-red'}`}>
+                {businessStatus.open ? 'المطعم مفتوح' : 'المطعم مغلق'}
+              </h2>
+              <p className="mt-1 text-sm text-omega-text-muted">{businessStatus.message}</p>
+              <p className="mt-1 text-xs text-omega-text-dim">المنتجات تعتمد على ساعات العمل (11:00 ص — 10:00 م) وليس على كمية مخزّنة</p>
             </div>
-          ) : (
-            <>
-              <div className="grid gap-3 lg:grid-cols-3">
-                {lowStock.slice(0, 3).map(product => (
-                  <div key={product.id} className="admin-control flex items-center justify-between rounded-2xl p-3">
-                    <ProductImage product={product} size="small" />
-                    <div className="text-right">
-                      <p className="font-black text-white">{product.name}</p>
-                      <p className="text-sm text-omega-text-muted">المخزون: <b className="text-omega-red">{product.stock ?? 0}</b></p>
-                      <p className="text-xs text-omega-text-muted">الحد الأدنى: 10</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-sm font-black text-omega-orange">
-                <IoChevronBack />
-                عرض جميع التنبيهات
-              </button>
-            </>
-          )}
+            <IoTimeOutline className={businessStatus.open ? 'text-emerald-400' : 'text-omega-red'} size={28} />
+          </div>
         </section>
       </main>
 
@@ -436,7 +396,7 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">السعر</label>
                   <input type="number" className={inputClass} value={form.price} onChange={event => setForm(current => ({ ...current, price: event.target.value }))} placeholder="0" />
@@ -444,10 +404,6 @@ export default function AdminProducts() {
                 <div>
                   <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">التكلفة</label>
                   <input type="number" className={inputClass} value={form.costPrice} onChange={event => setForm(current => ({ ...current, costPrice: event.target.value }))} placeholder="0" />
-                </div>
-                <div>
-                  <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">المخزون</label>
-                  <input type="number" className={inputClass} value={form.stock} onChange={event => setForm(current => ({ ...current, stock: event.target.value }))} placeholder="0" />
                 </div>
               </div>
 

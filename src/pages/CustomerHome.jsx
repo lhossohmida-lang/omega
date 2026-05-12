@@ -6,9 +6,10 @@ import CustomerNav from '../components/CustomerNav';
 import {
   IoSearch, IoAdd, IoNotifications, IoPersonOutline,
   IoOptionsOutline, IoHeart, IoHeartOutline,
-  IoChevronBack, IoRestaurantOutline
+  IoChevronBack, IoRestaurantOutline, IoTimeOutline
 } from 'react-icons/io5';
 import { formatCurrency } from '../utils/formatCurrency';
+import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
 
 function getCart() {
@@ -64,7 +65,13 @@ export default function CustomerHome() {
     return matchCategory && matchSearch;
   });
 
+  const businessStatus = getStatusMessage();
+
   const addToCart = (product) => {
+    if (!businessStatus.open) {
+      toast.error(businessStatus.message);
+      return;
+    }
     const cart = getCart();
     const existing = cart.find(item => item.productId === product.id);
     if (existing) existing.quantity += 1;
@@ -100,6 +107,19 @@ export default function CustomerHome() {
             <p className="text-omega-text-muted text-xs mt-0.5">
               مرحباً {userData?.name?.split(' ')[0] || ''} 👋
             </p>
+          </div>
+        </div>
+
+        {/* Business hours status */}
+        <div className={`flex items-center justify-between gap-2 mb-4 px-4 py-3 rounded-2xl border animate-fade-in ${
+          businessStatus.open
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+            : 'border-omega-red/30 bg-omega-red/10 text-omega-red'
+        }`}>
+          <span className="text-xs font-bold">11:00 ص — 10:00 م</span>
+          <div className="flex items-center gap-2 text-sm font-black">
+            <span>{businessStatus.message}</span>
+            <IoTimeOutline size={18} />
           </div>
         </div>
 
@@ -140,21 +160,21 @@ export default function CustomerHome() {
         </div>
 
         {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 -mx-1 px-1">
+        <div className="grid grid-cols-5 gap-1.5 mb-6">
           {categories.map((cat) => {
             const active = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl whitespace-nowrap transition-all duration-300 border ${
+                className={`flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-2xl transition-all duration-300 border min-w-0 ${
                   active
                     ? 'bg-gradient-to-l from-omega-orange to-omega-orange-dark border-omega-orange text-white shadow-lg shadow-omega-orange/40'
                     : 'bg-white/[0.04] border-white/8 text-white/80 hover:border-omega-orange/30'
                 }`}
               >
-                <span className="text-base">{cat.emoji}</span>
-                <span className="text-sm font-bold">{cat.label}</span>
+                <span className="text-lg">{cat.emoji}</span>
+                <span className="text-[11px] font-bold truncate w-full text-center">{cat.label}</span>
               </button>
             );
           })}

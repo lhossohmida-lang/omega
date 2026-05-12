@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomerNav from '../components/CustomerNav';
 import { formatCurrency } from '../utils/formatCurrency';
-import { IoTrash, IoAdd, IoRemove, IoArrowForward, IoCart, IoBag } from 'react-icons/io5';
+import { getStatusMessage } from '../utils/businessHours';
+import { IoTrash, IoAdd, IoRemove, IoArrowForward, IoCart, IoBag, IoTimeOutline } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
 function getCart() { try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; } }
@@ -47,6 +48,15 @@ export default function Cart() {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const businessStatus = getStatusMessage();
+
+  const handleCheckout = () => {
+    if (!businessStatus.open) {
+      toast.error(businessStatus.message);
+      return;
+    }
+    navigate('/checkout');
+  };
 
   return (
     <div className="min-h-screen pb-32 relative overflow-hidden">
@@ -158,13 +168,21 @@ export default function Cart() {
               </div>
             </div>
 
+            {!businessStatus.open && (
+              <div className="mb-3 flex items-center gap-2 rounded-2xl border border-omega-red/30 bg-omega-red/10 px-4 py-3 text-sm font-bold text-omega-red animate-fade-in">
+                <IoTimeOutline size={18} />
+                <span>{businessStatus.message}</span>
+              </div>
+            )}
+
             {/* CTA */}
             <button
-              onClick={() => navigate('/checkout')}
-              className="w-full py-4 rounded-2xl bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-base shadow-2xl shadow-omega-orange/30 hover:shadow-omega-orange/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 animate-fade-in"
+              onClick={handleCheckout}
+              disabled={!businessStatus.open}
+              className="w-full py-4 rounded-2xl bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-base shadow-2xl shadow-omega-orange/30 hover:shadow-omega-orange/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               <IoCart size={20} />
-              <span>إتمام الطلب • {formatCurrency(total)}</span>
+              <span>{businessStatus.open ? `إتمام الطلب • ${formatCurrency(total)}` : 'المطعم مغلق حالياً'}</span>
             </button>
           </>
         )}
