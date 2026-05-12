@@ -1,9 +1,8 @@
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs,
   query, where, orderBy, serverTimestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const PRODUCTS_COL = 'products';
 
@@ -73,12 +72,34 @@ export async function deleteProduct(productId) {
   await deleteDoc(doc(db, PRODUCTS_COL, productId));
 }
 
-// رفع صورة منتج
-export async function uploadProductImage(file, productId) {
-  const storageRef = ref(storage, `products/${productId}_${Date.now()}`);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
-  return url;
+// رفع صورة منتج عبر الخادم (يتخطى قواعد Storage)
+export async function uploadProductImage(file, adminId) {
+  // تحويل الملف إلى base64
+  const fileBase64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const response = await fetch('/api/admin/upload-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      adminId,
+      fileBase64,
+      contentType: file.type,
+      fileName: file.name,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'فشل رفع الصورة');
+  }
+
+  const data = await response.json();
+  return data.url;
 }
 
 // جلب المنتجات منخفضة المخزون

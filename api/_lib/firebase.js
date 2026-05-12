@@ -33,6 +33,7 @@ export function getDb() {
     initializeApp({
       projectId: process.env.FIREBASE_PROJECT_ID || 'basst-omeeega',
       credential,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'basst-omeeega.firebasestorage.app',
     });
   }
   dbInstance = getFirestore();

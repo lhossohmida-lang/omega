@@ -3,6 +3,7 @@ import { addProduct, deleteProduct, getAllProducts, updateProduct, uploadProduct
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
+import { auth } from '../firebase';
 import {
   IoAdd,
   IoAddOutline,
@@ -248,7 +249,7 @@ export default function AdminProducts() {
 
     try {
       toast.loading('جاري رفع الصورة...');
-      const url = await uploadProductImage(file, editing || 'new');
+      const url = await uploadProductImage(file, auth.currentUser?.uid);
       setForm(current => ({ ...current, image: url }));
       toast.dismiss();
       toast.success('تم رفع الصورة');
