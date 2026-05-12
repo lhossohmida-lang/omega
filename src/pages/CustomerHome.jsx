@@ -1,270 +1,415 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllProducts } from '../services/productService';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import CustomerNav from '../components/CustomerNav';
 import {
-  IoSearch, IoAdd, IoNotifications, IoPersonOutline,
-  IoOptionsOutline, IoHeart, IoHeartOutline,
-  IoChevronBack, IoRestaurantOutline, IoTimeOutline
+  IoSearch, IoAdd, IoMenu, IoClose,
+  IoHeart, IoHeartOutline, IoCheckmark,
+  IoTimeOutline,
 } from 'react-icons/io5';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
 
+/* ── helpers ── */
 function getCart() {
-  try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); }
-  catch { return []; }
+  try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; }
 }
-function saveCart(cart) { localStorage.setItem('omega_cart', JSON.stringify(cart)); }
+function saveCart(c) { localStorage.setItem('omega_cart', JSON.stringify(c)); }
 function getFav() {
   try { return JSON.parse(localStorage.getItem('tarken_fav') || '[]'); } catch { return []; }
 }
 function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
-const categories = [
-  { id: 'all', label: 'الكل', emoji: '⊞' },
-  { id: 'burger', label: 'برغر', emoji: '🍔' },
-  { id: 'pizza', label: 'بيتزا', emoji: '🍕' },
-  { id: 'tacos', label: 'تاكوس', emoji: '🌮' },
-  { id: 'drinks', label: 'مشروبات', emoji: '🥤' },
+const CATEGORIES = [
+  { id: 'all',        label: 'الكل',      emoji: '⊞' },
+  { id: 'burger',     label: 'برغر',      emoji: '🍔' },
+  { id: 'pizza',      label: 'بيتزا',     emoji: '🍕' },
+  { id: 'tacos',      label: 'تاكوس',     emoji: '🌮' },
+  { id: 'drinks',     label: 'مشروبات',   emoji: '🥤' },
+  { id: 'desserts',   label: 'حلويات',    emoji: '🍰' },
+  { id: 'appetizers', label: 'مقبلات',    emoji: '🍟' },
 ];
 
-const categoryEmoji = (cat) =>
-  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : '🥤';
-
+/* ─────────────────────────────────────────────────── */
 export default function CustomerHome() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [addedItemId, setAddedItemId] = useState(null);
-  const [favorites, setFavorites] = useState(getFav());
+  const [products,      setProducts]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [activeCat,     setActiveCat]     = useState('all');
+  const [searchOpen,    setSearchOpen]    = useState(false);
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [menuOpen,      setMenuOpen]      = useState(false);
+  const [cartExpanded,  setCartExpanded]  = useState({});  // { productId: true }
+  const [favorites,     setFavorites]     = useState(getFav);
+  const [showFavOnly,   setShowFavOnly]   = useState(false);
+  const [ordersCount,   setOrdersCount]   = useState(0);
+  const [dotIndex,      setDotIndex]      = useState(0);
+
+  const carouselRef = useRef(null);
   const { userData } = useAuth();
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
+  const businessStatus = getStatusMessage();
 
-  useEffect(() => { loadProducts(); }, []);
+  /* load products */
+  useEffect(() => {
+    getAllProducts()
+      .then(data => setProducts(data.filter(p => p.isAvailable !== false)))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
-  const loadProducts = async () => {
-    try {
-      const data = await getAllProducts();
-      setProducts(data.filter(p => p.isAvailable !== false));
-    } catch (error) { console.error(error); }
-    setLoading(false);
-  };
+  /* load orders count */
+  useEffect(() => {
+    if (!userData?.uid) return;
+    getCountFromServer(
+      query(collection(db, 'orders'), where('customerId', '==', userData.uid))
+    ).then(snap => setOrdersCount(snap.data().count)).catch(() => {});
+  }, [userData?.uid]);
 
+  /* toggle favourite */
   const toggleFav = (id) => {
     const next = favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id];
     setFavorites(next); saveFav(next);
   };
 
-  const filteredProducts = products.filter(p => {
-    const matchCategory = activeCategory === 'all' || p.category === activeCategory;
-    const q = searchQuery.toLowerCase();
-    const matchSearch = !q || p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
-    return matchCategory && matchSearch;
+  /* filtered list */
+  const filtered = products.filter(p => {
+    if (showFavOnly && !favorites.includes(p.id)) return false;
+    if (activeCat !== 'all' && p.category !== activeCat) return false;
+    const q = searchQuery.trim().toLowerCase();
+    return !q || p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
   });
 
-  const businessStatus = getStatusMessage();
-
+  /* add to cart */
   const addToCart = (product) => {
-    if (!businessStatus.open) {
-      toast.error(businessStatus.message);
-      return;
-    }
+    if (!businessStatus.open) { toast.error(businessStatus.message); return; }
     const cart = getCart();
-    const existing = cart.find(item => item.productId === product.id);
-    if (existing) existing.quantity += 1;
+    const ex = cart.find(i => i.productId === product.id);
+    if (ex) ex.quantity += 1;
     else cart.push({
       productId: product.id, name: product.name, price: product.price,
       costPrice: product.costPrice || 0, image: product.image || '', quantity: 1,
     });
     saveCart(cart);
-    setAddedItemId(product.id);
-    setTimeout(() => setAddedItemId(null), 600);
-    toast.success(`تمت إضافة ${product.name}`, { duration: 1500 });
+    toast.success(`تمت إضافة ${product.name}`, { duration: 1200 });
   };
 
+  const handleAdd = (product) => {
+    addToCart(product);
+    setCartExpanded(p => ({ ...p, [product.id]: true }));
+  };
+
+  const handleAddMore = (product) => {
+    addToCart(product);
+  };
+
+  const handleDone = (id) => setCartExpanded(p => ({ ...p, [id]: false }));
+
+  /* dot tracker */
+  const onCarouselScroll = useCallback(() => {
+    if (!carouselRef.current) return;
+    const el = carouselRef.current;
+    const cardW = el.clientWidth * 0.86 + 16; // card width + gap
+    setDotIndex(Math.round(el.scrollLeft / cardW));
+  }, []);
+
+  /* ─────────── UI ─────────── */
   return (
-    <div className="min-h-screen pb-32 relative overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
-      <div className="pointer-events-none fixed top-0 right-0 w-96 h-96 bg-omega-orange/15 rounded-full blur-[120px]" />
-      <div className="pointer-events-none fixed top-1/3 -left-20 w-80 h-80 bg-omega-red/10 rounded-full blur-[120px]" />
+    <div className="min-h-screen overflow-x-hidden pb-28"
+      style={{ background: 'radial-gradient(ellipse 120% 55% at 80% 0%, #200e00 0%, #0a0a0a 55%)' }}>
 
-      <div className="relative max-w-lg mx-auto px-4 pt-5">
-        {/* Top bar: profile + bell + brand */}
-        <div className="flex items-center justify-between mb-5 animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <button onClick={() => navigate('/profile')}
-              className="w-11 h-11 rounded-full bg-white/5 border border-omega-orange/30 flex items-center justify-center text-omega-orange shadow-lg shadow-omega-orange/20">
-              <IoPersonOutline size={20} />
-            </button>
-            <button className="w-11 h-11 rounded-full bg-white/5 border border-white/8 flex items-center justify-center text-white/80 relative">
-              <IoNotifications size={18} />
-            </button>
-          </div>
-          <div className="text-right">
-            <h1 className="text-white font-black text-2xl tracking-tight" style={{ fontFamily: 'system-ui' }}>tarken</h1>
-            <p className="text-omega-text-muted text-xs mt-0.5">
-              مرحباً {userData?.name?.split(' ')[0] || ''} 👋
-            </p>
-          </div>
-        </div>
+      {/* ambient glows */}
+      <div className="pointer-events-none fixed top-0 right-0 h-80 w-80 rounded-full bg-omega-orange/20 blur-[130px]" />
+      <div className="pointer-events-none fixed bottom-1/3 -left-20 h-72 w-72 rounded-full bg-omega-red/10 blur-[120px]" />
 
-        {/* Business hours status */}
-        <div className={`flex items-center justify-between gap-2 mb-4 px-4 py-3 rounded-2xl border animate-fade-in ${
-          businessStatus.open
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-            : 'border-omega-red/30 bg-omega-red/10 text-omega-red'
-        }`}>
-          <span className="text-xs font-bold">11:00 ص — 10:00 م</span>
-          <div className="flex items-center gap-2 text-sm font-black">
-            <span>{businessStatus.message}</span>
-            <IoTimeOutline size={18} />
-          </div>
-        </div>
+      {/* ════════ HEADER ════════ */}
+      <header className="sticky top-0 z-30 px-4 pt-4 pb-3">
+        {/* force ltr so left=hamburger, right=search regardless of body rtl */}
+        <div className="flex items-center justify-between" dir="ltr">
 
-        {/* Search + filter */}
-        <div className="flex gap-2 mb-5 animate-fade-in" style={{ animationDelay: '60ms' }}>
-          <div className="relative flex-1">
-            <IoSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-omega-text-dim" size={18} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث عن وجبتك المفضلة..."
-              className="w-full pr-12 pl-4 py-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/40 transition-all"
-            />
-          </div>
-          <button className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-white/80 hover:text-omega-orange transition-colors">
-            <IoOptionsOutline size={20} />
+          {/* Hamburger ← left */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="liquid-glass flex h-12 w-12 items-center justify-center rounded-2xl text-white transition-transform active:scale-90"
+          >
+            <IoMenu size={22} />
+          </button>
+
+          {/* Logo ← center */}
+          <img
+            src="/logo.png"
+            alt="OMEGA"
+            className="h-14 w-14 rounded-full object-cover shadow-lg shadow-omega-orange/30"
+          />
+
+          {/* Search ← right */}
+          <button
+            onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); }}
+            className={`liquid-glass flex h-12 w-12 items-center justify-center rounded-2xl transition-all active:scale-90 ${searchOpen ? 'text-omega-orange' : 'text-white'}`}
+          >
+            {searchOpen ? <IoClose size={22} /> : <IoSearch size={22} />}
           </button>
         </div>
 
-        {/* Welcome banner */}
-        <div className="relative rounded-[1.5rem] overflow-hidden mb-5 p-6 animate-slide-up shadow-2xl shadow-omega-orange/20 border border-white/8">
-          <div className="absolute inset-0 bg-gradient-to-br from-omega-orange/25 via-omega-orange/10 to-transparent" />
-          <div className="absolute inset-0"
-            style={{
-              background: 'radial-gradient(circle at 75% 50%, rgba(255,107,0,0.35) 0%, rgba(229,57,53,0.15) 35%, transparent 75%)'
-            }}
-          />
-          <div className="relative flex items-center justify-between gap-3">
-            <div>
-              <p className="text-omega-orange text-[11px] font-bold mb-1.5 tracking-wider">tarken RESTAURANT</p>
-              <h2 className="text-white text-2xl font-black mb-1 leading-tight">طعام شهي</h2>
-              <h2 className="text-white text-2xl font-black mb-2 leading-tight">يصلك بسرعة</h2>
-              <p className="text-white/70 text-xs">اختر وجبتك المفضلة من القائمة</p>
-            </div>
-            <div className="text-7xl drop-shadow-2xl animate-float">🍽️</div>
+        {/* Search input (expands below) */}
+        {searchOpen && (
+          <div className="mt-3 animate-slide-up">
+            <input
+              autoFocus
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="ابحث عن وجبتك..."
+              className="liquid-glass w-full rounded-2xl px-5 py-3.5 text-right text-sm text-white placeholder-white/40 outline-none"
+            />
           </div>
+        )}
+
+        {/* Business hours banner */}
+        {!businessStatus.open && (
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-omega-red/30 bg-omega-red/10 px-4 py-2.5">
+            <span className="text-xs font-bold text-omega-red">11:00 ص — 10:00 م</span>
+            <div className="flex items-center gap-1.5 text-xs font-black text-omega-red">
+              <IoTimeOutline size={15} />
+              {businessStatus.message}
+            </div>
+          </div>
+        )}
+      </header>
+
+      <div className="px-4 space-y-4">
+
+        {/* ════════ TWO SUMMARY CARDS ════════ */}
+        <div className="grid grid-cols-2 gap-3">
+
+          {/* Orders card – right (first in RTL) */}
+          <button
+            onClick={() => navigate('/my-orders')}
+            className="liquid-glass flex flex-col items-start rounded-3xl p-4 text-right transition-transform active:scale-95"
+          >
+            <span className="mb-2 text-3xl">📦</span>
+            <p className="text-[11px] font-bold text-white/50">طلباتي</p>
+            <p className="text-xl font-black text-white">{ordersCount} طلب</p>
+          </button>
+
+          {/* Favourites card – left (second in RTL) */}
+          <button
+            onClick={() => setShowFavOnly(v => !v)}
+            className={`liquid-glass flex flex-col items-start rounded-3xl p-4 text-right transition-all active:scale-95 ${showFavOnly ? 'border-omega-red/40 shadow-[inset_0_0_0_1.5px_rgba(229,57,53,0.4)]' : ''}`}
+          >
+            <span className="mb-2 text-3xl">❤️</span>
+            <p className="text-[11px] font-bold text-white/50">المفضلة</p>
+            <p className="text-xl font-black text-white">{favorites.length} وجبة</p>
+          </button>
         </div>
 
-        {/* Categories */}
-        <div className="grid grid-cols-5 gap-1.5 mb-6">
-          {categories.map((cat) => {
-            const active = activeCategory === cat.id;
+        {/* ════════ CATEGORY STRIP ════════ */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {CATEGORIES.map(cat => {
+            const active = activeCat === cat.id && !showFavOnly;
             return (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`flex flex-col items-center justify-center gap-1 px-1 py-2.5 rounded-2xl transition-all duration-300 border min-w-0 ${
+                onClick={() => { setActiveCat(cat.id); setShowFavOnly(false); }}
+                className={`shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition-all duration-200 ${
                   active
-                    ? 'bg-gradient-to-l from-omega-orange to-omega-orange-dark border-omega-orange text-white shadow-lg shadow-omega-orange/40'
-                    : 'bg-white/[0.04] border-white/8 text-white/80 hover:border-omega-orange/30'
+                    ? 'bg-omega-orange text-white shadow-lg shadow-omega-orange/35'
+                    : 'liquid-glass text-white/70'
                 }`}
               >
-                <span className="text-lg">{cat.emoji}</span>
-                <span className="text-[11px] font-bold truncate w-full text-center">{cat.label}</span>
+                <span className="text-sm">{cat.emoji}</span>
+                <span>{cat.label}</span>
               </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Products */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-black text-lg flex items-center gap-2">
-            <IoRestaurantOutline className="text-omega-orange" size={20} />
-            {activeCategory === 'all' ? 'القائمة' : categories.find(c => c.id === activeCategory)?.label}
-          </h3>
-          <span className="text-omega-text-muted text-xs">{filteredProducts.length} منتج</span>
-        </div>
-
+      {/* ════════ CAROUSEL ════════ */}
+      <div className="mt-5">
         {loading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="skeleton h-64 rounded-3xl" />)}
+          <div className="flex gap-4 overflow-hidden px-4">
+            {[1, 2].map(i => (
+              <div key={i} className="skeleton h-72 w-[86vw] shrink-0 rounded-3xl" />
+            ))}
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="text-6xl mb-3 animate-float">🍽️</div>
-            <p className="text-white font-bold mb-1">لا توجد منتجات</p>
-            <p className="text-omega-text-muted text-sm">جرّب فئة أخرى</p>
+        ) : filtered.length === 0 ? (
+          <div className="px-4 py-16 text-center animate-fade-in">
+            <div className="mb-3 text-6xl">🍽️</div>
+            <p className="font-bold text-white">لا توجد منتجات</p>
+            <p className="mt-1 text-sm text-white/50">
+              {showFavOnly ? 'لا توجد وجبات في المفضلة' : 'جرّب فئة أخرى'}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 stagger mb-8">
-            {filteredProducts.map((product) => {
-              const isAdded = addedItemId === product.id;
-              const isFav = favorites.includes(product.id);
-              return (
-                <div
-                  key={product.id}
-                  className="group relative rounded-[1.5rem] overflow-hidden bg-gradient-to-b from-white/[0.05] to-white/[0.02] backdrop-blur-sm border border-white/8 transition-all duration-500 hover:-translate-y-1 hover:border-omega-orange/30"
-                >
-                  {/* Image */}
+          <>
+            <div
+              ref={carouselRef}
+              onScroll={onCarouselScroll}
+              className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4"
+            >
+              {filtered.map(product => {
+                const isFav      = favorites.includes(product.id);
+                const isExpanded = !!cartExpanded[product.id];
+                const catInfo    = CATEGORIES.find(c => c.id === product.category) || CATEGORIES[0];
+
+                return (
                   <div
-                    className="relative h-36 overflow-hidden cursor-pointer"
-                    onClick={() => navigate(`/product/${product.id}`)}
+                    key={product.id}
+                    className="snap-start shrink-0 w-[86vw] max-w-[360px]"
                   >
-                    {product.image ? (
-                      <img src={product.image} alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-omega-gray/40 to-omega-dark/40 group-hover:scale-110 transition-transform duration-700">
-                        {categoryEmoji(product.category)}
-                      </div>
-                    )}
+                    {/* Card */}
+                    <div className="relative overflow-hidden rounded-3xl">
 
-                    {/* Heart button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleFav(product.id); }}
-                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/50 backdrop-blur border border-white/10 flex items-center justify-center text-white hover:scale-110 transition-transform"
-                    >
-                      {isFav
-                        ? <IoHeart className="text-omega-red" size={16} />
-                        : <IoHeartOutline size={16} />
-                      }
-                    </button>
-                  </div>
-
-                  {/* Info */}
-                  <div className="p-3.5">
-                    <h4 className="text-white text-sm font-bold mb-1 truncate">{product.name}</h4>
-                    {product.description && (
-                      <p className="text-omega-text-dim text-[10px] line-clamp-2 leading-relaxed mb-2 min-h-[28px]">
-                        {product.description}
-                      </p>
-                    )}
-
-                    {/* Price + Add */}
-                    <div className="flex items-end justify-between mt-2">
-                      <span className="text-omega-orange font-black text-base leading-tight">{formatCurrency(product.price)}</span>
-                      <button
-                        onClick={() => addToCart(product)}
-                        className={`w-9 h-9 rounded-2xl flex items-center justify-center text-white transition-all duration-300 active:scale-90 shadow-lg ${
-                          isAdded
-                            ? 'bg-emerald-500 shadow-emerald-500/40 scale-110'
-                            : 'bg-gradient-to-br from-omega-orange to-omega-orange-dark shadow-omega-orange/40 hover:scale-110'
-                        }`}
+                      {/* Food image */}
+                      <div
+                        className="h-64 w-full cursor-pointer"
+                        onClick={() => navigate(`/product/${product.id}`)}
                       >
-                        {isAdded ? '✓' : <IoAdd size={20} />}
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-white/[0.04] text-8xl">
+                            {catInfo.emoji}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Fav button – top right */}
+                      <button
+                        onClick={() => toggleFav(product.id)}
+                        className="liquid-glass absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-90"
+                      >
+                        {isFav
+                          ? <IoHeart className="text-omega-red" size={18} />
+                          : <IoHeartOutline className="text-white" size={18} />}
                       </button>
+
+                      {/* ── Product detail card – liquid glass overlay ── */}
+                      <div className="liquid-glass absolute bottom-0 left-0 right-0 rounded-b-3xl px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+
+                          {/* Name + price – left (end in RTL) */}
+                          <div className="min-w-0 text-right">
+                            <h4 className="truncate text-base font-black text-white">{product.name}</h4>
+                            <p className="text-lg font-black text-omega-orange">{formatCurrency(product.price)}</p>
+                          </div>
+
+                          {/* Add controls – right (start in RTL) */}
+                          {isExpanded ? (
+                            <div className="flex shrink-0 items-center gap-2" dir="ltr">
+                              {/* Add one more */}
+                              <button
+                                onClick={() => handleAddMore(product)}
+                                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-omega-orange text-white shadow-lg shadow-omega-orange/40 transition-transform active:scale-90"
+                              >
+                                <IoAdd size={22} />
+                              </button>
+                              {/* Done */}
+                              <button
+                                onClick={() => handleDone(product.id)}
+                                className="liquid-glass flex h-11 items-center gap-1.5 rounded-2xl border-emerald-500/40 px-3 text-xs font-black text-emerald-400"
+                              >
+                                <IoCheckmark size={16} />
+                                تم
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleAdd(product)}
+                              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-omega-orange text-white shadow-lg shadow-omega-orange/40 transition-transform active:scale-90"
+                            >
+                              <IoAdd size={26} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+
+              {/* trailing spacer so last card scrolls to start */}
+              <div className="shrink-0 w-4" />
+            </div>
+
+            {/* Dot indicators */}
+            {filtered.length > 1 && filtered.length <= 12 && (
+              <div className="mt-4 flex justify-center gap-1.5 px-4">
+                {filtered.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-full transition-all duration-300 ${
+                      i === dotIndex
+                        ? 'h-2 w-6 bg-omega-orange'
+                        : 'h-2 w-2 bg-white/25'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* ════════ HAMBURGER MENU DRAWER ════════ */}
+      {menuOpen && (
+        <>
+          {/* backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          {/* drawer – slides from left */}
+          <div
+            className="liquid-glass animate-menu-in fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col gap-3 p-5"
+            style={{ borderRadius: '0 1.75rem 1.75rem 0' }}
+          >
+            {/* header */}
+            <div className="mb-2 flex items-center justify-between">
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="liquid-glass flex h-10 w-10 items-center justify-center rounded-2xl text-white/60"
+              >
+                <IoClose size={20} />
+              </button>
+              <img src="/logo.png" alt="OMEGA" className="h-10 w-10 rounded-full object-cover" />
+            </div>
+
+            {/* profile chip */}
+            <div className="liquid-glass rounded-2xl px-4 py-3">
+              <p className="font-black text-white">{userData?.name || 'زائر'}</p>
+              <p className="mt-0.5 text-xs text-white/50">{userData?.phone || ''}</p>
+            </div>
+
+            {/* nav links */}
+            {[
+              { label: 'الرئيسية',       icon: '🏠', path: '/' },
+              { label: 'طلباتي',          icon: '📦', path: '/my-orders' },
+              { label: 'السلة',           icon: '🛒', path: '/cart' },
+              { label: 'الملف الشخصي',   icon: '👤', path: '/profile' },
+            ].map(item => (
+              <button
+                key={item.path}
+                onClick={() => { navigate(item.path); setMenuOpen(false); }}
+                className="liquid-glass flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-right transition-transform active:scale-95"
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <span className="font-bold text-white">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <CustomerNav />
     </div>
