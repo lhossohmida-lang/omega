@@ -37,18 +37,95 @@ const emptyForm = {
   isAvailable: true,
 };
 
-function ProductImage({ product, size = 'large' }) {
-  const category = categories[product.category] || categories.burger;
-  const classes = size === 'small' ? 'h-16 w-16 rounded-2xl text-3xl' : 'h-32 w-40 rounded-[1.25rem] text-6xl';
+function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onToggle, formatCurrency }) {
+  const categoryInfo = categories[product.category] || categories.burger;
+  const isBest = mostSoldId === product.id && (product.soldCount || 0) > 0;
+  const available = product.isAvailable !== false;
 
   return (
-    <div className={`${classes} shrink-0 overflow-hidden border border-white/10 bg-white/[0.04]`}>
-      {product.image ? (
-        <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">{category.emoji || '🍽️'}</div>
-      )}
-    </div>
+    <article className="flex flex-col overflow-hidden rounded-[1.35rem] border border-white/8 bg-white/[0.025] transition-all">
+      {/* ── Image + overlays ── */}
+      <div className="relative h-52 w-full shrink-0 bg-white/[0.04]">
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-7xl">
+            {categoryInfo.emoji || '🍽️'}
+          </div>
+        )}
+
+        {/* gradient so overlaid text is readable */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+        {/* price – bottom right */}
+        <div className="absolute bottom-3 left-3">
+          <span className="rounded-xl bg-black/55 px-3 py-1.5 text-xl font-black text-white backdrop-blur-sm">
+            {formatCurrency(product.price)}
+          </span>
+        </div>
+
+        {/* best-seller badge – top right */}
+        {isBest && (
+          <div className="absolute right-3 top-3">
+            <span className="inline-flex items-center gap-1 rounded-full bg-omega-orange/85 px-3 py-1 text-xs font-black text-white backdrop-blur-sm">
+              <IoFlameOutline />
+              الأكثر مبيعاً
+            </span>
+          </div>
+        )}
+
+        {/* availability badge – top left */}
+        <div className="absolute left-3 top-3">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-black backdrop-blur-sm ${available ? 'bg-emerald-500/75 text-white' : 'bg-omega-red/75 text-white'}`}>
+            {available ? '● متاح' : '⏸ موقوف'}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="mb-1 text-right text-lg font-black text-white">{product.name}</h3>
+        <p className="mb-4 line-clamp-2 text-right text-sm text-omega-text-muted">
+          {product.description || `${categoryInfo.label} من قائمة OMEGA`}
+        </p>
+
+        {/* actions */}
+        <div className="mt-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onToggle(product)}
+            className={`flex-1 rounded-xl border py-2 text-sm font-black transition-all ${
+              available
+                ? 'border-omega-red/30 bg-omega-red/8 text-omega-red'
+                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+            }`}
+          >
+            {available ? 'إيقاف' : 'تفعيل'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit(product)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-omega-orange/25 bg-white/[0.03] text-omega-orange"
+            aria-label="تعديل"
+          >
+            <IoCreateOutline size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(product)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-omega-red/25 bg-omega-red/8 text-omega-red"
+            aria-label="حذف"
+          >
+            <IoTrashOutline size={20} />
+          </button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -254,9 +331,9 @@ export default function AdminProducts() {
           </div>
 
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-36 rounded-[1.25rem] skeleton" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-72 rounded-[1.25rem] skeleton" />
               ))}
             </div>
           ) : filteredProducts.length === 0 ? (
@@ -264,69 +341,19 @@ export default function AdminProducts() {
               لا توجد منتجات مطابقة
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredProducts.map(product => {
-                const categoryInfo = categories[product.category] || categories.burger;
-                const isBest = mostSold?.id === product.id && (product.soldCount || 0) > 0;
-
-                return (
-                  <article
-                    key={product.id}
-                    className="rounded-[1.35rem] border border-white/8 bg-white/[0.025] p-4 transition-all"
-                  >
-                    <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] lg:items-center">
-                      <ProductImage product={product} />
-
-                      <div className="text-right">
-                        <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-                          {isBest && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-omega-orange/12 px-3 py-1 text-xs font-black text-omega-orange">
-                              <IoFlameOutline />
-                              الأكثر مبيعاً
-                            </span>
-                          )}
-                          <h3 className="text-2xl font-black text-white">{product.name}</h3>
-                        </div>
-                        <p className="mb-4 line-clamp-2 text-sm text-omega-text-muted">{product.description || `${categoryInfo.label} من قائمة OMEGA`}</p>
-                        <div className="flex flex-wrap justify-end gap-3">
-                          <span className={`rounded-full px-3 py-1 text-sm font-black ${product.isAvailable === false ? 'bg-omega-red/15 text-omega-red' : 'bg-emerald-500/15 text-emerald-400'}`}>
-                            {product.isAvailable === false ? 'موقوف' : 'متاح'} ●
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-4 lg:min-w-48">
-                        <p className="text-left text-3xl font-black text-white">{formatCurrency(product.price)}</p>
-                        <div className="flex flex-wrap justify-start gap-2">
-                          <button
-                            type="button"
-                            onClick={() => toggleAvailability(product)}
-                            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-black ${product.isAvailable === false ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-omega-red/30 bg-omega-red/8 text-omega-red'}`}
-                          >
-                            {product.isAvailable === false ? 'تفعيل' : 'إيقاف'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openEdit(product)}
-                            className="flex h-11 w-14 items-center justify-center rounded-xl border border-omega-orange/25 bg-white/[0.03] text-omega-orange"
-                            aria-label="تعديل"
-                          >
-                            <IoCreateOutline size={22} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(product)}
-                            className="flex h-11 w-14 items-center justify-center rounded-xl border border-omega-red/25 bg-omega-red/8 text-omega-red"
-                            aria-label="حذف"
-                          >
-                            <IoTrashOutline size={22} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  categories={categories}
+                  mostSoldId={mostSold?.id}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onToggle={toggleAvailability}
+                  formatCurrency={formatCurrency}
+                />
+              ))}
             </div>
           )}
         </section>

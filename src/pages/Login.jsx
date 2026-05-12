@@ -48,8 +48,8 @@ export default function Login() {
       <div className="w-full max-w-md animate-slide-up">
         {/* الشعار */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center mb-4 shadow-lg shadow-omega-orange/20">
-            <span className="text-white font-black text-3xl">Ω</span>
+          <div className="w-24 h-24 mx-auto rounded-full overflow-hidden bg-white flex items-center justify-center mb-4 shadow-lg shadow-omega-orange/20">
+            <img src="/logo.png" alt="OMEGA Pizza" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-black text-white mb-1">OMEGA</h1>
           <p className="text-omega-text-muted text-sm">مطعم عصري • برجر • بيتزا • تاكوس</p>

@@ -65,8 +65,8 @@ export default function Register() {
       <div className="w-full max-w-md animate-slide-up">
         {/* الشعار */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center mb-3 shadow-lg shadow-omega-orange/20">
-            <span className="text-white font-black text-2xl">Ω</span>
+          <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-white flex items-center justify-center mb-3 shadow-lg shadow-omega-orange/20">
+            <img src="/logo.png" alt="OMEGA Pizza" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-black text-white">إنشاء حساب</h1>
           <p className="text-omega-text-muted text-sm">انضم إلى عائلة OMEGA</p>

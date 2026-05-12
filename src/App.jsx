@@ -36,8 +36,8 @@ export default function App() {
     return (
       <div className="min-h-screen bg-omega-dark flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center mb-4 animate-pulse">
-            <span className="text-white font-black text-2xl">Ω</span>
+          <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-white flex items-center justify-center mb-4 animate-pulse">
+            <img src="/logo.png" alt="OMEGA Pizza" className="w-full h-full object-cover" />
           </div>
           <div className="w-8 h-8 border-3 border-omega-orange border-t-transparent rounded-full animate-spin mx-auto mt-4" />
         </div>

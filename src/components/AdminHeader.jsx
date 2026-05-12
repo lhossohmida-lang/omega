@@ -1,9 +1,9 @@
 export function OmegaMark({ small = false }) {
   return (
     <div
-      className={`${small ? 'h-14 w-14 rounded-[1.3rem]' : 'h-20 w-20 rounded-[1.65rem]'} flex shrink-0 items-center justify-center border border-omega-orange/35 bg-omega-gray/80 text-omega-orange shadow-[0_0_30px_rgba(255,107,0,0.24)]`}
+      className={`${small ? 'h-14 w-14' : 'h-20 w-20'} flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_0_30px_rgba(255,107,0,0.24)]`}
     >
-      <span className={`${small ? 'text-3xl' : 'text-5xl'} font-black leading-none`}>Ω</span>
+      <img src="/logo.png" alt="OMEGA Pizza" className="h-full w-full object-cover" />
     </div>
   );
 }
