@@ -43,7 +43,7 @@ export default function AdminAI() {
     setLoading(true);
 
     try {
-      const response = await sendAIChat(question, userData.uid);
+      const response = await sendAIChat(question);
       const aiMessage = {
         role: 'ai',
         content: response.answer || response.message || 'لا يوجد رد',
@@ -61,7 +61,7 @@ export default function AdminAI() {
   const handleExecuteAction = async (action) => {
     try {
       toast.loading('جاري تنفيذ الإجراء...');
-      await executeAIAction(action, userData.uid);
+      await executeAIAction(action);
       toast.dismiss();
       toast.success('تم تنفيذ الإجراء بنجاح');
     } catch (error) {
