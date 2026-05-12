@@ -39,71 +39,82 @@ const emptyForm = {
 };
 
 function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onToggle, formatCurrency }) {
+  const [expanded, setExpanded] = useState(false);
   const categoryInfo = categories[product.category] || categories.burger;
   const isBest = mostSoldId === product.id && (product.soldCount || 0) > 0;
   const available = product.isAvailable !== false;
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-[1.35rem] border border-white/8 bg-white/[0.025] transition-all">
-      {/* ── Image + overlays ── */}
-      <div className="relative h-52 w-full shrink-0 bg-white/[0.04]">
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-7xl">
-            {categoryInfo.emoji || '🍽️'}
-          </div>
-        )}
-
-        {/* gradient so overlaid text is readable */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-        {/* price – bottom right */}
-        <div className="absolute bottom-3 left-3">
-          <span className="rounded-xl bg-black/55 px-3 py-1.5 text-xl font-black text-white backdrop-blur-sm">
-            {formatCurrency(product.price)}
-          </span>
+    <article
+      className="relative cursor-pointer overflow-hidden rounded-[1.35rem]"
+      style={{ aspectRatio: '3 / 4' }}
+      onClick={() => setExpanded(v => !v)}
+    >
+      {/* ── صورة كاملة ── */}
+      {product.image ? (
+        <img
+          src={product.image}
+          alt={product.name}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06] text-8xl">
+          {categoryInfo.emoji || '🍽️'}
         </div>
+      )}
 
-        {/* best-seller badge – top right */}
-        {isBest && (
-          <div className="absolute right-3 top-3">
-            <span className="inline-flex items-center gap-1 rounded-full bg-omega-orange/85 px-3 py-1 text-xs font-black text-white backdrop-blur-sm">
-              <IoFlameOutline />
-              الأكثر مبيعاً
-            </span>
-          </div>
-        )}
+      {/* gradient دائم */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
 
-        {/* availability badge – top left */}
-        <div className="absolute left-3 top-3">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-black backdrop-blur-sm ${available ? 'bg-emerald-500/75 text-white' : 'bg-omega-red/75 text-white'}`}>
-            {available ? '● متاح' : '⏸ موقوف'}
-          </span>
-        </div>
+      {/* شارة الحالة – أعلى يسار */}
+      <div className="absolute left-3 top-3">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-black backdrop-blur-sm ${available ? 'bg-emerald-500/75 text-white' : 'bg-omega-red/75 text-white'}`}>
+          {available ? '● متاح' : '⏸ موقوف'}
+        </span>
       </div>
 
-      {/* ── Content ── */}
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="mb-1 text-right text-lg font-black text-white">{product.name}</h3>
-        <p className="mb-4 line-clamp-2 text-right text-sm text-omega-text-muted">
+      {/* شارة الأكثر مبيعاً – أعلى يمين */}
+      {isBest && (
+        <div className="absolute right-3 top-3">
+          <span className="inline-flex items-center gap-1 rounded-full bg-omega-orange/85 px-2.5 py-1 text-xs font-black text-white backdrop-blur-sm">
+            <IoFlameOutline size={12} />
+            الأكثر مبيعاً
+          </span>
+        </div>
+      )}
+
+      {/* ── الوضع الافتراضي: اسم + سعر فقط ── */}
+      <div className={`absolute bottom-0 left-0 right-0 p-4 transition-all duration-300 ${expanded ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+        <p className="text-right text-lg font-black text-white leading-tight">{product.name}</p>
+        <p className="text-right text-2xl font-black text-omega-orange mt-0.5">{formatCurrency(product.price)}</p>
+      </div>
+
+      {/* ── عند الضغط: لوحة تنزلق للأعلى ── */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 rounded-b-[1.35rem] bg-black/82 p-4 backdrop-blur-md transition-all duration-300 ease-out ${expanded ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* اسم وسعر */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-xl font-black text-omega-orange">{formatCurrency(product.price)}</span>
+          <h3 className="text-right text-base font-black text-white leading-tight">{product.name}</h3>
+        </div>
+
+        {/* وصف */}
+        <p className="mb-3 line-clamp-2 text-right text-xs text-white/65">
           {product.description || `${categoryInfo.label} من قائمة OMEGA`}
         </p>
 
-        {/* actions */}
-        <div className="mt-auto flex items-center gap-2">
+        {/* أزرار */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onToggle(product)}
             className={`flex-1 rounded-xl border py-2 text-sm font-black transition-all ${
               available
-                ? 'border-omega-red/30 bg-omega-red/8 text-omega-red'
-                : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                ? 'border-omega-red/35 bg-omega-red/10 text-omega-red'
+                : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400'
             }`}
           >
             {available ? 'إيقاف' : 'تفعيل'}
@@ -111,18 +122,18 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
           <button
             type="button"
             onClick={() => onEdit(product)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-omega-orange/25 bg-white/[0.03] text-omega-orange"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-omega-orange/30 bg-white/[0.06] text-omega-orange"
             aria-label="تعديل"
           >
-            <IoCreateOutline size={20} />
+            <IoCreateOutline size={19} />
           </button>
           <button
             type="button"
             onClick={() => onDelete(product)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-omega-red/25 bg-omega-red/8 text-omega-red"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-omega-red/30 bg-omega-red/10 text-omega-red"
             aria-label="حذف"
           >
-            <IoTrashOutline size={20} />
+            <IoTrashOutline size={19} />
           </button>
         </div>
       </div>
@@ -332,9 +343,9 @@ export default function AdminProducts() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-72 rounded-[1.25rem] skeleton" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="skeleton rounded-[1.25rem]" style={{ aspectRatio: '3/4' }} />
               ))}
             </div>
           ) : filteredProducts.length === 0 ? (
@@ -342,7 +353,7 @@ export default function AdminProducts() {
               لا توجد منتجات مطابقة
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {filteredProducts.map(product => (
                 <ProductCard
                   key={product.id}
