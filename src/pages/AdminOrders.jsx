@@ -124,8 +124,8 @@ export default function AdminOrders() {
       <main className="admin-container">
         <AdminHeader title="الطلبات" subtitle="إدارة ومتابعة جميع طلبات المطعم" />
 
-        <section className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto]">
-          <label className="admin-control flex min-h-16 items-center gap-3 rounded-[1.35rem] px-5">
+        <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+          <label className="admin-control flex min-h-12 items-center gap-3 px-4">
             <IoSearch className="text-omega-text-dim" size={26} />
             <input
               type="text"
@@ -136,13 +136,13 @@ export default function AdminOrders() {
             />
           </label>
 
-          <button className="admin-control flex min-h-16 items-center justify-center gap-3 rounded-[1.35rem] px-6 text-base font-black text-white">
+          <button className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-white">
             <IoFilterOutline className="text-omega-orange" size={25} />
             فلترة
           </button>
         </section>
 
-        <section className="mb-5 grid grid-cols-5 gap-2 sm:gap-3">
+        <section className="mb-4 grid grid-cols-5 gap-2 sm:gap-3">
           {['all', 'pending', 'preparing', 'accepted_by_driver', 'delivered'].map(key => {
             const config = statusConfig[key];
             const Icon = config.icon;
@@ -152,7 +152,7 @@ export default function AdminOrders() {
                 key={key}
                 type="button"
                 onClick={() => setFilter(key)}
-                className="admin-control flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.2rem] px-1.5 py-3 transition-all"
+                className="admin-control flex min-w-0 flex-col items-center justify-center gap-1 px-1.5 py-2.5 transition-all"
                 style={active ? { borderColor: config.color, boxShadow: `0 0 26px -16px ${config.color}` } : undefined}
               >
                 <Icon size={20} style={{ color: active ? config.color : '#8e8e93' }} />
@@ -163,14 +163,14 @@ export default function AdminOrders() {
           })}
         </section>
 
-        <section className="admin-glass mb-6 grid grid-cols-2 gap-3 rounded-[1.55rem] p-4 lg:grid-cols-4">
+        <section className="admin-glass mb-5 grid grid-cols-2 gap-2.5 p-3.5 lg:grid-cols-4">
           {summaryCards.map(({ label, value, icon: Icon, hint }) => (
-            <div key={label} className="rounded-[1.25rem] border border-white/8 bg-white/[0.025] p-4 text-center">
+            <div key={label} className="rounded-lg border border-white/8 bg-white/[0.025] p-3 text-center">
               <div className="mb-3 flex items-center justify-center gap-2 text-white">
                 <Icon className="text-omega-orange" size={23} />
                 <span className="font-bold">{label}</span>
               </div>
-              <p className="text-3xl font-black text-white">{formatNumber(value)}</p>
+              <p className="text-2xl font-black text-white">{formatNumber(value)}</p>
               <p className="mt-1 text-sm text-omega-text-muted">طلب</p>
               <p className="mt-3 text-xs font-bold text-emerald-400">{hint}</p>
             </div>
@@ -196,8 +196,8 @@ export default function AdminOrders() {
                 const config = statusConfig[order.status] || statusConfig.pending;
                 const ActionIcon = nextStatus(order.status)?.icon;
                 return (
-                  <article key={order.id} className="admin-glass rounded-[1.35rem] p-4">
-                    <div className="grid gap-4 lg:grid-cols-[1.1fr_1.25fr_1fr_1.1fr] lg:items-center">
+                  <article key={order.id} className="admin-glass p-3.5">
+                    <div className="grid gap-3 lg:grid-cols-[1.1fr_1.25fr_1fr_1.1fr] lg:items-center">
                       <div className="flex items-center justify-between gap-3 border-b border-white/6 pb-3 lg:border-b-0 lg:border-l lg:pb-0 lg:pl-5">
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -245,7 +245,7 @@ export default function AdminOrders() {
                           <button
                             type="button"
                             onClick={() => setSelected(order)}
-                            className="flex h-12 w-12 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
                             aria-label="عرض الطلب"
                           >
                             <IoEyeOutline size={22} />
@@ -254,13 +254,13 @@ export default function AdminOrders() {
                             <button
                               type="button"
                               onClick={() => handleStatusChange(order.id, nextStatus(order.status).key)}
-                              className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-transform active:scale-95"
+                              className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-transform active:scale-95"
                               aria-label={nextStatus(order.status).label}
                             >
                               <ActionIcon size={21} />
                             </button>
                           )}
-                          <button className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-omega-text-muted">
+                          <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-omega-text-muted">
                             <IoEllipsisVertical size={22} />
                           </button>
                         </div>

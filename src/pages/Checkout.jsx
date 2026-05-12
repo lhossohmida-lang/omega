@@ -92,14 +92,13 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen pb-40 relative overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
-      <div className="pointer-events-none fixed top-0 right-0 w-96 h-96 bg-omega-orange/12 rounded-full blur-[120px]" />
+    <div className="min-h-screen pb-40 relative overflow-hidden bg-omega-black">
 
       {/* Sticky header */}
       <div className="sticky top-0 z-30 backdrop-blur-2xl bg-omega-dark/80 border-b border-white/8">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="max-w-lg mx-auto px-4 py-3.5 flex items-center gap-3">
           <button onClick={() => navigate(-1)}
-            className="w-11 h-11 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors active:scale-95">
+            className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors active:scale-95">
             <IoArrowForward size={20} />
           </button>
           <div>
@@ -109,9 +108,9 @@ export default function Checkout() {
         </div>
       </div>
 
-      <div className="relative max-w-lg mx-auto px-4 pt-5 space-y-4">
+      <div className="relative max-w-lg mx-auto px-4 pt-4 space-y-3.5">
         {/* ===== Order summary ===== */}
-        <div className="rounded-3xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-5 animate-fade-in">
+        <div className="rounded-xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-4 animate-fade-in">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-black text-base flex items-center gap-2">
               <IoReceiptOutline className="text-omega-orange" size={18} /> ملخص الطلب
@@ -122,7 +121,7 @@ export default function Checkout() {
           {/* Items */}
           <div className="space-y-2.5 mb-4">
             {cart.map(item => (
-              <div key={item.productId} className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.03] border border-white/5">
+              <div key={item.productId} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
                 <div className="w-12 h-12 rounded-xl bg-omega-gray/40 overflow-hidden flex items-center justify-center text-2xl flex-shrink-0">
                   {item.image
                     ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -141,7 +140,7 @@ export default function Checkout() {
           </div>
 
           {/* Total */}
-          <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-xl p-3.5 flex items-center justify-between">
             <span className="text-white font-black text-base">الإجمالي</span>
             <span className="gradient-text font-black text-2xl">{formatCurrency(total)}</span>
           </div>
@@ -149,7 +148,7 @@ export default function Checkout() {
 
         {/* ===== Delivery info ===== */}
         <form onSubmit={handleSubmit}
-          className="rounded-3xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-5 space-y-4 animate-fade-in"
+          className="rounded-xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-4 space-y-3.5 animate-fade-in"
           style={{ animationDelay: '80ms' }}
         >
           <h3 className="text-white font-black text-base flex items-center gap-2 mb-1">
@@ -201,7 +200,7 @@ export default function Checkout() {
 
       {/* Fixed bottom CTA */}
       <div className="fixed bottom-24 left-3 right-3 z-40 max-w-lg mx-auto">
-        <div className="bg-omega-dark/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-2.5 flex items-center gap-2 shadow-2xl shadow-black/80">
+        <div className="bg-omega-dark/95 backdrop-blur-2xl border border-white/10 rounded-xl p-2 flex items-center gap-2 shadow-2xl shadow-black/80">
           <div className="flex items-center gap-2 px-3">
             <IoBagHandleOutline className="text-omega-orange" size={22} />
             <div>
@@ -212,7 +211,7 @@ export default function Checkout() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-2xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/40 active:scale-95 transition-transform disabled:opacity-60"
+            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/35 active:scale-95 transition-transform disabled:opacity-60"
           >
             {loading
               ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

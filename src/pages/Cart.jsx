@@ -59,15 +59,14 @@ export default function Cart() {
   };
 
   return (
-    <div className="min-h-screen pb-32 relative overflow-hidden">
-      <div className="pointer-events-none fixed top-0 left-0 w-72 h-72 bg-omega-orange/10 rounded-full blur-3xl" />
+    <div className="min-h-screen pb-32 relative overflow-hidden bg-omega-black">
 
       {/* Header */}
       <div className="sticky top-0 z-30 backdrop-blur-xl bg-omega-dark/70 border-b border-white/5">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-lg mx-auto px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)}
-              className="w-10 h-10 rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center text-white hover:bg-white/10 transition-colors">
+              className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-white hover:bg-white/10 transition-colors">
               <IoArrowForward size={20} />
             </button>
             <div>
@@ -83,7 +82,7 @@ export default function Cart() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 mt-4 relative">
+      <div className="max-w-lg mx-auto px-4 mt-3 relative">
         {cart.length === 0 ? (
           <div className="text-center py-20 animate-fade-in">
             <div className="relative inline-block mb-6">
@@ -99,16 +98,16 @@ export default function Cart() {
         ) : (
           <>
             {/* Cart items */}
-            <div className="space-y-2.5 mb-4 stagger">
+            <div className="space-y-2.5 mb-3.5 stagger">
               {cart.map((item) => (
                 <div
                   key={item.productId}
-                  className={`relative overflow-hidden rounded-2xl bg-gradient-to-l from-white/5 to-white/3 backdrop-blur-sm border border-white/8 p-3 flex gap-3 transition-all duration-300 ${
+                  className={`relative overflow-hidden rounded-xl bg-gradient-to-l from-white/5 to-white/3 backdrop-blur-sm border border-white/8 p-3 flex gap-3 transition-all duration-300 ${
                     removingId === item.productId ? 'opacity-0 -translate-x-full scale-95' : 'hover:border-omega-orange/20'
                   }`}
                 >
                   {/* Image */}
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border border-white/8 bg-omega-gray">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/8 bg-omega-gray">
                     {item.image ? (
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
@@ -148,7 +147,7 @@ export default function Cart() {
             </div>
 
             {/* Summary */}
-            <div className="rounded-3xl bg-gradient-to-br from-omega-gray/40 to-omega-dark-2/40 backdrop-blur border border-white/8 p-5 mb-4 animate-fade-in">
+            <div className="rounded-xl bg-gradient-to-br from-omega-gray/40 to-omega-dark-2/40 backdrop-blur border border-white/8 p-4 mb-3.5 animate-fade-in">
               <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
                 <IoCart className="text-omega-orange" size={16} /> ملخص الطلب
               </h4>
@@ -179,7 +178,7 @@ export default function Cart() {
             <button
               onClick={handleCheckout}
               disabled={!businessStatus.open}
-              className="w-full py-4 rounded-2xl bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-base shadow-2xl shadow-omega-orange/30 hover:shadow-omega-orange/50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm shadow-2xl shadow-omega-orange/25 hover:shadow-omega-orange/40 transition-all active:scale-[0.98] flex items-center justify-center gap-2 animate-fade-in disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             >
               <IoCart size={20} />
               <span>{businessStatus.open ? `إتمام الطلب • ${formatCurrency(total)}` : 'المطعم مغلق حالياً'}</span>

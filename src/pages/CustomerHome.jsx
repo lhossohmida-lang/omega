@@ -4,10 +4,9 @@ import { getAllProducts } from '../services/productService';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
-import CustomerNav from '../components/CustomerNav';
 import {
   IoSearch, IoAdd, IoMenu, IoClose,
-  IoHeart, IoHeartOutline, IoCheckmark, IoTimeOutline,
+  IoHeart, IoHeartOutline, IoTimeOutline, IoChevronBack,
 } from 'react-icons/io5';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getStatusMessage } from '../utils/businessHours';
@@ -89,7 +88,7 @@ export default function CustomerHome() {
 
   /* cart actions */
   const addToCart = product => {
-    if (!businessStatus.open) { toast.error(businessStatus.message); return; }
+    if (!businessStatus.open) { toast.error(businessStatus.message); return false; }
     const cart = getCart();
     const ex = cart.find(i => i.productId === product.id);
     if (ex) ex.quantity += 1;
@@ -99,11 +98,13 @@ export default function CustomerHome() {
     });
     saveCart(cart);
     toast.success(`تمت إضافة ${product.name}`, { duration: 1200 });
+    return true;
   };
 
   const handleAdd = p => {
-    addToCart(p);
-    setCartExpanded(prev => ({ ...prev, [p.id]: true }));
+    if (addToCart(p)) {
+      setCartExpanded(prev => ({ ...prev, [p.id]: true }));
+    }
   };
 
   /* scroll → update dot & current product */
@@ -119,33 +120,28 @@ export default function CustomerHome() {
   /* ─── UI ─── */
   return (
     /* full-height flex column – carousel takes the rest */
-    <div className="flex h-screen flex-col overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse 120% 50% at 75% 0%, #1e0c00 0%, #0a0a0a 55%)' }}>
-
-      {/* ambient glows */}
-      <div className="pointer-events-none fixed right-0 top-0 h-80 w-80 rounded-full bg-omega-orange/20 blur-[130px]" />
-      <div className="pointer-events-none fixed -left-20 bottom-1/3 h-72 w-72 rounded-full bg-omega-red/10 blur-[120px]" />
+    <div className="flex h-screen flex-col overflow-hidden bg-omega-black">
 
       {/* ══════ HEADER ══════ */}
-      <header className="z-30 shrink-0 px-4 pb-3 pt-4">
+      <header className="z-30 shrink-0 px-4 pb-4 pt-4">
         <div className="flex items-center justify-between" dir="ltr">
 
           {/* hamburger – left */}
           <button
             onClick={() => setMenuOpen(true)}
-            className="liquid-glass flex h-12 w-12 items-center justify-center rounded-2xl text-white transition-transform active:scale-90"
+            className="liquid-glass flex h-11 w-11 items-center justify-center text-white transition-transform active:scale-95"
           >
             <IoMenu size={22} />
           </button>
 
           {/* logo – centre */}
           <img src="/logo.png" alt="OMEGA"
-            className="h-14 w-14 rounded-full object-cover shadow-lg shadow-omega-orange/30" />
+            className="h-12 w-12 rounded-full object-cover shadow-lg shadow-omega-orange/25" />
 
           {/* search – right */}
           <button
             onClick={() => { setSearchOpen(v => !v); setSearchQuery(''); }}
-            className={`liquid-glass flex h-12 w-12 items-center justify-center rounded-2xl transition-all active:scale-90 ${searchOpen ? 'text-omega-orange' : 'text-white'}`}
+            className={`liquid-glass flex h-11 w-11 items-center justify-center transition-all active:scale-95 ${searchOpen ? 'text-omega-orange' : 'text-white'}`}
           >
             {searchOpen ? <IoClose size={22} /> : <IoSearch size={22} />}
           </button>
@@ -157,16 +153,16 @@ export default function CustomerHome() {
             <input autoFocus type="text" value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="ابحث عن وجبتك..."
-              className="liquid-glass w-full rounded-2xl px-5 py-3.5 text-right text-sm text-white placeholder-white/40 outline-none"
+              className="liquid-glass w-full px-4 py-3 text-right text-sm text-white placeholder-white/40 outline-none"
             />
           </div>
         )}
 
         {/* closed banner */}
         {!businessStatus.open && (
-          <div className="mt-3 flex items-center justify-between rounded-2xl border border-omega-red/30 bg-omega-red/10 px-4 py-2.5">
+          <div className="mt-4 flex min-h-10 items-center justify-between gap-3 rounded-xl border border-omega-red/30 bg-omega-red/10 px-3.5 py-2.5">
             <span className="text-xs font-bold text-omega-red">11:00 ص — 10:00 م</span>
-            <div className="flex items-center gap-1.5 text-xs font-black text-omega-red">
+            <div className="flex min-w-0 items-center gap-1.5 text-right text-xs font-black leading-snug text-omega-red">
               <IoTimeOutline size={14} />
               {businessStatus.message}
             </div>
@@ -175,17 +171,17 @@ export default function CustomerHome() {
       </header>
 
       {/* ══════ SUMMARY CARDS ══════ */}
-      <div className="shrink-0 px-4 pb-3">
+      <div className="shrink-0 px-4 pb-4">
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => navigate('/my-orders')}
-            className="liquid-glass flex flex-col items-start rounded-3xl p-4 transition-transform active:scale-95">
+            className="liquid-glass flex min-h-[98px] flex-col items-start justify-center p-3.5 transition-transform active:scale-95">
             <span className="mb-1.5 text-2xl">📦</span>
             <p className="text-[11px] font-bold text-white/50">طلباتي</p>
             <p className="text-xl font-black text-white">{ordersCount} طلب</p>
           </button>
 
           <button onClick={() => setShowFavOnly(v => !v)}
-            className={`liquid-glass flex flex-col items-start rounded-3xl p-4 transition-all active:scale-95 ${showFavOnly ? 'ring-1 ring-omega-red/60' : ''}`}>
+            className={`liquid-glass flex min-h-[98px] flex-col items-start justify-center p-3.5 transition-all active:scale-95 ${showFavOnly ? 'ring-1 ring-omega-red/60' : ''}`}>
             <span className="mb-1.5 text-2xl">❤️</span>
             <p className="text-[11px] font-bold text-white/50">المفضلة</p>
             <p className="text-xl font-black text-white">{favorites.length} وجبة</p>
@@ -230,7 +226,7 @@ export default function CustomerHome() {
             </div>
 
             {/* ── Category pills + fav – floating TOP of image ── */}
-            <div className="absolute left-0 right-0 top-3 z-10 flex items-center gap-2 px-4">
+            <div className="absolute left-0 right-0 top-5 z-10 flex items-center gap-2 px-4">
               {/* scrollable pill row */}
               <div className="flex flex-1 gap-2 overflow-x-auto scrollbar-hide pb-0.5">
                 {CATS.map(cat => {
@@ -238,7 +234,7 @@ export default function CustomerHome() {
                   return (
                     <button key={cat.id}
                       onClick={e => { e.stopPropagation(); setActiveCat(cat.id); setShowFavOnly(false); }}
-                      className={`shrink-0 flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+                      className={`shrink-0 flex min-h-9 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
                         active
                           ? 'bg-omega-orange text-white shadow-lg shadow-omega-orange/40'
                           : 'liquid-glass text-white/80'
@@ -263,7 +259,7 @@ export default function CustomerHome() {
             </div>
 
             {/* ── Dot indicators + Product card – floating BOTTOM of image ── */}
-            <div className="absolute bottom-[88px] left-4 right-4 z-10">
+            <div className="absolute bottom-5 left-4 right-4 z-10">
 
               {/* dots */}
               {filtered.length > 1 && filtered.length <= 14 && (
@@ -278,37 +274,44 @@ export default function CustomerHome() {
 
               {/* product card */}
               {currentProduct && (
-                <div className="liquid-glass rounded-3xl px-5 py-4">
-                  <div className="flex items-center justify-between gap-3">
+                <div className="liquid-glass px-5 py-5 shadow-2xl shadow-black/45">
+                  <div className="flex flex-col gap-4">
                     {/* name + price */}
-                    <div className="min-w-0">
-                      <h4 className="truncate text-base font-black text-white">{currentProduct.name}</h4>
-                      <p className="mt-0.5 text-xl font-black text-omega-orange">{formatCurrency(currentProduct.price)}</p>
+                    <div className="min-w-0 text-right">
+                      <h4 className="truncate text-2xl font-black leading-tight text-white">{currentProduct.name}</h4>
+                      <p className="mt-1 text-3xl font-black leading-tight text-omega-orange">{formatCurrency(currentProduct.price)}</p>
                     </div>
 
                     {/* add controls */}
                     {isExpanded ? (
-                      <div className="flex shrink-0 items-center gap-2" dir="ltr">
+                      <div className="grid grid-cols-2 gap-2.5">
                         <button
-                          onClick={e => { e.stopPropagation(); addToCart(currentProduct); }}
-                          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-omega-orange text-white shadow-lg shadow-omega-orange/40 active:scale-90"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setCartExpanded(p => ({ ...p, [currentProduct.id]: false }));
+                          }}
+                          className="flex min-h-12 items-center justify-center rounded-xl border border-white/12 bg-white/10 px-3 text-sm font-black text-white transition-transform active:scale-95"
                         >
-                          <IoAdd size={22} />
+                          Continue
                         </button>
                         <button
-                          onClick={e => { e.stopPropagation(); setCartExpanded(p => ({ ...p, [currentProduct.id]: false })); }}
-                          className="liquid-glass flex h-11 items-center gap-1.5 rounded-2xl border border-emerald-500/40 px-3.5 text-sm font-black text-emerald-400"
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate('/checkout');
+                          }}
+                          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-omega-orange px-3 text-sm font-black text-white shadow-lg shadow-omega-orange/35 transition-transform active:scale-95"
                         >
-                          <IoCheckmark size={16} />
-                          تم
+                          Finish
+                          <IoChevronBack size={16} />
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={e => { e.stopPropagation(); handleAdd(currentProduct); }}
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-omega-orange text-white shadow-lg shadow-omega-orange/40 transition-transform active:scale-90"
+                        className="flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-omega-orange px-4 text-base font-black text-white shadow-lg shadow-omega-orange/35 transition-transform active:scale-95"
                       >
-                        <IoAdd size={26} />
+                        <IoAdd size={22} />
+                        Add
                       </button>
                     )}
                   </div>
@@ -324,18 +327,18 @@ export default function CustomerHome() {
         <>
           <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
           <div
-            className="liquid-glass animate-menu-in fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col gap-3 p-5"
-            style={{ borderRadius: '0 1.75rem 1.75rem 0' }}
+            className="liquid-glass animate-menu-in fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col gap-2.5 p-4"
+            style={{ borderRadius: '0 0.875rem 0.875rem 0' }}
           >
             <div className="mb-2 flex items-center justify-between">
               <button onClick={() => setMenuOpen(false)}
-                className="liquid-glass flex h-10 w-10 items-center justify-center rounded-2xl text-white/60">
+                className="liquid-glass flex h-10 w-10 items-center justify-center text-white/60">
                 <IoClose size={20} />
               </button>
               <img src="/logo.png" alt="OMEGA" className="h-10 w-10 rounded-full object-cover" />
             </div>
 
-            <div className="liquid-glass rounded-2xl px-4 py-3">
+            <div className="liquid-glass px-3.5 py-3">
               <p className="font-black text-white">{userData?.name || 'زائر'}</p>
               <p className="mt-0.5 text-xs text-white/50">{userData?.phone || ''}</p>
             </div>
@@ -348,7 +351,7 @@ export default function CustomerHome() {
             ].map(item => (
               <button key={item.path}
                 onClick={() => { navigate(item.path); setMenuOpen(false); }}
-                className="liquid-glass flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 transition-transform active:scale-95">
+                className="liquid-glass flex min-h-12 w-full items-center gap-3 px-3.5 py-3 transition-transform active:scale-95">
                 <span className="text-2xl">{item.icon}</span>
                 <span className="font-bold text-white">{item.label}</span>
               </button>

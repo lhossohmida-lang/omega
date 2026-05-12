@@ -65,14 +65,14 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'orange' }) {
   };
 
   return (
-    <div className="admin-glass rounded-[1.35rem] p-4 sm:p-5">
-      <div className="mb-5 flex justify-center">
+    <div className="admin-glass p-3.5 sm:p-4">
+      <div className="mb-3 flex justify-center">
         <div className="admin-icon-tile">
           <Icon size={27} />
         </div>
       </div>
-      <p className="mb-3 text-center text-sm font-bold text-omega-text">{label}</p>
-      <p className="text-center text-2xl font-black text-white">{value}</p>
+      <p className="mb-2 text-center text-xs font-bold text-omega-text">{label}</p>
+      <p className="text-center text-xl font-black text-white">{value}</p>
       {hint && <p className={`mt-3 text-center text-xs font-bold ${tones[tone]}`}>{hint}</p>}
     </div>
   );
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
       <main className="admin-container">
         <AdminHeader title="OMEGA" subtitle="لوحة تحكم إدارة المطعم" />
 
-        <section className="admin-glass mb-5 rounded-[1.55rem] p-5">
+        <section className="admin-glass mb-4 p-4">
           <div className="flex items-center gap-4">
             <div className="admin-icon-tile">
               <IoTrendingUpOutline size={27} />
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatCard icon={IoCashOutline} label="المبيعات اليوم" value={formatCurrency(stats.todaySales)} hint="طلبات اليوم المسلمة" tone="green" />
               <StatCard icon={IoTrendingUpOutline} label="أرباح اليوم" value={formatCurrency(stats.todayProfit)} hint="حسب تكلفة المنتجات" tone="green" />
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
-              <div className="admin-glass rounded-[1.55rem] p-5">
+              <div className="admin-glass p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <IoNotificationsOutline className="text-omega-orange" size={23} />
                   <h3 className="text-xl font-black text-white">منتجات موقوفة</h3>
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="admin-glass rounded-[1.55rem] p-5">
+              <div className="admin-glass p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-2xl">👑</span>
                   <h3 className="text-xl font-black text-white">المنتج الأكثر مبيعاً</h3>
@@ -242,7 +242,7 @@ export default function AdminDashboard() {
 
                 {bestProduct ? (
                   <>
-                    <div className="admin-control flex items-center justify-between gap-4 rounded-[1.35rem] p-4">
+                    <div className="admin-control flex items-center justify-between gap-3 p-3.5">
                       <div className="text-right">
                         <p className="text-lg font-black text-white">{bestProduct.name}</p>
                         <p className="mt-2 text-sm text-omega-text-muted">الأكثر مبيعاً اليوم</p>
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
               </div>
             </section>
 
-            <section className="admin-glass rounded-[1.55rem] p-5">
+            <section className="admin-glass p-4">
               <h3 className="mb-4 text-right text-xl font-black text-white">أحدث الطلبات</h3>
 
               {recentOrders.length === 0 ? (

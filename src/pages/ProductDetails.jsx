@@ -101,20 +101,19 @@ export default function ProductDetails() {
   );
 
   return (
-    <div className="min-h-screen pb-40 relative overflow-hidden" style={{ backgroundColor: '#0a0a0a' }}>
-      <div className="pointer-events-none fixed top-0 inset-x-0 h-96 bg-gradient-to-b from-omega-orange/20 to-transparent" />
+    <div className="min-h-screen pb-40 relative overflow-hidden bg-omega-black">
 
-      <div className="relative max-w-lg mx-auto px-4 pt-5">
+      <div className="relative max-w-lg mx-auto px-4 pt-4">
         {/* Top bar */}
-        <div className="flex items-center justify-between mb-4 animate-fade-in">
+        <div className="flex items-center justify-between mb-3 animate-fade-in">
           <div className="flex items-center gap-2.5">
             <button onClick={() => navigate(-1)}
-              className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors active:scale-95">
+              className="w-10 h-10 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors active:scale-95">
               <IoArrowForward size={20} />
             </button>
             <button
               onClick={() => toggleFav(product.id)}
-              className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center transition-colors active:scale-95"
+              className="w-10 h-10 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center transition-colors active:scale-95"
             >
               {isFav ? <IoHeart className="text-omega-red" size={20} /> : <IoHeartOutline className="text-white" size={20} />}
             </button>
@@ -125,10 +124,7 @@ export default function ProductDetails() {
         </div>
 
         {/* Hero image */}
-        <div className="relative h-72 flex items-center justify-center mb-5 animate-fade-in">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-64 h-64 bg-omega-orange/25 rounded-full blur-3xl" />
-          </div>
+        <div className="relative h-64 flex items-center justify-center mb-4 animate-fade-in">
           {product.image ? (
             <img src={product.image} alt={product.name}
               className="relative h-full max-w-full object-contain drop-shadow-2xl animate-float" />
@@ -141,21 +137,21 @@ export default function ProductDetails() {
         </div>
 
         {/* Name + price */}
-        <div className="flex items-start justify-between gap-3 mb-4 animate-slide-up">
+        <div className="flex items-start justify-between gap-3 mb-3 animate-slide-up">
           <div className="flex-1 min-w-0">
-            <h2 className="text-white font-black text-2xl mb-2 leading-tight">{product.name}</h2>
+            <h2 className="text-white font-black text-xl mb-1.5 leading-tight">{product.name}</h2>
             {product.description && (
               <p className="text-omega-text-muted text-sm leading-relaxed">{product.description}</p>
             )}
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
             <p className="text-omega-text-dim text-[10px] mb-0.5">السعر</p>
-            <span className="gradient-text font-black text-3xl leading-tight">{formatCurrency(product.price)}</span>
+            <span className="gradient-text font-black text-2xl leading-tight">{formatCurrency(product.price)}</span>
           </div>
         </div>
 
         {/* Quantity */}
-        <div className="flex items-center justify-between mb-5 mt-6 bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-4 mt-5 bg-white/[0.04] border border-white/10 rounded-xl p-3.5">
           <div>
             <h3 className="text-white font-black text-base">الكمية</h3>
             <p className="text-omega-text-muted text-xs mt-0.5">اختر العدد</p>
@@ -175,7 +171,7 @@ export default function ProductDetails() {
         </div>
 
         {/* Total */}
-        <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-2xl p-4 mb-6 flex items-center justify-between">
+        <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-xl p-3.5 mb-5 flex items-center justify-between">
           <span className="text-white font-bold text-sm">الإجمالي</span>
           <span className="gradient-text font-black text-2xl">{formatCurrency(totalPrice)}</span>
         </div>
@@ -217,7 +213,7 @@ export default function ProductDetails() {
 
       {/* Fixed bottom bar */}
       <div className="fixed bottom-24 left-3 right-3 z-40 max-w-lg mx-auto">
-        <div className="bg-omega-dark/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-2.5 flex items-center gap-2 shadow-2xl shadow-black/80">
+        <div className="bg-omega-dark/95 backdrop-blur-2xl border border-white/10 rounded-xl p-2 flex items-center gap-2 shadow-2xl shadow-black/80">
           <div className="flex items-center gap-2 px-3">
             <div className="relative">
               <IoCart className="text-white" size={22} />
@@ -232,7 +228,7 @@ export default function ProductDetails() {
           <button
             onClick={addToCart}
             disabled={!businessStatus.open}
-            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-2xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/40 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+            className="flex-1 bg-gradient-to-l from-omega-orange via-omega-orange-dark to-omega-red text-white font-black text-sm rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-omega-orange/35 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
           >
             {businessStatus.open ? (
               <>

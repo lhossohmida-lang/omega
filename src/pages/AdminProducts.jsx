@@ -46,7 +46,7 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
 
   return (
     <article
-      className="relative cursor-pointer overflow-hidden rounded-[1.35rem]"
+      className="relative cursor-pointer overflow-hidden rounded-xl"
       style={{ aspectRatio: '3 / 4' }}
       onClick={() => setExpanded(v => !v)}
     >
@@ -85,14 +85,14 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
       )}
 
       {/* ── الوضع الافتراضي: اسم + سعر فقط ── */}
-      <div className={`absolute bottom-0 left-0 right-0 p-4 transition-all duration-300 ${expanded ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+      <div className={`absolute bottom-0 left-0 right-0 p-3.5 transition-all duration-300 ${expanded ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
         <p className="text-right text-lg font-black text-white leading-tight">{product.name}</p>
         <p className="text-right text-2xl font-black text-omega-orange mt-0.5">{formatCurrency(product.price)}</p>
       </div>
 
       {/* ── عند الضغط: لوحة تنزلق للأعلى ── */}
       <div
-        className={`absolute bottom-0 left-0 right-0 rounded-b-[1.35rem] bg-black/82 p-4 backdrop-blur-md transition-all duration-300 ease-out ${expanded ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}
+        className={`absolute bottom-0 left-0 right-0 rounded-b-xl bg-black/82 p-3.5 backdrop-blur-md transition-all duration-300 ease-out ${expanded ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}
         onClick={e => e.stopPropagation()}
       >
         {/* اسم وسعر */}
@@ -230,6 +230,26 @@ export default function AdminProducts() {
     }
   }
 
+  async function seedImages(overwrite = false) {
+    if (!confirm(overwrite ? 'سيتم استبدال جميع الصور بالصور الافتراضية. متأكد؟' : 'سيتم تعيين الصور الافتراضية للمنتجات التي ليس لها صورة. متأكد؟')) return;
+    try {
+      toast.loading('جاري تعيين الصور...');
+      const res = await fetch('/api/admin/seed-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: auth.currentUser?.uid, overwrite }),
+      });
+      const data = await res.json();
+      toast.dismiss();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`تم تحديث ${data.updated} منتج`);
+      loadProducts();
+    } catch (err) {
+      toast.dismiss();
+      toast.error('تعذر تعيين الصور: ' + err.message);
+    }
+  }
+
   async function handleDelete(product) {
     if (!confirm(`هل تريد حذف "${product.name}"؟`)) return;
 
@@ -287,7 +307,7 @@ export default function AdminProducts() {
     [products]
   );
 
-  const inputClass = 'w-full rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-white outline-none placeholder:text-omega-text-dim focus:border-omega-orange/50';
+  const inputClass = 'w-full rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3 text-white outline-none placeholder:text-omega-text-dim focus:border-omega-orange/50';
 
   return (
     <div className="admin-page">
@@ -296,8 +316,8 @@ export default function AdminProducts() {
       <main className="admin-container">
         <AdminHeader title="المنتجات" subtitle="إدارة قائمة طعام OMEGA" />
 
-        <section className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto]">
-          <label className="admin-control flex min-h-16 items-center gap-3 rounded-[1.35rem] px-5">
+        <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+          <label className="admin-control flex min-h-12 items-center gap-3 px-4">
             <IoSearch className="text-omega-text-dim" size={26} />
             <input
               type="text"
@@ -310,15 +330,24 @@ export default function AdminProducts() {
 
           <button
             type="button"
+            onClick={() => seedImages(false)}
+            title="تعيين صور افتراضية للمنتجات التي ليس لها صورة"
+            className="admin-control flex min-h-12 items-center justify-center gap-2 px-4 text-sm font-black text-omega-text-muted hover:text-omega-orange"
+          >
+            🖼 تعيين الصور
+          </button>
+
+          <button
+            type="button"
             onClick={openCreate}
-            className="admin-control flex min-h-16 items-center justify-center gap-3 rounded-[1.35rem] px-8 text-lg font-black text-omega-orange"
+            className="admin-control flex min-h-12 items-center justify-center gap-2 px-6 text-base font-black text-omega-orange"
           >
             <IoAddOutline size={29} />
             إضافة منتج
           </button>
         </section>
 
-        <section className="mb-5 grid grid-cols-5 gap-1.5 sm:gap-2">
+        <section className="mb-4 grid grid-cols-5 gap-1.5 sm:gap-2">
           {Object.entries(categories).slice(0, 5).map(([key, item]) => {
             const active = category === key;
             return (
@@ -336,7 +365,7 @@ export default function AdminProducts() {
           })}
         </section>
 
-        <section className="admin-glass mb-5 rounded-[1.55rem] p-5">
+        <section className="admin-glass mb-4 p-4">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-omega-text-muted">ترتيب: الأكثر مبيعاً</p>
             <h2 className="text-xl font-black text-white">جميع المنتجات ({formatNumber(filteredProducts.length)})</h2>
@@ -370,7 +399,7 @@ export default function AdminProducts() {
           )}
         </section>
 
-        <section className={`admin-glass rounded-[1.55rem] p-5 ${businessStatus.open ? 'border-emerald-500/35' : 'border-omega-red/35'}`}>
+        <section className={`admin-glass p-4 ${businessStatus.open ? 'border-emerald-500/35' : 'border-omega-red/35'}`}>
           <div className="flex items-center justify-end gap-3">
             <div className="text-right">
               <h2 className={`text-xl font-black ${businessStatus.open ? 'text-emerald-400' : 'text-omega-red'}`}>
@@ -387,10 +416,10 @@ export default function AdminProducts() {
       <button
         type="button"
         onClick={openCreate}
-        className="fixed bottom-[6.8rem] left-6 z-40 flex h-20 w-20 items-center justify-center rounded-full bg-omega-orange text-white shadow-[0_0_35px_rgba(255,107,0,0.55)] transition-transform active:scale-95"
+        className="fixed bottom-[6.8rem] left-6 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-omega-orange text-white shadow-[0_0_28px_rgba(255,107,0,0.45)] transition-transform active:scale-95"
         aria-label="إضافة منتج"
       >
-        <IoAdd size={38} />
+        <IoAdd size={30} />
       </button>
 
       {showForm && (
