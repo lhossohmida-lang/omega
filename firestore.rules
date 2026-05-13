@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // دالة مساعدة لجلب دور المستخدم الحالي
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ===== مجموعة المستخدمين =====
+    match /users/{userId} {
+      // كل مستخدم موثق يستطيع قراءة وكتابة بياناته الخاصة فقط
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // ===== مجموعة الطلبات =====
+    match /orders/{orderId} {
+      // الإدارة: صلاحية كاملة
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+
+      // الزبون: يقرأ طلباته فقط، وينشئ طلبات جديدة
+      allow read: if isSignedIn() && myRole() == 'customer'
+                    && resource.data.customerId == request.auth.uid;
+      allow create: if isSignedIn() && myRole() == 'customer';
+
+      // السائق: يقرأ الطلبات المتاحة ويُحدّث طلباته
+      allow read: if isSignedIn() && myRole() == 'driver';
+      allow update: if isSignedIn() && myRole() == 'driver';
+
+      // العامل: يقرأ الطلبات قيد التحضير ويُحدّث حقل workerReady فقط
+      allow read: if isSignedIn() && myRole() == 'worker';
+      allow update: if isSignedIn() && myRole() == 'worker'
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['workerReady', 'workerReadyAt']);
+    }
+
+    // ===== مجموعة المنتجات =====
+    match /products/{productId} {
+      // الجميع يستطيع قراءة المنتجات (سائق، عامل، زبون، إدارة)
+      allow read: if isSignedIn();
+      // الكتابة للإدارة فقط
+      allow write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== المخزون والمكونات =====
+    match /inventory_movements/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ingredients/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ingredient_purchases/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== سجلات الذكاء الاصطناعي =====
+    match /ai_logs/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ai_settings/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+  }
+}
