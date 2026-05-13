@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { getAllOrders } from '../services/orderService';
+import { getAllOrders, resetOrdersData } from '../services/orderService';
 import { formatCurrency } from '../utils/formatCurrency';
 import AdminNav from '../components/AdminNav';
 import AdminHeader from '../components/AdminHeader';
 import {
   IoCar, IoCheckmarkCircle, IoCall, IoMail,
-  IoStar, IoFlash, IoTrophy
+  IoStar, IoFlash, IoTrophy, IoReloadOutline, IoBusinessOutline
 } from 'react-icons/io5';
+import toast from 'react-hot-toast';
 
 export default function AdminDrivers() {
   const [drivers, setDrivers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -27,6 +29,24 @@ export default function AdminDrivers() {
     setLoading(false);
   };
 
+  const handleResetData = async () => {
+    const ok = confirm('سيتم حذف جميع الطلبات وإعادة عدادات مبيعات المنتجات إلى صفر. هل تريد المتابعة؟');
+    if (!ok) return;
+
+    setResetting(true);
+    try {
+      const result = await resetOrdersData();
+      setOrders([]);
+      await loadData();
+      toast.success(`تمت إعادة التعيين: ${result.deletedOrders} طلب`);
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذرت إعادة تعيين البيانات');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // Top driver
   const topDriver = drivers
     .map(d => ({ ...d, deliveredCount: orders.filter(o => o.driverId === d.id && o.status === 'delivered').length }))
@@ -37,6 +57,18 @@ export default function AdminDrivers() {
       <AdminNav />
       <main className="admin-container">
           <AdminHeader title="السائقين" accent="إدارة" subtitle={`${drivers.length} سائق مسجل`} />
+
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={handleResetData}
+              disabled={resetting}
+              className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-omega-orange disabled:opacity-60"
+            >
+              <IoReloadOutline size={20} />
+              {resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين البيانات'}
+            </button>
+          </div>
 
           {loading ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-40" />)}</div>
@@ -52,6 +84,11 @@ export default function AdminDrivers() {
                 const driverOrders = orders.filter(o => o.driverId === driver.id);
                 const delivered = driverOrders.filter(o => o.status === 'delivered');
                 const driverRevenue = delivered.reduce((s, o) => s + (o.isDelivery ? (o.deliveryFee || 0) : 0), 0);
+                const driverCollectedTotal = delivered.reduce((s, o) => {
+                  if (o.paymentMethod === 'card') return s;
+                  return s + (o.totalPrice || 0);
+                }, 0);
+                const ownerDues = Math.max(0, driverCollectedTotal - driverRevenue);
                 const active = driverOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
                 const isTop = topDriver?.id === driver.id && delivered.length > 0;
 
@@ -103,13 +140,32 @@ export default function AdminDrivers() {
                       </div>
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={() => alert(
+                        `مستحقات صاحب العمل: ${formatCurrency(ownerDues)}\n` +
+                        `قبض السائق من العملاء: ${formatCurrency(driverCollectedTotal)}\n` +
+                        `أرباح التوصيل للسائق: ${formatCurrency(driverRevenue)}`
+                      )}
+                      className="mb-3 flex w-full items-center justify-between rounded-xl border border-omega-orange/25 bg-omega-orange/10 p-3 text-right transition-all active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2 text-omega-orange">
+                        <IoBusinessOutline size={18} />
+                        <span className="text-xs font-black">مستحقات صاحب العمل</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-white">{formatCurrency(ownerDues)}</p>
+                        <p className="text-[10px] text-omega-text-muted">قبض السائق: {formatCurrency(driverCollectedTotal)}</p>
+                      </div>
+                    </button>
+
                     {delivered.slice(0, 3).length > 0 && (
                       <div className="border-t border-white/5 pt-3">
                         <p className="text-omega-text-dim text-[10px] mb-2 font-bold">آخر التوصيلات</p>
                         {delivered.slice(0, 3).map(o => (
                           <div key={o.id} className="flex justify-between text-xs py-1">
                             <span className="text-omega-text">#{o.id?.slice(-6)} • {o.customerName}</span>
-                            <span className="text-omega-orange font-bold">{formatCurrency(driverRevenue)}</span>
+                            <span className="text-omega-orange font-bold">{formatCurrency(driverCollectedTotal)}</span>
                           </div>
                         ))}
                       </div>

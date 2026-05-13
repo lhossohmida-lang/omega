@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAllOrders } from '../services/orderService';
+import { getAllOrders, resetOrdersData } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
 import { getAllIngredients } from '../services/inventoryService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
@@ -18,10 +18,12 @@ import {
   IoNotificationsOutline,
   IoPieChartOutline,
   IoReceiptOutline,
+  IoReloadOutline,
   IoTimerOutline,
   IoTrendingUpOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
+import toast from 'react-hot-toast';
 
 const statusLabels = {
   pending: 'جديد',
@@ -84,28 +86,47 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const { userData } = useAuth();
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [ordersData, productsData, ingredientsData] = await Promise.all([
-          getAllOrders(), 
-          getAllProducts(),
-          getAllIngredients()
-        ]);
-        setOrders(ordersData);
-        setProducts(productsData);
-        setIngredients(ingredientsData);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
+  const loadData = async () => {
+    try {
+      const [ordersData, productsData, ingredientsData] = await Promise.all([
+        getAllOrders(),
+        getAllProducts(),
+        getAllIngredients()
+      ]);
+      setOrders(ordersData);
+      setProducts(productsData);
+      setIngredients(ingredientsData);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     loadData();
   }, []);
+
+  const handleResetData = async () => {
+    const ok = confirm('سيتم حذف جميع الطلبات وإعادة عدادات مبيعات المنتجات إلى صفر. هل تريد المتابعة؟');
+    if (!ok) return;
+
+    setResetting(true);
+    try {
+      const result = await resetOrdersData();
+      setOrders([]);
+      await loadData();
+      toast.success(`تمت إعادة التعيين: ${result.deletedOrders} طلب`);
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذرت إعادة تعيين البيانات');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const todayOrders = orders.filter(order => isToday(order.createdAt));
@@ -211,6 +232,18 @@ export default function AdminDashboard() {
 
       <main className="admin-container">
         <AdminHeader title="OMEGA" subtitle="لوحة تحكم إدارة المطعم" />
+
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={handleResetData}
+            disabled={resetting}
+            className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-omega-orange disabled:opacity-60"
+          >
+            <IoReloadOutline size={20} />
+            {resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين البيانات'}
+          </button>
+        </div>
 
         <section className="admin-glass mb-4 p-4">
           <div className="flex items-center gap-4">

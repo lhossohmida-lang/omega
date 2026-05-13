@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { subscribeToAllOrders, updateOrderStatus } from '../services/orderService';
+import { resetOrdersData, subscribeToAllOrders, updateOrderStatus } from '../services/orderService';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import { isToday, timeAgo } from '../utils/formatDate';
@@ -22,6 +22,7 @@ import {
   IoLocationOutline,
   IoPersonOutline,
   IoReceiptOutline,
+  IoReloadOutline,
   IoSearch,
   IoTimeOutline,
 } from 'react-icons/io5';
@@ -61,6 +62,7 @@ export default function AdminOrders() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [resetting, setResetting] = useState(false);
   const previousOrdersRef = useRef([]);
 
   useEffect(() => {
@@ -89,6 +91,24 @@ export default function AdminOrders() {
     } catch (error) {
       console.error(error);
       toast.error('تعذر تحديث الطلب');
+    }
+  }
+
+  async function handleResetData() {
+    const ok = confirm('سيتم حذف جميع الطلبات وإعادة عدادات مبيعات المنتجات إلى صفر. هل تريد المتابعة؟');
+    if (!ok) return;
+
+    setResetting(true);
+    try {
+      const result = await resetOrdersData();
+      setSelected(null);
+      setOrders([]);
+      toast.success(`تمت إعادة التعيين: ${result.deletedOrders} طلب`);
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذرت إعادة تعيين البيانات');
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -128,7 +148,7 @@ export default function AdminOrders() {
       <main className="admin-container">
         <AdminHeader title="الطلبات" subtitle="إدارة ومتابعة جميع طلبات المطعم" />
 
-        <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
           <label className="admin-control flex min-h-12 items-center gap-3 px-4">
             <IoSearch className="text-omega-text-dim" size={26} />
             <input
@@ -143,6 +163,16 @@ export default function AdminOrders() {
           <button className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-white">
             <IoFilterOutline className="text-omega-orange" size={25} />
             فلترة
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetData}
+            disabled={resetting}
+            className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-omega-orange disabled:opacity-60"
+          >
+            <IoReloadOutline size={20} />
+            {resetting ? 'جاري إعادة التعيين...' : 'إعادة تعيين البيانات'}
           </button>
         </section>
 
