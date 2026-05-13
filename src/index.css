@@ -579,3 +579,1089 @@ article[class*="rounded-2xl"].admin-glass {
     height: 2.45rem;
   }
 }
+
+/* ============================
+   OMEGA Admin dashboard mockup
+   ============================ */
+.omega-admin-page {
+  --omega-red-ui: #e91d2d;
+  --omega-deep-red: #c91425;
+  --omega-gold-ui: #ffbb17;
+  --omega-gold-soft: #fff3ce;
+  --omega-ink-ui: #1c2034;
+  --omega-muted-ui: #717786;
+  padding-top: clamp(1.2rem, 3vw, 2.2rem);
+  background:
+    radial-gradient(330px 330px at 100% 0%, rgba(255, 190, 25, 0.3), transparent 70%),
+    linear-gradient(166deg, rgba(255, 190, 0, 0.92) 0 9rem, transparent 9.1rem),
+    linear-gradient(180deg, #ffffff 0%, #fbfbfb 47%, #ffffff 100%);
+}
+
+.omega-admin-page::before {
+  background:
+    radial-gradient(circle at 76% 7%, rgba(255, 201, 55, 0.22), transparent 11rem),
+    radial-gradient(circle at 8% 23%, rgba(233, 29, 45, 0.035), transparent 16rem);
+  opacity: 1;
+}
+
+.omega-admin-container {
+  max-width: 1010px;
+}
+
+.omega-admin-header {
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(1rem, 3vw, 1.6rem);
+  margin-bottom: 1.35rem;
+  padding: 0 0 0 8rem;
+  direction: ltr;
+}
+
+.omega-header-copy {
+  direction: rtl;
+  text-align: right;
+}
+
+.omega-admin-title {
+  color: var(--omega-red-ui);
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 5px 12px rgba(201, 20, 37, 0.12);
+}
+
+.omega-admin-subtitle {
+  margin-top: 0.2rem;
+  color: #666d7c;
+  font-size: clamp(1rem, 2.8vw, 1.35rem);
+  font-weight: 700;
+}
+
+.omega-mark {
+  display: flex;
+  width: clamp(5.25rem, 13vw, 7.5rem);
+  height: clamp(5.25rem, 13vw, 7.5rem);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0.5rem solid #fff;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(22, 22, 22, 0.14);
+}
+
+.omega-mark-small {
+  width: 3.8rem;
+  height: 3.8rem;
+  border-width: 0.32rem;
+}
+
+.omega-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-floating-actions {
+  position: fixed;
+  top: clamp(1.25rem, 4vw, 2.2rem);
+  left: clamp(1.1rem, 4vw, 2.8rem);
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.admin-alert-button,
+.admin-menu-float {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 0;
+  color: #141824;
+  box-shadow: 0 12px 28px rgba(20, 24, 36, 0.13);
+}
+
+.admin-alert-button {
+  width: 3.65rem;
+  height: 3.65rem;
+  border-radius: 1.15rem;
+  background: #fff;
+}
+
+.admin-alert-button span {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: var(--omega-red-ui);
+  border: 2px solid #fff;
+}
+
+.admin-menu-float {
+  width: 4.3rem;
+  height: 4.3rem;
+  border-radius: 1.35rem;
+  background: linear-gradient(135deg, var(--omega-red-ui), var(--omega-deep-red));
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(201, 20, 37, 0.28);
+}
+
+.omega-welcome-card,
+.omega-panel,
+.omega-stat-card,
+.omega-products-banner,
+.omega-income-strip {
+  border: 1px solid rgba(20, 24, 36, 0.075);
+  border-radius: 1.35rem;
+  background: #fff;
+  box-shadow:
+    0 16px 35px -25px rgba(18, 24, 40, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.omega-welcome-card {
+  position: relative;
+  display: grid;
+  min-height: clamp(10rem, 27vw, 14.6rem);
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: clamp(1rem, 4vw, 2rem);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  padding: clamp(1.25rem, 4vw, 2.3rem);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 187, 23, 0.28), transparent 14rem),
+    linear-gradient(105deg, #fffdf6 0%, #fff7df 45%, #fff 100%);
+}
+
+.omega-welcome-card::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: 0;
+  width: 18rem;
+  height: 10rem;
+  background-image: radial-gradient(rgba(255, 190, 25, 0.35) 1.2px, transparent 1.2px);
+  background-size: 12px 12px;
+  opacity: 0.55;
+  transform: translate(22%, 20%);
+}
+
+.omega-welcome-art {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: clamp(6.3rem, 20vw, 10rem);
+  height: clamp(6.3rem, 20vw, 10rem);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 187, 23, 0.25);
+}
+
+.omega-welcome-art img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+
+.omega-welcome-copy {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+}
+
+.omega-welcome-copy p {
+  color: var(--omega-ink-ui);
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: 800;
+}
+
+.omega-welcome-copy h1 {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  color: var(--omega-red-ui);
+  font-size: clamp(3rem, 8vw, 5rem);
+  font-weight: 900;
+  line-height: 0.95;
+}
+
+.omega-welcome-copy h1 span {
+  font-size: 0.56em;
+}
+
+.omega-welcome-copy strong {
+  display: block;
+  margin-top: 1.6rem;
+  color: #626977;
+  font-size: clamp(0.95rem, 2.8vw, 1.25rem);
+  font-weight: 700;
+}
+
+.omega-reset-button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 4.1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0 1.25rem;
+  border: 2px solid var(--omega-gold-ui);
+  border-radius: 1.1rem;
+  background: #fff;
+  color: var(--omega-red-ui);
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  font-weight: 900;
+  box-shadow: 0 12px 26px rgba(255, 187, 23, 0.22);
+}
+
+.omega-reset-button svg {
+  width: 3.1rem;
+  height: 3.1rem;
+  margin-inline-start: -0.75rem;
+  padding: 0.72rem;
+  border-radius: 0.95rem;
+  background: linear-gradient(135deg, var(--omega-red-ui), var(--omega-deep-red));
+  color: #fff;
+  box-shadow: 0 12px 22px rgba(201, 20, 37, 0.22);
+}
+
+.omega-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.05rem;
+}
+
+.omega-stat-card {
+  position: relative;
+  min-height: 13.15rem;
+  overflow: hidden;
+  padding: 1.35rem 1.15rem;
+  text-align: center;
+  background:
+    radial-gradient(circle at 85% 12%, rgba(233, 29, 45, 0.06), transparent 6rem),
+    #fff;
+}
+
+.omega-stat-card::after {
+  content: "";
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 5.4rem;
+  height: 5.4rem;
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 8px 8px;
+  color: rgba(255, 187, 23, 0.2);
+}
+
+.omega-stat-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  place-items: center;
+  margin: 0 auto 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffe17b, var(--omega-gold-ui));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(255, 187, 23, 0.3);
+}
+
+.omega-stat-red .omega-stat-icon {
+  background: linear-gradient(135deg, #ff5362, var(--omega-deep-red));
+  box-shadow: 0 12px 24px rgba(201, 20, 37, 0.26);
+}
+
+.omega-stat-green .omega-stat-icon {
+  background: linear-gradient(135deg, #c5f5dd, #18a865);
+  color: #0f9b5b;
+}
+
+.omega-stat-content {
+  position: relative;
+  z-index: 1;
+}
+
+.omega-stat-label {
+  color: var(--omega-ink-ui);
+  font-size: clamp(1rem, 2vw, 1.22rem);
+  font-weight: 900;
+}
+
+.omega-stat-value {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--omega-ink-ui);
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.omega-stat-red .omega-stat-value {
+  color: var(--omega-red-ui);
+}
+
+.omega-stat-hint {
+  display: inline-flex;
+  justify-content: center;
+  min-width: min(100%, 12rem);
+  margin-top: 0.9rem;
+  padding: 0.38rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 187, 23, 0.12);
+  color: #f29a00;
+  font-size: clamp(0.8rem, 1.8vw, 1rem);
+  font-weight: 800;
+}
+
+.omega-stat-red .omega-stat-hint {
+  background: rgba(233, 29, 45, 0.09);
+  color: var(--omega-red-ui);
+}
+
+.omega-stat-green .omega-stat-hint {
+  background: rgba(24, 168, 101, 0.1);
+  color: #18a865;
+}
+
+.omega-income-strip {
+  position: relative;
+  min-height: 13rem;
+  overflow: hidden;
+  margin-top: 1.05rem;
+  padding: 1.65rem 2rem;
+  color: #fff;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.15), transparent 50%),
+    linear-gradient(135deg, #ffc11b, #ffb511);
+}
+
+.omega-income-strip div {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.omega-income-strip p {
+  margin-top: -4rem;
+  margin-inline-start: 6rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.omega-income-strip strong {
+  display: block;
+  margin-inline-start: 6rem;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-weight: 900;
+}
+
+.omega-income-strip span {
+  display: block;
+  margin-inline-start: 6rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.omega-income-strip i {
+  position: absolute;
+  inset-inline: 12%;
+  bottom: 1.25rem;
+  height: 4.8rem;
+  opacity: 0.35;
+  background:
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 0 100% / 9% 42% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 16% 100% / 9% 62% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 32% 100% / 9% 34% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 50% 100% / 9% 55% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 67% 100% / 9% 48% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 84% 100% / 9% 70% no-repeat,
+    linear-gradient(to top, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1)) 100% 100% / 9% 45% no-repeat;
+}
+
+.omega-products-banner {
+  display: grid;
+  min-height: 7.7rem;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.2rem;
+  overflow: hidden;
+  margin-top: 1.05rem;
+  padding: 0.8rem 1.6rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 25% -10%, rgba(255, 255, 255, 0.25), transparent 11rem),
+    linear-gradient(135deg, #e9001f, #cf001a);
+}
+
+.omega-products-banner img {
+  width: clamp(5rem, 16vw, 8.5rem);
+  height: clamp(4.5rem, 13vw, 7rem);
+  object-fit: contain;
+  filter: drop-shadow(0 14px 16px rgba(55, 0, 0, 0.22));
+}
+
+.omega-products-banner h2 {
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  font-weight: 900;
+}
+
+.omega-products-banner p {
+  margin-top: 0.55rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--omega-red-ui);
+  font-size: clamp(0.9rem, 2.3vw, 1.15rem);
+  font-weight: 800;
+}
+
+.omega-products-grid {
+  display: grid;
+  grid-template-columns: 1.04fr 1fr;
+  gap: 1.05rem;
+  margin-top: 1.05rem;
+}
+
+.omega-panel {
+  overflow: hidden;
+  padding: 1.3rem;
+}
+
+.omega-section-head,
+.omega-tools-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.omega-section-head h2,
+.omega-tools-title h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--omega-ink-ui);
+  font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+  font-weight: 900;
+}
+
+.omega-section-head h2 svg,
+.omega-tools-title svg {
+  color: var(--omega-gold-ui);
+}
+
+.omega-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--omega-red-ui);
+  font-weight: 800;
+}
+
+.omega-product-rows {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.omega-product-row {
+  display: grid;
+  min-height: 5rem;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.55rem;
+  border: 1px solid rgba(20, 24, 36, 0.065);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 8px 16px -16px rgba(18, 24, 40, 0.42);
+}
+
+.omega-pill {
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  background: #e8fbf0;
+  color: #18a865;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.omega-pill.danger {
+  background: #ffe7e9;
+  color: var(--omega-red-ui);
+}
+
+.omega-product-info {
+  text-align: right;
+}
+
+.omega-product-info p {
+  color: var(--omega-ink-ui);
+  font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+  font-weight: 800;
+}
+
+.omega-product-info strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--omega-red-ui);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.omega-product-thumb {
+  width: 5rem;
+  height: 4.2rem;
+  border-radius: 0.85rem;
+  object-fit: cover;
+}
+
+.omega-outline-action,
+.omega-red-action {
+  display: flex;
+  min-height: 3.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  margin-top: 1.05rem;
+  border-radius: 1rem;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.omega-outline-action {
+  border: 1.5px solid rgba(233, 29, 45, 0.55);
+  color: var(--omega-red-ui);
+}
+
+.omega-red-action {
+  background: linear-gradient(135deg, var(--omega-red-ui), var(--omega-deep-red));
+  color: #fff;
+  box-shadow: 0 16px 26px -16px rgba(201, 20, 37, 0.58);
+}
+
+.omega-best-card {
+  background:
+    radial-gradient(circle at 92% 14%, rgba(233, 29, 45, 0.11), transparent 12rem),
+    #fff;
+}
+
+.omega-star-badge {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
+  border: 1px solid var(--omega-gold-ui);
+  border-radius: 0.75rem;
+  color: var(--omega-gold-ui);
+  font-size: 1.5rem;
+}
+
+.omega-best-image-wrap {
+  position: relative;
+  overflow: hidden;
+  height: clamp(11rem, 26vw, 15rem);
+  border-radius: 1.1rem;
+  background: linear-gradient(135deg, #fff3cf, #ffe9e9);
+}
+
+.omega-best-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.omega-floating-badge {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.75rem;
+  background: var(--omega-gold-ui);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(255, 187, 23, 0.32);
+}
+
+.omega-best-copy {
+  padding-top: 1rem;
+  text-align: center;
+}
+
+.omega-best-copy h3 {
+  color: var(--omega-ink-ui);
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
+  font-weight: 900;
+}
+
+.omega-best-copy p {
+  margin-top: 0.4rem;
+  color: #9aa1ad;
+  font-weight: 800;
+}
+
+.omega-best-copy strong {
+  display: block;
+  color: var(--omega-red-ui);
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  font-weight: 900;
+}
+
+.omega-tools {
+  margin-top: 1.05rem;
+}
+
+.omega-tools-title {
+  justify-content: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.omega-tools-title svg {
+  width: 2.3rem;
+  height: 2.3rem;
+}
+
+.omega-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.omega-tool-link {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  color: #626977;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.omega-tool-link span {
+  display: grid;
+  width: 4.1rem;
+  height: 4.1rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff7df;
+  color: var(--omega-red-ui);
+}
+
+.omega-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.omega-loading-card {
+  min-height: 13rem;
+  border-radius: 1.35rem;
+}
+
+.omega-side-menu {
+  position: fixed;
+  inset-block: 0;
+  right: 0;
+  z-index: 51;
+  display: flex;
+  width: min(28rem, calc(100vw - 1rem));
+  flex-direction: column;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: -28px 0 70px -36px rgba(18, 24, 40, 0.65);
+  transform: translateX(104%);
+  transition: transform 260ms ease;
+}
+
+.omega-side-menu.is-open {
+  transform: translateX(0);
+}
+
+.omega-side-head,
+.omega-side-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.omega-side-close {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.9rem;
+  background: #fff1f2;
+  color: var(--omega-red-ui);
+}
+
+.omega-side-brand {
+  text-align: right;
+}
+
+.omega-side-brand p {
+  color: var(--omega-red-ui);
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.omega-side-brand span {
+  color: var(--omega-muted-ui);
+  font-weight: 800;
+}
+
+.omega-side-links {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+  overflow-y: auto;
+}
+
+.omega-side-link {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(20, 24, 36, 0.07);
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--omega-ink-ui);
+  font-weight: 900;
+}
+
+.omega-side-link.active {
+  border-color: rgba(233, 29, 45, 0.18);
+  background: linear-gradient(135deg, #fff, #fff0f1);
+  color: var(--omega-red-ui);
+}
+
+.omega-side-link.clicking {
+  transform: scale(0.98);
+}
+
+.omega-side-link div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.omega-side-badge {
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  background: #fff2d5;
+  color: #f29a00;
+  font-size: 0.72rem;
+}
+
+.omega-side-footer {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: auto;
+}
+
+.omega-user-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  border-radius: 1rem;
+  background: #fff8e5;
+}
+
+.omega-user-card > div {
+  display: grid;
+  width: 3.4rem;
+  height: 3.4rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--omega-red-ui);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.omega-user-card p,
+.omega-user-card span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omega-user-card p {
+  color: var(--omega-ink-ui);
+  font-weight: 900;
+}
+
+.omega-user-card span {
+  color: var(--omega-muted-ui);
+  font-size: 0.85rem;
+}
+
+.omega-install-button,
+.omega-logout-button {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: 1rem;
+  font-weight: 900;
+}
+
+.omega-install-button {
+  background: #fff7df;
+  color: #f29a00;
+}
+
+.omega-logout-button {
+  background: #fff0f1;
+  color: var(--omega-red-ui);
+}
+
+.omega-bottom-nav {
+  overflow: hidden;
+  border: 1px solid rgba(20, 24, 36, 0.07);
+  border-radius: 1.35rem !important;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -14px 36px -24px rgba(18, 24, 40, 0.45);
+}
+
+.omega-bottom-inner {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.25rem;
+  padding: 0.45rem;
+}
+
+.omega-bottom-link {
+  position: relative;
+  display: grid;
+  min-height: 4.8rem;
+  place-items: center;
+  gap: 0.2rem;
+  border: 0;
+  border-radius: 1rem;
+  background: transparent;
+  color: #687080;
+  font-size: 0.83rem;
+  font-weight: 900;
+}
+
+.omega-bottom-link.active {
+  background: linear-gradient(135deg, #fff7f7, #ffe6e7);
+  color: var(--omega-red-ui);
+}
+
+.omega-bottom-link.active::before {
+  content: "";
+  position: absolute;
+  top: -0.45rem;
+  width: 3rem;
+  height: 0.24rem;
+  border-radius: 999px;
+  background: var(--omega-red-ui);
+}
+
+@media (max-width: 820px) {
+  .omega-stats-grid,
+  .omega-loading-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .omega-products-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .omega-admin-page {
+    padding-inline: 1rem;
+    padding-top: 1.1rem;
+    background:
+      radial-gradient(210px 210px at 100% 0%, rgba(255, 190, 25, 0.28), transparent 70%),
+      linear-gradient(166deg, rgba(255, 190, 0, 0.92) 0 6.8rem, transparent 6.9rem),
+      #fff;
+  }
+
+  .omega-admin-header {
+    min-height: 8.2rem;
+    padding-inline-start: 5.2rem;
+  }
+
+  .omega-admin-title {
+    font-size: clamp(2.25rem, 12vw, 3.25rem);
+  }
+
+  .omega-admin-subtitle {
+    font-size: 1rem;
+  }
+
+  .admin-floating-actions {
+    top: 1.35rem;
+    left: 1rem;
+    gap: 0.65rem;
+  }
+
+  .admin-alert-button {
+    width: 3.15rem;
+    height: 3.15rem;
+  }
+
+  .admin-menu-float {
+    width: 3.65rem;
+    height: 3.65rem;
+    border-radius: 1rem;
+  }
+
+  .omega-welcome-card {
+    grid-template-columns: 1fr auto;
+    padding: 1rem;
+  }
+
+  .omega-welcome-art {
+    display: none;
+  }
+
+  .omega-reset-button {
+    grid-column: 1 / -1;
+    width: fit-content;
+    min-height: 3.4rem;
+    justify-self: end;
+    padding-inline: 0.9rem;
+  }
+
+  .omega-reset-button svg {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .omega-stat-card {
+    min-height: 12.2rem;
+    padding: 1rem 0.7rem;
+  }
+
+  .omega-stat-icon {
+    width: 3.6rem;
+    height: 3.6rem;
+  }
+
+  .omega-stat-label {
+    font-size: 1rem;
+  }
+
+  .omega-stat-value {
+    font-size: 1.65rem;
+  }
+
+  .omega-stat-hint {
+    font-size: 0.78rem;
+  }
+
+  .omega-income-strip {
+    min-height: 10.5rem;
+    padding: 1.2rem;
+  }
+
+  .omega-income-strip p,
+  .omega-income-strip strong,
+  .omega-income-strip span {
+    margin-inline-start: 5.4rem;
+  }
+
+  .omega-products-banner {
+    grid-template-columns: auto 1fr auto;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .omega-products-banner p {
+    padding-inline: 0.75rem;
+  }
+
+  .omega-tools-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 1rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .omega-admin-page {
+    padding-inline: 0.8rem;
+  }
+
+  .omega-admin-header {
+    padding-inline-start: 4.3rem;
+  }
+
+  .omega-mark {
+    width: 4.65rem;
+    height: 4.65rem;
+    border-width: 0.35rem;
+  }
+
+  .omega-welcome-copy strong {
+    margin-top: 0.8rem;
+  }
+
+  .omega-stats-grid {
+    gap: 0.75rem;
+  }
+
+  .omega-stat-card {
+    min-height: 11.4rem;
+  }
+
+  .omega-stat-value {
+    font-size: 1.42rem;
+  }
+
+  .omega-product-row {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.55rem;
+  }
+
+  .omega-product-thumb {
+    width: 4rem;
+    height: 3.5rem;
+  }
+
+  .omega-pill {
+    padding-inline: 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .omega-panel {
+    padding: 1rem;
+  }
+
+  .omega-bottom-nav {
+    inset-inline: 0.7rem !important;
+    bottom: 0.7rem !important;
+  }
+
+  .omega-bottom-link {
+    min-height: 4.35rem;
+    font-size: 0.72rem;
+  }
+}

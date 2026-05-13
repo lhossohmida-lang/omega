@@ -15,12 +15,13 @@ import {
   IoHomeOutline,
   IoLogOutOutline,
   IoMenu,
+  IoNotificationsOutline,
   IoSparklesOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
 const bottomTabs = [
-  { to: '/admin', icon: IoGridOutline, label: 'الرئيسية', end: true },
+  { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
   { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
@@ -28,7 +29,6 @@ const bottomTabs = [
 
 const menuLinks = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
-  { to: '/admin', icon: IoGridOutline, label: 'لوحة التحكم', end: true, featured: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
   { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
@@ -46,7 +46,10 @@ export default function AdminNav() {
 
   const handleInstall = async () => {
     if (isIOS) {
-      toast('لتثبيت التطبيق: اضغط زر المشاركة ← أضف إلى الشاشة الرئيسية', { duration: 5000, icon: '📱' });
+      toast('لتثبيت التطبيق: اضغط زر المشاركة ثم أضف إلى الشاشة الرئيسية', {
+        duration: 5000,
+        icon: '📱',
+      });
       return;
     }
     await install();
@@ -60,45 +63,56 @@ export default function AdminNav() {
       setOpen(false);
       navigate(to);
       setClickingTo(null);
-    }, 420);
+    }, 240);
   };
 
   return (
     <>
-      {open && (
+      <div className="admin-floating-actions">
+        <button type="button" className="admin-alert-button" aria-label="الإشعارات">
+          <IoNotificationsOutline size={25} />
+          <span />
+        </button>
         <button
           type="button"
-          className="fixed inset-0 z-50 bg-black/72 backdrop-blur-[3px]"
+          className="admin-menu-float"
+          onClick={() => setOpen(true)}
+          aria-label="فتح القائمة"
+        >
+          <IoMenu size={31} />
+        </button>
+      </div>
+
+      {open ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-50 bg-black/35 backdrop-blur-[3px]"
           onClick={() => setOpen(false)}
           aria-label="إغلاق القائمة"
         />
-      )}
+      ) : null}
 
-      <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-[min(28rem,calc(100vw-1rem))] flex-col border-r border-white/10 bg-[#0c1014]/96 px-4 py-5 shadow-[-24px_0_80px_-32px_rgba(0,0,0,0.95)] backdrop-blur-2xl transition-transform duration-300 ease-out ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="mb-5 flex items-center justify-between">
+      <aside className={`omega-side-menu ${open ? 'is-open' : ''}`}>
+        <div className="omega-side-head">
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-omega-text-muted transition-colors hover:text-white"
+            className="omega-side-close"
             aria-label="إغلاق القائمة"
           >
             <IoClose size={22} />
           </button>
 
-          <div className="flex items-center gap-4 text-right">
+          <div className="omega-side-brand">
             <div>
-              <p className="text-2xl font-black text-omega-orange">OMEGA</p>
-              <p className="mt-1 text-sm text-omega-text-muted">إدارة المطعم باحتراف</p>
+              <p>OMEGA</p>
+              <span>إدارة المطعم</span>
             </div>
             <OmegaMark small />
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
+        <nav className="omega-side-links">
           {menuLinks.map(({ to, icon: Icon, label, end, badge }) => {
             const isClicking = clickingTo === to;
             return (
@@ -107,106 +121,63 @@ export default function AdminNav() {
                 to={to}
                 end={end}
                 onClick={(e) => handleNavClick(e, to)}
-                className={() =>
-                  `group relative flex items-center overflow-hidden border text-lg font-bold transition-all duration-[420ms] ease-out ${
-                    isClicking
-                      ? 'mx-auto h-16 w-16 justify-center rounded-full border-yellow-400/70 bg-yellow-400 text-black shadow-[0_0_32px_-4px_rgba(250,204,21,0.85)]'
-                      : 'min-h-14 w-full justify-between gap-3 rounded-xl border-white/8 bg-white/[0.035] px-4 text-omega-text hover:border-white/14 hover:bg-white/[0.055]'
-                  }`
+                className={({ isActive }) =>
+                  `omega-side-link${isActive ? ' active' : ''}${isClicking ? ' clicking' : ''}`
                 }
               >
-                <div className={`flex items-center gap-3 transition-opacity duration-150 ${isClicking ? 'opacity-0' : 'opacity-100'}`}>
-                  {badge && (
-                    <span className="rounded-full bg-omega-orange/16 px-3 py-1 text-xs font-black text-omega-orange">
-                      {badge}
-                    </span>
-                  )}
-                </div>
-                <div className={`flex items-center gap-4 transition-opacity duration-150 ${isClicking ? 'opacity-0' : 'opacity-100'}`}>
+                <div>
+                  {badge ? <span className="omega-side-badge">{badge}</span> : null}
                   <span>{label}</span>
-                  <Icon className="text-omega-text-muted group-hover:text-omega-orange" size={27} />
                 </div>
-                {isClicking && (
-                  <Icon className="absolute text-black" size={28} />
-                )}
+                <Icon size={25} />
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="mt-6 space-y-3">
-          {userData && (
-            <div className="admin-glass flex items-center gap-3 p-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-omega-orange/30 bg-omega-orange/12 text-omega-orange">
-                <span className="text-2xl font-black">{userData.name?.[0] || 'أ'}</span>
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-lg font-black text-white" dir="ltr">{userData.name || 'admin'}</p>
-                <p className="truncate text-sm text-omega-text-muted" dir="ltr">{userData.email}</p>
-              </div>
+        <div className="omega-side-footer">
+          {userData ? (
+            <div className="omega-user-card">
+              <div>{userData.name?.[0] || 'أ'}</div>
+              <section>
+                <p dir="ltr">{userData.name || 'admin'}</p>
+                <span dir="ltr">{userData.email}</span>
+              </section>
             </div>
-          )}
+          ) : null}
 
-          {(canInstall || isIOS) && (
-            <button
-              type="button"
-              onClick={handleInstall}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-omega-orange/25 bg-omega-orange/10 text-base font-bold text-omega-orange transition-colors hover:bg-omega-orange/15"
-            >
-              <IoDownloadOutline size={24} />
+          {canInstall || isIOS ? (
+            <button type="button" onClick={handleInstall} className="omega-install-button">
+              <IoDownloadOutline size={22} />
               تثبيت التطبيق
             </button>
-          )}
+          ) : null}
 
-          <button
-            type="button"
-            onClick={logout}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-omega-red/25 bg-omega-red/10 text-base font-bold text-omega-red transition-colors hover:bg-omega-red/15"
-          >
-            <IoLogOutOutline size={27} />
+          <button type="button" onClick={logout} className="omega-logout-button">
+            <IoLogOutOutline size={23} />
             تسجيل الخروج
           </button>
         </div>
       </aside>
 
-      <nav className="admin-bottom-nav fixed inset-x-4 bottom-4 z-40 rounded-xl px-2 pb-[env(safe-area-inset-bottom,0px)] sm:inset-x-8 lg:left-1/2 lg:right-auto lg:w-[min(1060px,calc(100%_-_4rem))] lg:-translate-x-1/2">
-        <div className="flex items-center justify-around py-1.5">
+      <nav className="admin-bottom-nav omega-bottom-nav fixed inset-x-4 bottom-4 z-40 pb-[env(safe-area-inset-bottom,0px)] sm:inset-x-8 lg:left-1/2 lg:right-auto lg:w-[min(1060px,calc(100%_-_4rem))] lg:-translate-x-1/2">
+        <div className="omega-bottom-inner">
           {bottomTabs.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
-              className={({ isActive }) =>
-                `relative flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-bold transition-colors ${
-                  isActive ? 'text-omega-orange' : 'text-omega-text-dim'
-                }`
-              }
+              className={({ isActive }) => `omega-bottom-link${isActive ? ' active' : ''}`}
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && <span className="absolute -top-2 h-0.5 w-14 rounded-full bg-omega-orange shadow-[0_0_18px_rgba(255,107,0,0.9)]" />}
-                  <Icon size={25} />
-                  <span>{label}</span>
-                </>
-              )}
+              <Icon size={25} />
+              <span>{label}</span>
             </NavLink>
           ))}
-          {(canInstall || isIOS) && (
-            <button
-              type="button"
-              onClick={handleInstall}
-              className="relative flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-bold text-omega-orange transition-colors"
-              aria-label="تثبيت التطبيق"
-            >
-              <IoDownloadOutline size={25} />
-              <span>تثبيت</span>
-            </button>
-          )}
 
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="relative flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-bold text-omega-text-dim transition-colors hover:text-omega-orange"
+            className="omega-bottom-link"
             aria-label="فتح القائمة"
           >
             <IoMenu size={25} />
