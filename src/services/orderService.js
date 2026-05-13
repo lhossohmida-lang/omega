@@ -224,13 +224,24 @@ export function subscribeToAllOrders(callback) {
 export function subscribeToWorkerOrders(callback) {
   const q = query(
     collection(db, ORDERS_COL),
-    where('status', '==', 'preparing'),
-    orderBy('createdAt', 'desc')
+    where('status', '==', 'preparing')
   );
-  return onSnapshot(q, (snapshot) => {
-    const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    callback(orders);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const orders = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const t = ts => ts?.seconds ? ts.seconds * 1000 : ts?.toMillis?.() || 0;
+          return t(b.createdAt) - t(a.createdAt);
+        });
+      callback(orders);
+    },
+    (error) => {
+      console.error('subscribeToWorkerOrders error:', error);
+      callback([]);
+    }
+  );
 }
 
 // تحديد الطلب كجاهز من طرف العامل (بدون تغيير المسار الرئيسي للحالة)

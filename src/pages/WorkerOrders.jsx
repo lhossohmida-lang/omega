@@ -29,7 +29,11 @@ export default function WorkerOrders() {
   const previousCountRef = useRef(0);
 
   useEffect(() => {
+    // timeout احتياطي بعد 6 ثوانٍ لإيقاف حالة التحميل
+    const timeout = setTimeout(() => setLoading(false), 6000);
+
     const unsub = subscribeToWorkerOrders((data) => {
+      clearTimeout(timeout);
       setOrders(data);
       setLoading(false);
 
@@ -40,7 +44,11 @@ export default function WorkerOrders() {
 
       previousCountRef.current = data.length;
     });
-    return () => unsub();
+
+    return () => {
+      clearTimeout(timeout);
+      unsub();
+    };
   }, []);
 
   const handleMarkReady = async (orderId) => {
@@ -83,10 +91,9 @@ export default function WorkerOrders() {
 
       <div className="max-w-lg mx-auto px-4 mt-4 space-y-6">
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="skeleton h-48 rounded-2xl" />
-            ))}
+          <div className="text-center py-20">
+            <div className="w-12 h-12 border-4 border-omega-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-omega-text-muted text-sm">جاري تحميل الطلبات...</p>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-20 animate-fade-in">
