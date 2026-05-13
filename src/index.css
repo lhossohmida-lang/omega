@@ -143,12 +143,8 @@ a .text-white { color: #ffffff !important; }
   overflow: hidden;
   border-radius: var(--omega-radius-card) !important;
   border: 1px solid rgba(0, 0, 0, 0.07);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(249, 250, 251, 0.95)),
-    radial-gradient(360px 180px at 100% 0%, rgba(255,107,0,0.05), transparent 72%);
-  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255,255,255,1);
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  background: #ffffff;
+  box-shadow: 0 2px 12px -4px rgba(0, 0, 0, 0.08);
 }
 
 .admin-glass .text-white { color: #1a1a2e !important; }
@@ -305,26 +301,11 @@ a .text-white { color: #ffffff !important; }
   border-radius: var(--omega-radius-card);
   padding: 0.875rem;
   border: 1px solid rgba(0,0,0,0.07);
-  background: rgba(255,255,255,0.97);
-  box-shadow: 0 4px 16px -8px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,1);
+  background: #ffffff;
+  box-shadow: 0 2px 12px -4px rgba(0,0,0,0.08);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,107,0,0.04) 0%, transparent 45%);
-  pointer-events: none;
-}
-.stat-card::after {
-  content: "";
-  position: absolute;
-  width: 120px; height: 120px;
-  right: -30px; top: -30px;
-  background: radial-gradient(circle, rgba(255,107,0,0.08), transparent 70%);
-  pointer-events: none;
-}
-.stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px -10px rgba(0,0,0,0.14); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px -6px rgba(0,0,0,0.12); }
 
 /* ============================
    Buttons & inputs
