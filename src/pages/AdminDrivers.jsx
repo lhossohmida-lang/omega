@@ -51,7 +51,7 @@ export default function AdminDrivers() {
               {drivers.map((driver) => {
                 const driverOrders = orders.filter(o => o.driverId === driver.id);
                 const delivered = driverOrders.filter(o => o.status === 'delivered');
-                const totalValue = delivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
+                const driverRevenue = delivered.reduce((s, o) => s + (o.isDelivery ? (o.deliveryFee || 0) : 0), 0);
                 const active = driverOrders.filter(o => !['delivered', 'cancelled'].includes(o.status));
                 const isTop = topDriver?.id === driver.id && delivered.length > 0;
 
@@ -98,8 +98,8 @@ export default function AdminDrivers() {
                       </div>
                       <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-center">
                         <IoStar className="text-blue-400 mx-auto mb-1" size={16} />
-                        <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(totalValue)}</p>
-                        <p className="text-omega-text-dim text-[9px]">الإيراد</p>
+                        <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(driverRevenue)}</p>
+                        <p className="text-omega-text-dim text-[9px]">أرباح التوصيل</p>
                       </div>
                     </div>
 
@@ -109,7 +109,7 @@ export default function AdminDrivers() {
                         {delivered.slice(0, 3).map(o => (
                           <div key={o.id} className="flex justify-between text-xs py-1">
                             <span className="text-omega-text">#{o.id?.slice(-6)} • {o.customerName}</span>
-                            <span className="text-omega-orange font-bold">{formatCurrency(o.totalPrice)}</span>
+                            <span className="text-omega-orange font-bold">{formatCurrency(driverRevenue)}</span>
                           </div>
                         ))}
                       </div>

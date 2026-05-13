@@ -168,6 +168,15 @@ export function subscribeToPendingOrders(callback) {
   });
 }
 
+// الاستماع لجميع الطلبات في الوقت الحقيقي
+export function subscribeToAllOrders(callback) {
+  const q = query(collection(db, ORDERS_COL), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    callback(orders);
+  });
+}
+
 // جلب الطلبات حسب الحالة
 export async function getOrdersByStatus(status) {
   const q = query(

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { subscribeToPendingOrders, acceptOrder } from '../services/orderService';
+import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { timeAgo } from '../utils/formatDate';
 import DriverNav from '../components/DriverNav';
@@ -12,11 +13,18 @@ export default function DriverAvailableOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(null);
+  const previousOrdersRef = useRef([]);
 
   useEffect(() => {
     const unsub = subscribeToPendingOrders((data) => {
       setOrders(data);
       setLoading(false);
+
+      if (previousOrdersRef.current.length > 0 && data.length > previousOrdersRef.current.length) {
+        playLoudAlarm();
+      }
+
+      previousOrdersRef.current = data;
     });
     return () => unsub();
   }, []);

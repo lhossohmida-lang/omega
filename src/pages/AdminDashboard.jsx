@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllOrders } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
+import { getAllIngredients } from '../services/inventoryService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
-import { isToday, isThisMonth, timeAgo } from '../utils/formatDate';
+import { isToday, isThisWeek, isThisMonth, timeAgo } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
 import { useAuth } from '../hooks/useAuth';
 import AdminHeader from '../components/AdminHeader';
@@ -81,15 +82,21 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'orange' }) {
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const { userData } = useAuth();
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [ordersData, productsData] = await Promise.all([getAllOrders(), getAllProducts()]);
+        const [ordersData, productsData, ingredientsData] = await Promise.all([
+          getAllOrders(), 
+          getAllProducts(),
+          getAllIngredients()
+        ]);
         setOrders(ordersData);
         setProducts(productsData);
+        setIngredients(ingredientsData);
       } catch (error) {
         console.error(error);
       } finally {
@@ -102,31 +109,71 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const todayOrders = orders.filter(order => isToday(order.createdAt));
+    const weekOrders = orders.filter(order => isThisWeek(order.createdAt));
     const monthOrders = orders.filter(order => isThisMonth(order.createdAt));
     const deliveredAll = orders.filter(order => order.status === 'delivered');
     const deliveredToday = todayOrders.filter(order => order.status === 'delivered');
+    const deliveredWeek = weekOrders.filter(order => order.status === 'delivered');
     const deliveredMonth = monthOrders.filter(order => order.status === 'delivered');
+
+    const getOrderNetOwnerProfit = (order) => {
+      const profit = calculateOrderProfit(order).profit;
+      const driverCut = (order.isDelivery && order.driverId) ? (order.deliveryFee || 0) : 0;
+      return profit - driverCut;
+    };
 
     const todaySales = deliveredToday.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const monthSales = deliveredMonth.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const allSales = deliveredAll.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-    const todayProfit = deliveredToday.reduce((sum, order) => sum + calculateOrderProfit(order).profit, 0);
-    const monthProfit = deliveredMonth.reduce((sum, order) => sum + calculateOrderProfit(order).profit, 0);
-    const allProfit = deliveredAll.reduce((sum, order) => sum + calculateOrderProfit(order).profit, 0);
+    
+    const todayProfit = deliveredToday.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const weekProfit = deliveredWeek.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const monthProfit = deliveredMonth.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    
+    const allOrderProfit = deliveredAll.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const totalIngredientCost = ingredients.reduce((sum, ing) => sum + (ing.totalSpent || 0), 0);
+    const allProfit = allOrderProfit - totalIngredientCost;
+
     const soldUnits = deliveredAll.reduce((sum, order) => sum + (order.items || []).reduce((s, item) => s + (item.quantity || 0), 0), 0);
+
+    const driversProfitsMap = {};
+    deliveredAll.forEach(order => {
+      if (order.driverId && order.isDelivery) {
+        const fee = order.deliveryFee || 0;
+        if (fee > 0) {
+          if (!driversProfitsMap[order.driverId]) {
+            driversProfitsMap[order.driverId] = {
+              id: order.driverId,
+              name: order.driverName || 'سائق غير معروف',
+              todayProfit: 0,
+              allProfit: 0,
+              todayOrders: 0,
+            };
+          }
+          driversProfitsMap[order.driverId].allProfit += fee;
+          if (isToday(order.createdAt)) {
+            driversProfitsMap[order.driverId].todayProfit += fee;
+            driversProfitsMap[order.driverId].todayOrders += 1;
+          }
+        }
+      }
+    });
+    const driversStats = Object.values(driversProfitsMap).sort((a, b) => b.todayProfit - a.todayProfit);
 
     return {
       todaySales,
       todayProfit,
+      weekProfit,
       monthSales,
       monthProfit,
       allSales,
       allProfit,
       soldUnits,
+      driversStats,
       deliveredCount: deliveredAll.length,
       activeOrders: orders.filter(order => !['delivered', 'cancelled'].includes(order.status)).length,
     };
-  }, [orders]);
+  }, [orders, ingredients]);
 
   const inactiveProducts = useMemo(
     () => products.filter(product => product.isAvailable === false),
@@ -188,11 +235,12 @@ export default function AdminDashboard() {
             <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatCard icon={IoCashOutline} label="المبيعات اليوم" value={formatCurrency(stats.todaySales)} hint="طلبات اليوم المسلمة" tone="green" />
               <StatCard icon={IoTrendingUpOutline} label="أرباح اليوم" value={formatCurrency(stats.todayProfit)} hint="حسب تكلفة المنتجات" tone="green" />
-              <StatCard icon={IoWalletOutline} label="إجمالي الأرباح" value={formatCurrency(stats.allProfit)} hint="من الطلبات المكتملة" tone="green" />
+              <StatCard icon={IoTrendingUpOutline} label="الأرباح الأسبوعية" value={formatCurrency(stats.weekProfit)} hint="أرباح هذا الأسبوع" tone="green" />
+              <StatCard icon={IoWalletOutline} label="إجمالي الأرباح (الصافي)" value={formatCurrency(stats.allProfit)} hint="بعد خصم المواد الخام" tone="blue" />
+              
               <StatCard icon={IoTimerOutline} label="الطلبات المعلقة" value={formatNumber(stats.activeOrders)} hint="تحتاج متابعة" tone="yellow" />
               <StatCard icon={IoReceiptOutline} label="إجمالي الطلبات" value={formatCurrency(stats.allSales)} hint="كل المبيعات المكتملة" />
               <StatCard icon={IoCheckmarkCircleOutline} label="الطلبات المكتملة" value={formatNumber(stats.deliveredCount)} hint="من الإجمالي" tone="green" />
-              <StatCard icon={IoPieChartOutline} label="أرباح الشهر" value={formatCurrency(stats.monthProfit)} hint="هذا الشهر" tone="blue" />
               <StatCard icon={IoBagHandleOutline} label="إجمالي المبيعات" value={formatNumber(stats.soldUnits)} hint="وحدة مباعة" />
             </section>
 
@@ -268,6 +316,37 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </section>
+
+            {/* Drivers Profits Section */}
+            <section className="admin-glass p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🛵</span>
+                  <h3 className="text-xl font-black text-white">أرباح السائقين (اليوم)</h3>
+                </div>
+              </div>
+
+              {stats.driversStats.length === 0 ? (
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-6 text-center text-sm text-omega-text-muted">
+                  لا توجد أرباح للسائقين اليوم
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {stats.driversStats.map(driver => (
+                    <div key={driver.id} className="admin-control flex items-center justify-between rounded-2xl p-4">
+                      <div>
+                        <p className="font-bold text-white mb-1">{driver.name}</p>
+                        <p className="text-xs text-omega-text-muted">{driver.todayOrders} طلبات اليوم</p>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-black text-omega-orange">{formatCurrency(driver.todayProfit)}</p>
+                        <p className="text-[10px] text-omega-text-muted">الإجمالي: {formatCurrency(driver.allProfit)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="admin-glass p-4">

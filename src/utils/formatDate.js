@@ -61,3 +61,21 @@ export function isThisMonth(timestamp) {
   return date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
 }
+
+// التحقق إذا كان هذا الأسبوع
+export function isThisWeek(timestamp) {
+  if (!timestamp) return false;
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  
+  // Set to start of week (Sunday or Monday, depending on locale. Let's use Monday as start for business logic or Sunday).
+  // Assuming week starts on Sunday:
+  const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  firstDayOfWeek.setHours(0, 0, 0, 0);
+  
+  const lastDayOfWeek = new Date(firstDayOfWeek);
+  lastDayOfWeek.setDate(lastDayOfWeek.getDate() + 6);
+  lastDayOfWeek.setHours(23, 59, 59, 999);
+  
+  return date >= firstDayOfWeek && date <= lastDayOfWeek;
+}

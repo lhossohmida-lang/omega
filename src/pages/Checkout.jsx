@@ -28,17 +28,20 @@ export default function Checkout() {
   });
   const [loading, setLoading] = useState(false);
   const [orderCreated, setOrderCreated] = useState(null);
+  const [isDelivery, setIsDelivery] = useState(true);
 
   const cart = getCart();
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = isDelivery ? 150 : 0;
+  const finalTotal = total + deliveryFee;
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.customerPhone?.trim()) { toast.error('يرجى إدخال رقم الهاتف'); return; }
-    if (!form.customerAddress?.trim()) { toast.error('يرجى إدخال عنوان التوصيل'); return; }
+    if (isDelivery && !form.customerAddress?.trim()) { toast.error('يرجى إدخال عنوان التوصيل'); return; }
     if (cart.length === 0) { toast.error('السلة فارغة'); return; }
     setLoading(true);
     try {
@@ -46,10 +49,12 @@ export default function Checkout() {
         customerId: userData.uid,
         customerName: form.customerName,
         customerPhone: form.customerPhone,
-        customerAddress: form.customerAddress,
+        customerAddress: isDelivery ? form.customerAddress : 'استلام من المطعم',
         customerNote: form.customerNote,
         items: cart,
-        totalPrice: total,
+        totalPrice: finalTotal,
+        isDelivery,
+        deliveryFee,
       });
       clearCart();
       setOrderCreated(orderId);
@@ -140,9 +145,40 @@ export default function Checkout() {
           </div>
 
           {/* Total */}
-          <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-xl p-3.5 flex items-center justify-between">
-            <span className="text-white font-black text-base">الإجمالي</span>
-            <span className="gradient-text font-black text-2xl">{formatCurrency(total)}</span>
+          <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
+            <div className="flex items-center justify-between text-sm text-white/70">
+              <span>المجموع</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
+            {isDelivery && (
+              <div className="flex items-center justify-between text-sm text-omega-orange">
+                <span>رسوم التوصيل</span>
+                <span>+ {formatCurrency(deliveryFee)}</span>
+              </div>
+            )}
+            <div className="bg-gradient-to-l from-omega-orange/15 to-transparent border border-omega-orange/25 rounded-xl p-3.5 flex items-center justify-between mt-2">
+              <span className="text-white font-black text-base">الإجمالي</span>
+              <span className="gradient-text font-black text-2xl">{formatCurrency(finalTotal)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== Delivery Option ===== */}
+        <div className="rounded-xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-4 animate-fade-in" style={{ animationDelay: '40ms' }}>
+          <h3 className="text-white font-black text-base mb-3">طريقة الاستلام</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setIsDelivery(true)}
+              className={`py-3 rounded-xl font-bold transition-all ${isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+            >
+              🚗 توصيل (150 د.ج)
+            </button>
+            <button
+              onClick={() => setIsDelivery(false)}
+              className={`py-3 rounded-xl font-bold transition-all ${!isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+            >
+              🏪 استلام من المطعم
+            </button>
           </div>
         </div>
 
@@ -176,15 +212,17 @@ export default function Checkout() {
           </div>
 
           {/* Address */}
-          <div>
-            <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
-              <IoLocationOutline size={13} /> عنوان التوصيل *
-            </label>
-            <input type="text" name="customerAddress" value={form.customerAddress} onChange={handleChange}
-              placeholder="الحي، الشارع، رقم العمارة..."
-              className="w-full px-4 py-3.5 rounded-2xl bg-omega-dark/60 border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/50 focus:bg-omega-dark/80 transition-all" />
-            <p className="text-omega-text-dim text-[10px] mt-1.5 mr-1">كن دقيقاً ليصل السائق بسرعة</p>
-          </div>
+          {isDelivery && (
+            <div>
+              <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
+                <IoLocationOutline size={13} /> عنوان التوصيل *
+              </label>
+              <input type="text" name="customerAddress" value={form.customerAddress} onChange={handleChange}
+                placeholder="الحي، الشارع، رقم العمارة..."
+                className="w-full px-4 py-3.5 rounded-2xl bg-omega-dark/60 border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/50 focus:bg-omega-dark/80 transition-all" />
+              <p className="text-omega-text-dim text-[10px] mt-1.5 mr-1">كن دقيقاً ليصل السائق بسرعة</p>
+            </div>
+          )}
 
           {/* Note */}
           <div>
@@ -205,7 +243,7 @@ export default function Checkout() {
             <IoBagHandleOutline className="text-omega-orange" size={22} />
             <div>
               <p className="text-omega-text-dim text-[10px] leading-tight">الإجمالي</p>
-              <p className="text-white font-black text-sm leading-tight">{formatCurrency(total)}</p>
+              <p className="text-white font-black text-sm leading-tight">{formatCurrency(finalTotal)}</p>
             </div>
           </div>
           <button

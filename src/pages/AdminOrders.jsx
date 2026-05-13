@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getAllOrders, updateOrderStatus } from '../services/orderService';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { subscribeToAllOrders, updateOrderStatus } from '../services/orderService';
+import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import { isToday, timeAgo } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
@@ -60,21 +61,24 @@ export default function AdminOrders() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const previousOrdersRef = useRef([]);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
-
-  async function loadOrders() {
-    try {
-      setOrders(await getAllOrders());
-    } catch (error) {
-      console.error(error);
-      toast.error('تعذر جلب الطلبات');
-    } finally {
+    const unsub = subscribeToAllOrders((data) => {
+      setOrders(data);
       setLoading(false);
-    }
-  }
+
+      const previousPending = previousOrdersRef.current.filter(o => o.status === 'pending');
+      const currentPending = data.filter(o => o.status === 'pending');
+
+      if (previousOrdersRef.current.length > 0 && currentPending.length > previousPending.length) {
+        playLoudAlarm();
+      }
+
+      previousOrdersRef.current = data;
+    });
+    return () => unsub();
+  }, []);
 
   async function handleStatusChange(orderId, newStatus) {
     try {
