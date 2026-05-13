@@ -20,6 +20,9 @@ import DriverAvailableOrders from './pages/DriverAvailableOrders';
 import DriverMyOrders from './pages/DriverMyOrders';
 import DriverStats from './pages/DriverStats';
 
+// Worker Pages
+import WorkerOrders from './pages/WorkerOrders';
+
 // Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrders from './pages/AdminOrders';
@@ -43,7 +46,7 @@ export default function App() {
   return (
     <Routes>
       {/* Auth Routes */}
-      <Route path="/login" element={user ? <Navigate to={userData?.role === 'admin' ? '/admin' : userData?.role === 'driver' ? '/driver' : '/'} /> : <Login />} />
+      <Route path="/login" element={user ? <Navigate to={userData?.role === 'admin' ? '/admin' : userData?.role === 'driver' ? '/driver' : userData?.role === 'worker' ? '/worker' : '/'} /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
 
       {/* Customer Routes */}
@@ -61,6 +64,10 @@ export default function App() {
       <Route path="/driver/stats" element={<ProtectedRoute allowedRoles={['driver']}><DriverStats /></ProtectedRoute>} />
       <Route path="/driver/profile" element={<ProtectedRoute allowedRoles={['driver']}><Profile /></ProtectedRoute>} />
 
+      {/* Worker Routes */}
+      <Route path="/worker" element={<ProtectedRoute allowedRoles={['worker']}><WorkerOrders /></ProtectedRoute>} />
+      <Route path="/worker/profile" element={<ProtectedRoute allowedRoles={['worker']}><Profile /></ProtectedRoute>} />
+
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminOrders /></ProtectedRoute>} />
@@ -71,7 +78,13 @@ export default function App() {
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={
+        <Navigate to={
+          userData?.role === 'admin' ? '/admin' :
+          userData?.role === 'driver' ? '/driver' :
+          userData?.role === 'worker' ? '/worker' : '/'
+        } />
+      } />
     </Routes>
   );
 }

@@ -50,6 +50,7 @@ export function AuthProvider({ children }) {
     isAdmin: userData?.role === 'admin',
     isDriver: userData?.role === 'driver',
     isCustomer: userData?.role === 'customer',
+    isWorker: userData?.role === 'worker',
   };
 
   return (
