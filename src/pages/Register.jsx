@@ -42,6 +42,7 @@ export default function Register() {
       toast.success('تم إنشاء الحساب بنجاح!');
       if (form.role === 'admin') navigate('/admin');
       else if (form.role === 'driver') navigate('/driver');
+      else if (form.role === 'worker') navigate('/worker');
       else navigate('/');
     } catch (error) {
       console.error(error);
@@ -57,6 +58,7 @@ export default function Register() {
   const roles = [
     { value: 'customer', label: '🛒 زبون', desc: 'اطلب وجباتك المفضلة' },
     { value: 'driver', label: '🚗 سائق', desc: 'قم بتوصيل الطلبات' },
+    { value: 'worker', label: '👷 عامل', desc: 'تحضير الطلبات في المطبخ' },
     { value: 'admin', label: '👨‍💼 مدير', desc: 'إدارة المطعم' },
   ];
 
@@ -77,7 +79,7 @@ export default function Register() {
             {/* اختيار الدور */}
             <div>
               <label className="block text-sm font-medium text-omega-text-muted mb-2">نوع الحساب</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {roles.map(r => (
                   <button
                     key={r.value}

@@ -52,6 +52,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     // إعادة التوجيه حسب الدور
     if (userData.role === 'admin') return <Navigate to="/admin" replace />;
     if (userData.role === 'driver') return <Navigate to="/driver" replace />;
+    if (userData.role === 'worker') return <Navigate to="/worker" replace />;
     return <Navigate to="/" replace />;
   }
 

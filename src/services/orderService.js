@@ -220,6 +220,27 @@ export function subscribeToAllOrders(callback) {
   });
 }
 
+// الاستماع لطلبات المطبخ في الوقت الحقيقي (الطلبات المؤكدة من الإدارة)
+export function subscribeToWorkerOrders(callback) {
+  const q = query(
+    collection(db, ORDERS_COL),
+    where('status', '==', 'preparing'),
+    orderBy('createdAt', 'desc')
+  );
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    callback(orders);
+  });
+}
+
+// تحديد الطلب كجاهز من طرف العامل (بدون تغيير المسار الرئيسي للحالة)
+export async function markWorkerOrderReady(orderId) {
+  await updateDoc(doc(db, ORDERS_COL, orderId), {
+    workerReady: true,
+    workerReadyAt: serverTimestamp(),
+  });
+}
+
 // جلب الطلبات حسب الحالة
 export async function getOrdersByStatus(status) {
   const q = query(

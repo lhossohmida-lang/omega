@@ -1,9 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(vercel env add OPENROUTER_API_KEY preview)",
-      "PowerShell(Get-Content \"$env:TEMP\\\\fb_sa.txt\" -Raw | vercel env add FIREBASE_SERVICE_ACCOUNT development --yes)",
-      "PowerShell($src = \"C:\\\\Users\\\\12\\\\Downloads\\\\basst-omeeega-firebase-adminsdk-fbsvc-c710fca209.json\"; $raw = [System.IO.File]::ReadAllText\\($src\\); $obj = $raw | ConvertFrom-Json; Write-Output \"private_key starts with: $\\($obj.private_key.Substring\\(0,30\\)\\)\"; Write-Output \"Contains real newline: $\\($obj.private_key.Contains\\([char]10\\)\\)\")"
+      "Bash(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)"
     ]
   }
 }
