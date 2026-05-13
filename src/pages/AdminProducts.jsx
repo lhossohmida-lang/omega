@@ -38,6 +38,15 @@ const emptyForm = {
   isAvailable: true,
 };
 
+const LOCAL_IMAGES = [
+  '/burger-classic.png',
+  '/pizza-pepperoni.png',
+  '/tacos-wrap.png',
+  '/drink-cola.png',
+  '/fried-chicken.png',
+  '/appetizer-gratin.png',
+];
+
 function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onToggle, formatCurrency }) {
   const [expanded, setExpanded] = useState(false);
   const categoryInfo = categories[product.category] || categories.burger;
@@ -274,9 +283,14 @@ export default function AdminProducts() {
     }
   }
 
+
+
   async function handleImageUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Reset input so the same file can be selected again
+    event.target.value = '';
 
     try {
       toast.loading('جاري رفع الصورة...');
@@ -330,11 +344,11 @@ export default function AdminProducts() {
 
           <button
             type="button"
-            onClick={() => seedImages(false)}
-            title="تعيين صور افتراضية للمنتجات التي ليس لها صورة"
+            onClick={() => seedImages(true)}
+            title="استبدال جميع الصور القديمة بالصور المحلية"
             className="admin-control flex min-h-12 items-center justify-center gap-2 px-4 text-sm font-black text-omega-text-muted hover:text-omega-orange"
           >
-            🖼 تعيين الصور
+            🖼 استبدال الصور
           </button>
 
           <button
@@ -481,13 +495,32 @@ export default function AdminProducts() {
               </div>
 
               <div>
-                <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">الصورة</label>
-                <input className={inputClass} value={form.image} onChange={event => setForm(current => ({ ...current, image: event.target.value }))} placeholder="https://..." dir="ltr" />
-                <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/14 bg-white/[0.025] p-3 text-sm font-bold text-omega-text-muted">
+                <label className="mb-3 block text-right text-sm font-bold text-omega-text-muted">الصورة</label>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" dir="ltr">
+                  {LOCAL_IMAGES.map(img => (
+                    <img
+                      key={img}
+                      src={img}
+                      alt="صورة المنتج"
+                      onClick={() => setForm(current => ({ ...current, image: img }))}
+                      className={`h-20 w-20 shrink-0 cursor-pointer rounded-2xl bg-white/5 object-cover transition-all ${form.image === img ? 'ring-2 ring-omega-orange opacity-100 scale-105' : 'opacity-50 hover:opacity-100'}`}
+                    />
+                  ))}
+                </div>
+                
+                {/* Image Upload Option */}
+                <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-white/14 bg-white/[0.025] p-3 text-sm font-bold text-omega-text-muted transition-colors hover:bg-white/5 hover:text-white">
                   <IoCloudUploadOutline size={20} />
-                  رفع صورة من الجهاز
+                  أو رفع صورة مخصصة من الجهاز
                   <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                 </label>
+                
+                {/* Preview Custom URL if uploaded */}
+                {form.image && !LOCAL_IMAGES.includes(form.image) && (
+                  <div className="mt-2 text-right">
+                    <span className="text-xs text-emerald-400">✓ تم اختيار صورة مخصصة</span>
+                  </div>
+                )}
               </div>
 
               <label className="admin-control flex cursor-pointer items-center justify-between rounded-2xl p-4">

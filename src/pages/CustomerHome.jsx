@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '../utils/formatCurrency';
 import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
+import CustomerNav from '../components/CustomerNav';
 
 /* helpers */
 function getCart() {
@@ -39,11 +40,12 @@ export default function CustomerHome() {
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [searchQuery,  setSearchQuery]  = useState('');
   const [menuOpen,     setMenuOpen]     = useState(false);
-  const [cartExpanded, setCartExpanded] = useState({});
   const [favorites,    setFavorites]    = useState(getFav);
   const [showFavOnly,  setShowFavOnly]  = useState(false);
   const [ordersCount,  setOrdersCount]  = useState(0);
   const [currentIdx,   setCurrentIdx]   = useState(0);
+  const [showBottomCard, setShowBottomCard] = useState(false);
+  const [cart,         setCart]         = useState(getCart());
 
   const carouselRef   = useRef(null);
   const { userData }  = useAuth();
@@ -87,23 +89,38 @@ export default function CustomerHome() {
   });
 
   /* cart actions */
-  const addToCart = product => {
-    if (!businessStatus.open) { toast.error(businessStatus.message); return false; }
-    const cart = getCart();
-    const ex = cart.find(i => i.productId === product.id);
-    if (ex) ex.quantity += 1;
-    else cart.push({
-      productId: product.id, name: product.name, price: product.price,
-      costPrice: product.costPrice || 0, image: product.image || '', quantity: 1,
-    });
-    saveCart(cart);
-    toast.success(`تمت إضافة ${product.name}`, { duration: 1200 });
-    return true;
+  const updateCart = (newCart) => {
+    setCart(newCart);
+    saveCart(newCart);
   };
 
-  const handleAdd = p => {
-    if (addToCart(p)) {
-      setCartExpanded(prev => ({ ...prev, [p.id]: true }));
+  const handleIncrement = (product) => {
+    if (!businessStatus.open) { toast.error(businessStatus.message); return; }
+    const newCart = [...cart];
+    const idx = newCart.findIndex(i => i.productId === product.id);
+    if (idx >= 0) {
+      newCart[idx].quantity += 1;
+    } else {
+      newCart.push({
+        productId: product.id, name: product.name, price: product.price,
+        costPrice: product.costPrice || 0, image: product.image || '', quantity: 1,
+      });
+      toast.success(`تمت إضافة ${product.name}`, { duration: 1200 });
+    }
+    updateCart(newCart);
+  };
+
+  const handleDecrement = (product) => {
+    const newCart = [...cart];
+    const idx = newCart.findIndex(i => i.productId === product.id);
+    if (idx >= 0) {
+      if (newCart[idx].quantity > 1) {
+        newCart[idx].quantity -= 1;
+      } else {
+        newCart.splice(idx, 1);
+        toast.success(`تمت إزالة ${product.name}`, { duration: 1200 });
+      }
+      updateCart(newCart);
     }
   };
 
@@ -111,11 +128,12 @@ export default function CustomerHome() {
   const onCarouselScroll = useCallback(() => {
     if (!carouselRef.current) return;
     const el  = carouselRef.current;
-    setCurrentIdx(Math.round(el.scrollLeft / el.clientWidth));
+    // Math.abs is crucial for RTL layouts where scrollLeft goes negative
+    setCurrentIdx(Math.round(Math.abs(el.scrollLeft) / el.clientWidth));
+    setShowBottomCard(false);
   }, []);
 
   const currentProduct = filtered[currentIdx] ?? null;
-  const isExpanded     = currentProduct ? !!cartExpanded[currentProduct.id] : false;
 
   /* ─── UI ─── */
   return (
@@ -173,13 +191,21 @@ export default function CustomerHome() {
       {/* ══════ SUMMARY CARDS ══════ */}
       <div className="shrink-0 px-4 pb-4">
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => navigate('/my-orders')}
-            className="liquid-glass flex min-h-[98px] flex-col items-start justify-center p-3.5 transition-transform active:scale-95">
-            <span className="mb-1.5 text-2xl">📦</span>
-            <p className="text-[11px] font-bold text-white/50">طلباتي</p>
-            <p className="text-xl font-black text-white">{ordersCount} طلب</p>
-          </button>
+          {/* البطاقة اليمنى: مقسومة بين طلباتي والسلة */}
+          <div className="liquid-glass flex min-h-[98px] divide-x divide-x-reverse divide-white/10">
+            <button onClick={() => navigate('/my-orders')} className="flex flex-1 flex-col items-center justify-center p-2 transition-all active:scale-95 hover:bg-white/5">
+              <span className="mb-1 text-2xl">📦</span>
+              <p className="text-[10px] font-bold text-white/50">طلباتي</p>
+              <p className="text-base font-black text-white">{ordersCount} <span className="text-[10px] font-normal">طلب</span></p>
+            </button>
+            <button onClick={() => navigate('/cart')} className="flex flex-1 flex-col items-center justify-center p-2 transition-all active:scale-95 hover:bg-white/5">
+              <span className="mb-1 text-2xl">🛒</span>
+              <p className="text-[10px] font-bold text-white/50">السلة</p>
+              <p className="text-base font-black text-white">{cart.reduce((sum, item) => sum + item.quantity, 0)} <span className="text-[10px] font-normal">عنصر</span></p>
+            </button>
+          </div>
 
+          {/* البطاقة اليسرى: المفضلة */}
           <button onClick={() => setShowFavOnly(v => !v)}
             className={`liquid-glass flex min-h-[98px] flex-col items-start justify-center p-3.5 transition-all active:scale-95 ${showFavOnly ? 'ring-1 ring-omega-red/60' : ''}`}>
             <span className="mb-1.5 text-2xl">❤️</span>
@@ -213,7 +239,7 @@ export default function CustomerHome() {
                 return (
                   <div key={product.id}
                     className="relative h-full w-full shrink-0 snap-start cursor-pointer"
-                    onClick={() => navigate(`/product/${product.id}`)}>
+                    onClick={() => setShowBottomCard(prev => !prev)}>
                     {product.image
                       ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
                       : <div className="flex h-full w-full items-center justify-center bg-white/[0.04] text-[120px]">{catEmoji}</div>
@@ -229,6 +255,17 @@ export default function CustomerHome() {
             <div className="absolute left-0 right-0 top-5 z-10 flex items-center gap-2 px-4">
               {/* scrollable pill row */}
               <div className="flex flex-1 gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                <button
+                  onClick={e => { e.stopPropagation(); setShowFavOnly(!showFavOnly); setActiveCat('all'); }}
+                  className={`shrink-0 flex min-h-9 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition-all ${
+                    showFavOnly
+                      ? 'bg-omega-red text-white shadow-lg shadow-omega-red/40'
+                      : 'liquid-glass text-white/80'
+                  }`}
+                >
+                  <span>❤️</span>
+                  <span>المفضلة</span>
+                </button>
                 {CATS.map(cat => {
                   const active = activeCat === cat.id && !showFavOnly;
                   return (
@@ -273,8 +310,8 @@ export default function CustomerHome() {
               )}
 
               {/* product card */}
-              {currentProduct && (
-                <div className="liquid-glass px-5 py-5 shadow-2xl shadow-black/45">
+              {currentProduct && showBottomCard && (
+                <div className="liquid-glass px-5 py-5 shadow-2xl shadow-black/45 animate-slide-up">
                   <div className="flex flex-col gap-4">
                     {/* name + price */}
                     <div className="min-w-0 text-right">
@@ -282,38 +319,40 @@ export default function CustomerHome() {
                       <p className="mt-1 text-3xl font-black leading-tight text-omega-orange">{formatCurrency(currentProduct.price)}</p>
                     </div>
 
-                    {/* add controls */}
-                    {isExpanded ? (
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setCartExpanded(p => ({ ...p, [currentProduct.id]: false }));
-                          }}
-                          className="flex min-h-12 items-center justify-center rounded-xl border border-white/12 bg-white/10 px-3 text-sm font-black text-white transition-transform active:scale-95"
-                        >
-                          Continue
-                        </button>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            navigate('/checkout');
-                          }}
-                          className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-omega-orange px-3 text-sm font-black text-white shadow-lg shadow-omega-orange/35 transition-transform active:scale-95"
-                        >
-                          Finish
-                          <IoChevronBack size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={e => { e.stopPropagation(); handleAdd(currentProduct); }}
-                        className="flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-omega-orange px-4 text-base font-black text-white shadow-lg shadow-omega-orange/35 transition-transform active:scale-95"
-                      >
-                        <IoAdd size={22} />
-                        Add
-                      </button>
-                    )}
+                    {/* Quantity Controls */}
+                    {(() => {
+                      const cartItem = cart.find(i => i.productId === currentProduct.id);
+                      const qty = cartItem ? cartItem.quantity : 0;
+                      if (qty === 0) {
+                        return (
+                          <button
+                            onClick={e => { e.stopPropagation(); handleIncrement(currentProduct); }}
+                            className="flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-omega-orange px-4 text-base font-black text-white shadow-lg shadow-omega-orange/35 transition-transform active:scale-95"
+                          >
+                            <IoAdd size={22} />
+                            إضافة إلى السلة
+                          </button>
+                        );
+                      } else {
+                        return (
+                          <div className="flex items-center justify-between rounded-xl bg-omega-dark p-2">
+                            <button
+                              onClick={e => { e.stopPropagation(); handleDecrement(currentProduct); }}
+                              className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-2xl font-bold text-white transition-all active:scale-95"
+                            >
+                              -
+                            </button>
+                            <span className="text-2xl font-black text-white">{qty}</span>
+                            <button
+                              onClick={e => { e.stopPropagation(); handleIncrement(currentProduct); }}
+                              className="flex h-12 w-12 items-center justify-center rounded-lg bg-omega-orange text-2xl font-bold text-white shadow-lg shadow-omega-orange/35 transition-all active:scale-95"
+                            >
+                              +
+                            </button>
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
               )}

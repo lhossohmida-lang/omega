@@ -40,7 +40,6 @@ export default function Cart() {
   };
 
   const clearCart = () => {
-    if (!confirm('هل تريد تفريغ السلة؟')) return;
     setCart([]);
     saveCart([]);
     toast.success('تم تفريغ السلة');
