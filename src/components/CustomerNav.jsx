@@ -1,29 +1,36 @@
-import { useInstallPrompt } from '../hooks/useInstallPrompt';
-import { IoDownloadOutline } from 'react-icons/io5';
-import toast from 'react-hot-toast';
+import { NavLink } from 'react-router-dom';
+import {
+  IoBagHandleOutline,
+  IoGridOutline,
+  IoHomeOutline,
+  IoListOutline,
+  IoPersonOutline,
+} from 'react-icons/io5';
+
+const links = [
+  { to: '/', icon: IoHomeOutline, label: 'الرئيسية', end: true },
+  { to: '/my-orders', icon: IoListOutline, label: 'الطلبات' },
+  { to: '/cart', icon: IoBagHandleOutline, label: 'السلة' },
+  { to: '/profile', icon: IoPersonOutline, label: 'حسابي' },
+  { to: '/', icon: IoGridOutline, label: 'القائمة', end: true },
+];
 
 export default function CustomerNav() {
-  const { canInstall, isIOS, install } = useInstallPrompt();
-
-  const handleInstall = async () => {
-    if (isIOS) {
-      toast('لتثبيت التطبيق: اضغط زر المشاركة ← أضف إلى الشاشة الرئيسية', { duration: 5000, icon: '📱' });
-      return;
-    }
-    await install();
-  };
-
-  if (!canInstall && !isIOS) return null;
-
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 mx-auto max-w-sm">
-      <button
-        onClick={handleInstall}
-        className="w-full flex items-center justify-center gap-3 py-3.5 px-5 rounded-2xl bg-gradient-to-l from-omega-orange to-omega-orange-dark shadow-lg shadow-omega-orange/25 active:scale-[0.98] transition-all"
-      >
-        <IoDownloadOutline size={22} className="text-white" />
-        <span className="text-white font-black text-sm">تثبيت تطبيق OMEGA</span>
-      </button>
-    </div>
+    <nav className="omega-bottom-nav-app" style={{ '--omega-nav-count': links.length }}>
+      <div className="omega-bottom-nav-inner">
+        {links.map(({ to, icon: Icon, label, end }, index) => (
+          <NavLink
+            key={`${to}-${label}-${index}`}
+            to={to}
+            end={end}
+            className={({ isActive }) => `omega-bottom-nav-link${isActive && index !== 4 ? ' active' : ''}`}
+          >
+            <Icon size={24} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </nav>
   );
 }

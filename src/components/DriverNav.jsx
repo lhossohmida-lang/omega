@@ -1,63 +1,35 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { IoList, IoCheckmarkDone, IoStatsChart, IoPerson, IoDownloadOutline } from 'react-icons/io5';
-import { useInstallPrompt } from '../hooks/useInstallPrompt';
-import toast from 'react-hot-toast';
+import { NavLink } from 'react-router-dom';
+import {
+  IoBarChartOutline,
+  IoCheckmarkDoneOutline,
+  IoListOutline,
+  IoNotificationsOutline,
+  IoPersonOutline,
+} from 'react-icons/io5';
+
+const links = [
+  { to: '/driver', icon: IoListOutline, label: 'المتاحة', end: true },
+  { to: '/driver/my-orders', icon: IoCheckmarkDoneOutline, label: 'طلباتي' },
+  { to: '/driver/stats', icon: IoBarChartOutline, label: 'التقارير' },
+  { to: '/driver/profile', icon: IoPersonOutline, label: 'حسابي' },
+  { to: '/driver', icon: IoNotificationsOutline, label: 'تنبيهات', end: true },
+];
 
 export default function DriverNav() {
-  const location = useLocation();
-  const { canInstall, isIOS, install } = useInstallPrompt();
-
-  const handleInstall = async () => {
-    if (isIOS) {
-      toast('لتثبيت التطبيق: اضغط زر المشاركة ← أضف إلى الشاشة الرئيسية', { duration: 5000, icon: '📱' });
-      return;
-    }
-    await install();
-  };
-
-  const links = [
-    { to: '/driver', icon: IoList, label: 'المتاحة' },
-    { to: '/driver/my-orders', icon: IoCheckmarkDone, label: 'طلباتي' },
-    { to: '/driver/stats', icon: IoStatsChart, label: 'إحصائياتي' },
-    { to: '/driver/profile', icon: IoPerson, label: 'حسابي' },
-  ];
-
   return (
-    <nav className="fixed bottom-3 left-3 right-3 z-50 mx-auto max-w-lg glass border border-black/8 shadow-xl">
-      <div className="flex h-16 items-center justify-around px-2">
-        {links.map(({ to, icon: Icon, label }) => {
-          const isActive = location.pathname === to;
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all duration-300"
-            >
-              <div className={`p-1.5 rounded-xl transition-all duration-300 ${
-                isActive
-                  ? 'bg-omega-orange/15 text-omega-orange scale-110'
-                  : 'text-omega-text-muted hover:text-omega-orange'
-              }`}>
-                <Icon size={22} />
-              </div>
-              <span className={`text-[10px] font-medium transition-colors ${
-                isActive ? 'text-omega-orange' : 'text-omega-text-muted'
-              }`}>{label}</span>
-            </NavLink>
-          );
-        })}
-
-        {(canInstall || isIOS) && (
-          <button
-            onClick={handleInstall}
-            className="flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all duration-300 active:scale-95"
+    <nav className="omega-bottom-nav-app" style={{ '--omega-nav-count': links.length }}>
+      <div className="omega-bottom-nav-inner">
+        {links.map(({ to, icon: Icon, label, end }, index) => (
+          <NavLink
+            key={`${to}-${label}-${index}`}
+            to={to}
+            end={end}
+            className={({ isActive }) => `omega-bottom-nav-link${isActive && index !== 4 ? ' active' : ''}`}
           >
-            <div className="p-1.5 rounded-xl bg-omega-orange/15 text-omega-orange">
-              <IoDownloadOutline size={22} />
-            </div>
-            <span className="text-[10px] font-bold text-omega-orange">تثبيت</span>
-          </button>
-        )}
+            <Icon size={24} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
       </div>
     </nav>
   );
