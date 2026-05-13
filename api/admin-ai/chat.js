@@ -3,6 +3,7 @@ import { addDoc, getDoc, verifyAdminToken } from '../_lib/firebaseRest.js';
 import { gatherFullDataSummary, SYSTEM_PROMPT } from '../_lib/aiData.js';
 
 export default async function handler(req, res) {
+  res.setHeader('X-Omega-AI-Route', 'token-rest-2026-05-13');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -12,7 +13,8 @@ export default async function handler(req, res) {
   const sendJsonError = (status, message) => res.status(status).json({ message });
 
   try {
-    const { question, adminId, idToken } = req.body || {};
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const { question, adminId, idToken } = body;
     if (!question || !adminId || !idToken) {
       return sendJsonError(400, 'يرجى إرسال السؤال ومعرف المدير');
     }
@@ -123,7 +125,7 @@ export default async function handler(req, res) {
         suggestedActions,
         tokensUsed: totalTokens,
         createdAt: new Date(),
-      });
+      }, idToken);
     } catch (logErr) {
       console.error('AI log error:', logErr);
     }
