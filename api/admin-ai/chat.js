@@ -1,5 +1,5 @@
 // POST /api/admin-ai/chat - Vercel serverless function (SSE streaming)
-import { getDb, verifyAdmin } from '../_lib/firebase.js';
+import { addDoc, getDoc, verifyAdminToken } from '../_lib/firebaseRest.js';
 import { gatherFullDataSummary, SYSTEM_PROMPT } from '../_lib/aiData.js';
 
 export default async function handler(req, res) {
@@ -12,16 +12,15 @@ export default async function handler(req, res) {
   const sendJsonError = (status, message) => res.status(status).json({ message });
 
   try {
-    const { question, adminId } = req.body || {};
-    if (!question || !adminId) {
+    const { question, adminId, idToken } = req.body || {};
+    if (!question || !adminId || !idToken) {
       return sendJsonError(400, 'يرجى إرسال السؤال ومعرف المدير');
     }
 
-    const adminData = await verifyAdmin(adminId);
+    const adminData = await verifyAdminToken(idToken, adminId);
     if (!adminData) return sendJsonError(403, 'غير مصرح لك باستخدام هذه الخدمة');
 
-    const db = getDb();
-    const settingsDoc = await db.collection('ai_settings').doc('config').get();
+    const settingsDoc = await getDoc('ai_settings', 'config', idToken);
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
     if (settings.isEnabled === false) {
       return sendJsonError(403, 'الذكاء الاصطناعي معطل حالياً');
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
       return sendJsonError(500, 'مفتاح OpenRouter غير مُعد على السيرفر');
     }
 
-    const dataSummary = await gatherFullDataSummary();
+    const dataSummary = await gatherFullDataSummary(idToken);
 
     const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -116,7 +115,7 @@ export default async function handler(req, res) {
 
     // Log to Firebase (non-blocking for client)
     try {
-      await db.collection('ai_logs').add({
+      await addDoc('ai_logs', {
         adminId,
         adminName: adminData.name,
         question,

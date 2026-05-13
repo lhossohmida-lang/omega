@@ -76,6 +76,30 @@ export async function verifyIdToken(idToken) {
   return data.users?.[0] || null;
 }
 
+export async function verifyAdminToken(idToken, expectedUid) {
+  if (!idToken) return null;
+
+  try {
+    const authUser = await verifyIdToken(idToken);
+    const uid = authUser?.localId;
+    if (!uid || (expectedUid && uid !== expectedUid)) return null;
+
+    const userDoc = await getDoc('users', uid, idToken);
+    if (!userDoc.exists) return null;
+
+    const userData = userDoc.data();
+    if (userData?.role !== 'admin') return null;
+
+    return {
+      uid,
+      email: authUser.email || userData.email || '',
+      ...userData,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Firestore operations ──────────────────────────────────────────────────────
 
 export async function getDoc(collection, docId, idToken) {

@@ -1,7 +1,17 @@
 // خدمة الذكاء الاصطناعي - ترسل الطلبات إلى Backend فقط
 // لا يتم إرسال مفتاح API من الواجهة أبداً
 
+import { auth } from '../firebase';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+
+async function getCurrentIdToken() {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('يجب تسجيل الدخول قبل استخدام الذكاء الاصطناعي.');
+  }
+  return user.getIdToken();
+}
 
 async function postAI(path, body, fallbackMessage) {
   let response;
@@ -35,13 +45,14 @@ async function postAI(path, body, fallbackMessage) {
 // streaming chat — يبثّ النص حرفاً حرفاً عبر SSE
 export async function streamAIChat(question, adminId, handlers = {}) {
   const { onDelta, onDone, onError } = handlers;
+  const idToken = await getCurrentIdToken();
   let response;
 
   try {
     response = await fetch(`${API_BASE_URL}/api/admin-ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ question, adminId }),
+      body: JSON.stringify({ question, adminId, idToken }),
     });
   } catch {
     throw new Error('تعذر الاتصال بخادم الذكاء. تأكد من تشغيل السيرفر الخلفي.');
@@ -103,17 +114,19 @@ export async function streamAIChat(question, adminId, handlers = {}) {
 }
 
 export async function sendAIChat(question, adminId) {
+  const idToken = await getCurrentIdToken();
   return postAI(
     '/api/admin-ai/chat',
-    { question, adminId },
+    { question, adminId, idToken },
     'خطأ في الاتصال بالذكاء الاصطناعي'
   );
 }
 
 export async function executeAIAction(action, adminId) {
+  const idToken = await getCurrentIdToken();
   return postAI(
     '/api/admin-ai/execute-action',
-    { action, adminId },
+    { action, adminId, idToken },
     'خطأ في تنفيذ الإجراء'
   );
 }

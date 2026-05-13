@@ -1,6 +1,5 @@
 // POST /api/admin-ai/execute-action — تنفيذ الإجراءات المقترحة من AI
-import { verifyAdmin } from '../_lib/firebase.js';
-import { getDoc, updateDoc, addDoc, deleteDoc, queryWhere } from '../_lib/firebaseRest.js';
+import { getDoc, updateDoc, addDoc, deleteDoc, queryWhere, verifyAdminToken } from '../_lib/firebaseRest.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,10 +9,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
   try {
-    const { action, idToken } = req.body || {};
+    const { action, idToken, adminId } = req.body || {};
     if (!action || !idToken) return res.status(400).json({ message: 'بيانات ناقصة' });
 
-    const adminData = await verifyAdmin(idToken);
+    const adminData = await verifyAdminToken(idToken, adminId);
     if (!adminData) return res.status(403).json({ message: 'غير مصرح' });
 
     const now = new Date();
