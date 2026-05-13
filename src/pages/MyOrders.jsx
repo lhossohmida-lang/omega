@@ -1,85 +1,157 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getCustomerOrders } from '../services/orderService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { timeAgo } from '../utils/formatDate';
 import CustomerNav from '../components/CustomerNav';
-import { IoReceipt, IoEye } from 'react-icons/io5';
+import {
+  IoArrowBack,
+  IoChevronBack,
+  IoFilterOutline,
+  IoListOutline,
+  IoSearch,
+} from 'react-icons/io5';
+
+const tabs = [
+  { key: 'all', label: 'الكل' },
+  { key: 'pending', label: 'جديد' },
+  { key: 'preparing', label: 'قيد التجهيز' },
+  { key: 'accepted_by_driver', label: 'جاهز' },
+  { key: 'delivered', label: 'تم التوصيل' },
+];
 
 const statusLabels = {
-  pending: { label: 'قيد الانتظار', color: 'bg-yellow-500/15 text-yellow-500' },
-  accepted_by_driver: { label: 'تم القبول', color: 'bg-blue-500/15 text-blue-500' },
-  preparing: { label: 'يتم التحضير', color: 'bg-orange-500/15 text-orange-500' },
-  on_the_way: { label: 'في الطريق', color: 'bg-purple-500/15 text-purple-500' },
-  delivered: { label: 'تم التوصيل', color: 'bg-green-500/15 text-green-500' },
-  cancelled: { label: 'ملغي', color: 'bg-red-500/15 text-red-500' },
+  pending: { label: 'جديد', tone: 'soft' },
+  accepted_by_driver: { label: 'جاهز', tone: 'green' },
+  preparing: { label: 'قيد التجهيز', tone: 'red' },
+  on_the_way: { label: 'للتوصيل', tone: 'green' },
+  delivered: { label: 'تم التوصيل', tone: 'green' },
+  cancelled: { label: 'ملغي', tone: 'red' },
 };
 
 export default function MyOrders() {
   const { userData } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (userData?.uid) loadOrders();
+    if (!userData?.uid) return;
+    getCustomerOrders(userData.uid)
+      .then(setOrders)
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [userData]);
 
-  const loadOrders = async () => {
-    try {
-      const data = await getCustomerOrders(userData.uid);
-      setOrders(data);
-    } catch (err) { console.error(err); }
-    setLoading(false);
-  };
+  const filteredOrders = useMemo(() => {
+    const value = search.trim().toLowerCase();
+    return orders.filter((order) => {
+      if (activeTab !== 'all' && order.status !== activeTab) return false;
+      return !value || order.id?.toLowerCase().includes(value) || order.customerName?.toLowerCase().includes(value);
+    });
+  }, [orders, activeTab, search]);
 
   return (
-    <div className="min-h-screen bg-omega-dark pb-safe">
-      <div className="sticky top-0 z-30 glass">
-        <div className="max-w-lg mx-auto px-4 py-4">
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <IoReceipt className="text-omega-orange" /> طلباتي
-          </h1>
-        </div>
-      </div>
-
-      <div className="max-w-lg mx-auto px-4 mt-4">
-        {loading ? (
-          <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-24 rounded-xl" />)}</div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="text-5xl mb-4">📋</div>
-            <h3 className="text-white font-bold mb-2">لا توجد طلبات</h3>
-            <p className="text-omega-text-muted text-sm">ابدأ بطلب وجبتك الأولى!</p>
+    <div className="omega-app-shell">
+      <main className="omega-app-main">
+        <header className="omega-mobile-header">
+          <button type="button" onClick={() => navigate(-1)} className="omega-icon-button red" aria-label="رجوع">
+            <IoArrowBack size={25} />
+          </button>
+          <div className="omega-mobile-title">
+            <div className="omega-mini-logo mx-auto mb-2">
+              <img src="/logo.png" alt="OMEGA" />
+            </div>
+            <h1>الطلبات</h1>
+            <p>{orders.length} طلب محفوظ</p>
           </div>
-        ) : (
+          <button type="button" className="omega-icon-button red" aria-label="فلترة">
+            <IoFilterOutline size={24} />
+          </button>
+        </header>
+
+        <section className="omega-tabs mb-4">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`omega-tab${activeTab === tab.key ? ' active' : ''}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </section>
+
+        <label className="omega-search-box mb-4">
+          <IoSearch size={22} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="ابحث برقم الطلب"
+          />
+        </label>
+
+        {loading ? (
           <div className="space-y-3">
-            {orders.map((order, idx) => {
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="skeleton h-36 rounded-[1.35rem]" />
+            ))}
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <section className="omega-card omega-empty-state">
+            <div>
+              <IoListOutline className="mx-auto mb-3 text-omega-orange" size={42} />
+              <strong>لا توجد طلبات</strong>
+              <p>ابدأ بطلب وجبتك الأولى من OMEGA</p>
+            </div>
+          </section>
+        ) : (
+          <section className="space-y-3">
+            {filteredOrders.map((order) => {
               const status = statusLabels[order.status] || statusLabels.pending;
+              const firstItems = (order.items || []).slice(0, 3);
               return (
-                <div key={order.id} className="glass rounded-xl p-4 animate-fade-in cursor-pointer hover:border-omega-orange/20 border border-transparent transition-all"
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                  onClick={() => navigate(`/track/${order.id}`)}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-bold text-sm">#{order.id?.slice(-6)}</span>
-                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-lg ${status.color}`}>{status.label}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-omega-text-muted text-xs">{order.items?.length} منتجات • {timeAgo(order.createdAt)}</p>
+                <article
+                  key={order.id}
+                  className={`omega-card omega-order-card ${status.tone === 'green' ? 'green' : status.tone === 'red' ? 'red' : ''}`}
+                  onClick={() => navigate(`/track/${order.id}`)}
+                >
+                  <div className="omega-order-top">
+                    <button type="button" className="omega-icon-button" style={{ width: '2.8rem', height: '2.8rem' }}>
+                      <IoChevronBack size={22} />
+                    </button>
+                    <div className="text-right">
+                      <strong className="omega-order-id">#{order.id?.slice(-6)}</strong>
+                      <p className="mt-1 text-sm font-bold text-omega-text-muted">{timeAgo(order.createdAt)}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-omega-orange font-bold text-sm">{formatCurrency(order.totalPrice)}</span>
-                      <IoEye className="text-omega-text-muted" size={16} />
-                    </div>
+                    <span className={`omega-status-badge ${status.tone}`}>{status.label}</span>
                   </div>
-                </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <div className="text-right">
+                      <h2 className="text-xl font-black text-omega-text">{order.customerName || userData?.name || 'عميل'}</h2>
+                      <p className="mt-1 text-sm font-bold text-omega-text-muted" dir="ltr">{order.customerPhone || ''}</p>
+                    </div>
+                    <strong className="omega-price text-left">{formatCurrency(order.totalPrice)}</strong>
+                  </div>
+
+                  <div className="mt-3 omega-meta-line">
+                    {firstItems.map((item, index) => (
+                      <span key={`${item.name}-${index}`}>
+                        {item.quantity} {item.name}
+                      </span>
+                    ))}
+                  </div>
+                </article>
               );
             })}
-          </div>
+          </section>
         )}
-      </div>
+      </main>
       <CustomerNav />
     </div>
   );
