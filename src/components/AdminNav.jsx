@@ -11,7 +11,6 @@ import {
   IoClose,
   IoCubeOutline,
   IoDownloadOutline,
-  IoGridOutline,
   IoHomeOutline,
   IoLogOutOutline,
   IoMenu,

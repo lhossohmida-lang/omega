@@ -4,7 +4,7 @@ import { getAllOrders, resetOrdersData } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
 import { getAllIngredients } from '../services/inventoryService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
-import { isToday, isThisWeek, isThisMonth } from '../utils/formatDate';
+import { isToday, isThisWeek } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
 import { useAuth } from '../hooks/useAuth';
 import AdminHeader from '../components/AdminHeader';
@@ -220,11 +220,9 @@ export default function AdminDashboard() {
   const stats = useMemo(() => {
     const todayOrders = orders.filter((order) => isToday(order.createdAt));
     const weekOrders = orders.filter((order) => isThisWeek(order.createdAt));
-    const monthOrders = orders.filter((order) => isThisMonth(order.createdAt));
     const deliveredAll = orders.filter((order) => order.status === 'delivered');
     const deliveredToday = todayOrders.filter((order) => order.status === 'delivered');
     const deliveredWeek = weekOrders.filter((order) => order.status === 'delivered');
-    const deliveredMonth = monthOrders.filter((order) => order.status === 'delivered');
 
     const getOrderNetOwnerProfit = (order) => {
       const profit = calculateOrderProfit(order).profit;
@@ -236,26 +234,17 @@ export default function AdminDashboard() {
     const allSales = deliveredAll.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const todayProfit = deliveredToday.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
     const weekProfit = deliveredWeek.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
-    const monthProfit = deliveredMonth.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
     const totalIngredientCost = ingredients.reduce((sum, ing) => sum + (ing.totalSpent || 0), 0);
     const allOrderProfit = deliveredAll.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
-    const soldUnits = deliveredAll.reduce(
-      (sum, order) => sum + (order.items || []).reduce((itemSum, item) => itemSum + (item.quantity || 0), 0),
-      0
-    );
 
     return {
       todaySales,
       todayProfit,
       weekProfit,
-      monthProfit,
       allProfit: allOrderProfit - totalIngredientCost,
       allSales,
-      soldUnits,
       deliveredCount: deliveredAll.length,
       activeOrders: orders.filter((order) => !['delivered', 'cancelled'].includes(order.status)).length,
-      cancelledToday: todayOrders.filter((order) => order.status === 'cancelled').length,
-      monthOrderCount: deliveredMonth.length,
     };
   }, [orders, ingredients]);
 
