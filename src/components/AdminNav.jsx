@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { OmegaMark } from './AdminHeader';
 import {
   IoArchiveOutline,
@@ -9,12 +10,14 @@ import {
   IoCarOutline,
   IoClose,
   IoCubeOutline,
+  IoDownloadOutline,
   IoGridOutline,
   IoHomeOutline,
   IoLogOutOutline,
   IoMenu,
   IoSparklesOutline,
 } from 'react-icons/io5';
+import toast from 'react-hot-toast';
 
 const bottomTabs = [
   { to: '/admin', icon: IoGridOutline, label: 'الرئيسية', end: true },
@@ -39,6 +42,15 @@ export default function AdminNav() {
   const [clickingTo, setClickingTo] = useState(null);
   const { logout, userData } = useAuth();
   const navigate = useNavigate();
+  const { canInstall, isIOS, install } = useInstallPrompt();
+
+  const handleInstall = async () => {
+    if (isIOS) {
+      toast('لتثبيت التطبيق: اضغط زر المشاركة ← أضف إلى الشاشة الرئيسية', { duration: 5000, icon: '📱' });
+      return;
+    }
+    await install();
+  };
 
   const handleNavClick = (e, to) => {
     e.preventDefault();
@@ -135,6 +147,17 @@ export default function AdminNav() {
             </div>
           )}
 
+          {(canInstall || isIOS) && (
+            <button
+              type="button"
+              onClick={handleInstall}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-omega-orange/25 bg-omega-orange/10 text-base font-bold text-omega-orange transition-colors hover:bg-omega-orange/15"
+            >
+              <IoDownloadOutline size={24} />
+              تثبيت التطبيق
+            </button>
+          )}
+
           <button
             type="button"
             onClick={logout}
@@ -168,6 +191,18 @@ export default function AdminNav() {
               )}
             </NavLink>
           ))}
+          {(canInstall || isIOS) && (
+            <button
+              type="button"
+              onClick={handleInstall}
+              className="relative flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-bold text-omega-orange transition-colors"
+              aria-label="تثبيت التطبيق"
+            >
+              <IoDownloadOutline size={25} />
+              <span>تثبيت</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setOpen(true)}
