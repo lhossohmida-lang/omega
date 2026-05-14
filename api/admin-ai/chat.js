@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         'X-OpenRouter-Title': 'Tarken Restaurant App',
       },
       body: JSON.stringify({
-        model: settings.model || 'inclusionai/ring-2.6-1t:free',
+        model: settings.model || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `سؤال المدير ${adminData.name || ''}: ${question}\n\n${dataSummary}` },

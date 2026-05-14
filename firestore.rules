@@ -31,19 +31,29 @@ service cloud.firestore {
       allow read: if isSignedIn() && myRole() == 'driver';
       allow update: if isSignedIn() && myRole() == 'driver';
 
-      // العامل: يقرأ الطلبات قيد التحضير ويُحدّث حقل workerReady فقط
+      // العامل: يقرأ الطلبات قيد التحضير ويُحدّث حقول العامل فقط (started/ready/archived)
       allow read: if isSignedIn() && myRole() == 'worker';
       allow update: if isSignedIn() && myRole() == 'worker'
                     && request.resource.data.diff(resource.data)
-                         .affectedKeys().hasOnly(['workerReady', 'workerReadyAt']);
+                         .affectedKeys().hasOnly([
+                           'workerReady', 'workerReadyAt',
+                           'workerStarted', 'workerStartedAt',
+                           'workerArchived', 'workerArchivedAt'
+                         ]);
     }
 
     // ===== مجموعة المنتجات =====
     match /products/{productId} {
       // الجميع يستطيع قراءة المنتجات (سائق، عامل، زبون، إدارة)
       allow read: if isSignedIn();
-      // الكتابة للإدارة فقط
-      allow write: if isSignedIn() && myRole() == 'admin';
+      // إنشاء/حذف: للإدارة فقط
+      allow create, delete: if isSignedIn() && myRole() == 'admin';
+      // تحديث: الإدارة كاملاً، وأي مستخدم موثّق على حقول soldCount و updatedAt فقط
+      // (يسمح بتحديث عدّاد المبيعات عند إنشاء طلب من قبل الزبون)
+      allow update: if isSignedIn() && (
+        myRole() == 'admin' ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['soldCount', 'updatedAt'])
+      );
     }
 
     // ===== المخزون والمكونات =====
@@ -66,6 +76,14 @@ service cloud.firestore {
 
     match /ai_settings/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== الطاولات =====
+    match /tables/{tableId} {
+      // الكتابة للإدارة فقط
+      allow write: if isSignedIn() && myRole() == 'admin';
+      // القراءة لكل المستخدمين الموثّقين (المطبخ والعامل والزبون والإدارة)
+      allow read: if isSignedIn();
     }
   }
 }

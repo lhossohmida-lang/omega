@@ -15,6 +15,7 @@ import {
   IoLogOutOutline,
   IoMenu,
   IoNotificationsOutline,
+  IoRestaurantOutline,
   IoSparklesOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ const menuLinks = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
+  { to: '/admin/tables', icon: IoRestaurantOutline, label: 'الطاولات' },
   { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
   { to: '/admin/drivers', icon: IoCarOutline, label: 'السائقون' },
   { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي', badge: 'جديد' },

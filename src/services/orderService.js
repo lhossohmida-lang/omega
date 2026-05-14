@@ -252,6 +252,165 @@ export async function markWorkerOrderReady(orderId) {
   });
 }
 
+// بدء التحضير من قبل العامل (الحالة الوسطى)
+export async function markWorkerStartPreparing(orderId) {
+  await updateDoc(doc(db, ORDERS_COL, orderId), {
+    workerStarted: true,
+    workerStartedAt: serverTimestamp(),
+  });
+}
+
+// أرشفة الطلب من واجهة المطبخ (الطلبات المنتهية)
+export async function archiveWorkerOrder(orderId) {
+  await updateDoc(doc(db, ORDERS_COL, orderId), {
+    workerArchived: true,
+    workerArchivedAt: serverTimestamp(),
+  });
+}
+
+// أرشفة جميع الطلبات الجاهزة دفعة واحدة
+export async function archiveAllReadyOrders(orderIds = []) {
+  const batch = writeBatch(db);
+  for (const id of orderIds) {
+    batch.update(doc(db, ORDERS_COL, id), {
+      workerArchived: true,
+      workerArchivedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
+
+// ─── توجيه الطلب من الإدارة ──────────────────────────────
+// destination: 'driver' | 'table'
+export async function routeOrder(orderId, { destination, driverData = null, tableNumber = null, adminUid = null }) {
+  const orderRef = doc(db, ORDERS_COL, orderId);
+  const updates = {
+    status: 'preparing',
+    routedAt: serverTimestamp(),
+    routedBy: adminUid,
+  };
+
+  if (destination === 'driver') {
+    if (!driverData?.uid) throw new Error('يجب اختيار سائق');
+    updates.isDelivery = true;
+    updates.assignedDriverId = driverData.uid;
+    updates.assignedDriverName = driverData.name || '';
+    updates.assignedDriverPhone = driverData.phone || '';
+    updates.tableNumber = null;
+  } else if (destination === 'table') {
+    if (!tableNumber) throw new Error('يجب اختيار طاولة');
+    updates.isDelivery = false;
+    updates.tableNumber = Number(tableNumber);
+    updates.assignedDriverId = null;
+    updates.assignedDriverName = null;
+    updates.assignedDriverPhone = null;
+  } else {
+    throw new Error('وجهة غير صالحة');
+  }
+
+  await updateDoc(orderRef, updates);
+}
+
+// ─── إنشاء طلب من الإدارة (Walk-in) ──────────────────────
+// يتخطّى التحقق من ساعات العمل ويذهب مباشرة لحالة preparing
+export async function createAdminOrder(orderData) {
+  // التحقق من تفعيل كل منتج فقط
+  for (const item of orderData.items) {
+    const productDoc = await getDoc(doc(db, PRODUCTS_COL, item.productId));
+    if (!productDoc.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
+    const product = productDoc.data();
+    if (product.isAvailable === false) {
+      throw new Error(`المنتج ${item.name} غير متاح حالياً`);
+    }
+  }
+
+  let totalCost = 0;
+  for (const item of orderData.items) {
+    totalCost += (item.costPrice || 0) * item.quantity;
+  }
+
+  const order = {
+    ...orderData,
+    totalCost,
+    profit: (orderData.totalPrice || 0) - totalCost,
+    status: 'preparing',
+    paymentMethod: orderData.paymentMethod || 'cash',
+    createdBy: 'admin',
+    createdAt: serverTimestamp(),
+    routedAt: serverTimestamp(),
+    acceptedAt: null,
+    deliveredAt: null,
+    cancelledAt: null,
+    driverId: null,
+    driverName: null,
+    driverPhone: null,
+  };
+
+  const orderRef = await addDoc(collection(db, ORDERS_COL), order);
+
+  // تحديث عدّاد المبيعات
+  for (const item of orderData.items) {
+    const productRef = doc(db, PRODUCTS_COL, item.productId);
+    const productDoc = await getDoc(productRef);
+    const soldCount = (productDoc.data()?.soldCount || 0) + item.quantity;
+    await updateDoc(productRef, {
+      soldCount,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  return orderRef.id;
+}
+
+// ─── الاستماع للطلبات الجديدة بانتظار التوجيه (status == 'pending') ──
+export function subscribeToNewOrders(callback) {
+  const q = query(
+    collection(db, ORDERS_COL),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc')
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    },
+    (error) => {
+      console.error('subscribeToNewOrders error:', error);
+      callback([]);
+    }
+  );
+}
+
+// ─── الاستماع لطلبات سائق معيّن المتاحة للقبول ──────────
+// أمر السائق: status == 'preparing' AND assignedDriverId == driverId AND workerReady == true
+export function subscribeToAssignedOrders(driverId, callback) {
+  if (!driverId) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, ORDERS_COL),
+    where('status', '==', 'preparing'),
+    where('assignedDriverId', '==', driverId)
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const orders = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const t = ts => ts?.seconds ? ts.seconds * 1000 : ts?.toMillis?.() || 0;
+          return t(b.createdAt) - t(a.createdAt);
+        });
+      callback(orders);
+    },
+    (error) => {
+      console.error('subscribeToAssignedOrders error:', error);
+      callback([]);
+    }
+  );
+}
+
 // جلب الطلبات حسب الحالة
 export async function getOrdersByStatus(status) {
   const q = query(

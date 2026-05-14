@@ -32,6 +32,7 @@ import AdminInventory from './pages/AdminInventory';
 import AdminDrivers from './pages/AdminDrivers';
 import AdminAI from './pages/AdminAI';
 import AdminReports from './pages/AdminReports';
+import AdminTables from './pages/AdminTables';
 
 export default function App() {
   const { user, userData, loading } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
       <Route path="/admin/drivers" element={<ProtectedRoute allowedRoles={['admin']}><AdminDrivers /></ProtectedRoute>} />
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
+      <Route path="/admin/tables" element={<ProtectedRoute allowedRoles={['admin']}><AdminTables /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={

@@ -145,6 +145,7 @@ function QuickTools() {
   const tools = [
     { to: '/admin/orders', icon: IoClipboardOutline, label: 'إدارة الطلبات' },
     { to: '/admin/products', icon: IoRestaurantOutline, label: 'إدارة المنيو' },
+    { to: '/admin/tables', icon: IoGridOutline, label: 'الطاولات' },
     { to: '/admin/drivers', icon: IoPeopleOutline, label: 'العملاء' },
     { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
     { to: '/admin/inventory', icon: IoSettingsOutline, label: 'الإعدادات' },

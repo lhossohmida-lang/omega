@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { subscribeToPendingOrders, acceptOrder } from '../services/orderService';
+import { subscribeToAssignedOrders, acceptOrder } from '../services/orderService';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency } from '../utils/formatCurrency';
 import { timeAgo } from '../utils/formatDate';
@@ -16,18 +16,21 @@ export default function DriverAvailableOrders() {
   const previousOrdersRef = useRef([]);
 
   useEffect(() => {
-    const unsub = subscribeToPendingOrders((data) => {
-      setOrders(data);
+    if (!userData?.uid) return;
+    const unsub = subscribeToAssignedOrders(userData.uid, (data) => {
+      // إخفاء الطلبات التي قبِلها السائق بالفعل (acceptedAt مسجّل)
+      const available = data.filter(o => !o.acceptedAt && o.workerReady);
+      setOrders(available);
       setLoading(false);
 
-      if (previousOrdersRef.current.length > 0 && data.length > previousOrdersRef.current.length) {
+      if (previousOrdersRef.current.length > 0 && available.length > previousOrdersRef.current.length) {
         playLoudAlarm();
       }
 
-      previousOrdersRef.current = data;
+      previousOrdersRef.current = available;
     });
     return () => unsub();
-  }, []);
+  }, [userData?.uid]);
 
   const handleAccept = async (orderId) => {
     setAccepting(orderId);
