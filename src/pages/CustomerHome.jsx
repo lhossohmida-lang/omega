@@ -359,7 +359,6 @@ export default function CustomerHome() {
               onClick={() => setActiveCat(cat.id)}
             >
               <span className="ch-cat-emoji">{cat.emoji}</span>
-              <span>{cat.label}</span>
             </button>
           ))}
         </div>
@@ -483,13 +482,13 @@ export default function CustomerHome() {
                 </div>
               )}
 
-              {/* MOST ORDERED – full-width carousel */}
+              {/* FAVORITES OR TOP PRODUCTS – full-width carousel */}
               {products.length > 0 && (
                 <CarouselSection
-                  title="الأكثر طلباً"
-                  icon="🔥"
+                  title={favorites.length > 0 ? "وجباتك المفضلة" : "الأكثر طلباً"}
+                  icon={favorites.length > 0 ? "❤️" : "🔥"}
                   onSeeAll={() => {}}
-                  products={products.slice(0, 8)}
+                  products={favorites.length > 0 ? products.filter(p => favorites.includes(p.id)) : products.slice(0, 8)}
                   favorites={favorites}
                   onFav={toggleFav}
                   onAdd={handleAdd}

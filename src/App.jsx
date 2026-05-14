@@ -14,6 +14,7 @@ import Checkout from './pages/Checkout';
 import TrackOrder from './pages/TrackOrder';
 import MyOrders from './pages/MyOrders';
 import Profile from './pages/Profile';
+import Favorites from './pages/Favorites';
 
 // Driver Pages
 import DriverAvailableOrders from './pages/DriverAvailableOrders';
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/cart" element={<ProtectedRoute allowedRoles={['customer']}><Cart /></ProtectedRoute>} />
       <Route path="/checkout" element={<ProtectedRoute allowedRoles={['customer']}><Checkout /></ProtectedRoute>} />
       <Route path="/track/:id" element={<ProtectedRoute allowedRoles={['customer']}><TrackOrder /></ProtectedRoute>} />
+      <Route path="/favorites" element={<ProtectedRoute allowedRoles={['customer']}><Favorites /></ProtectedRoute>} />
       <Route path="/my-orders" element={<ProtectedRoute allowedRoles={['customer']}><MyOrders /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute allowedRoles={['customer', 'driver', 'admin']}><Profile /></ProtectedRoute>} />
 

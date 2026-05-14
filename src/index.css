@@ -2575,6 +2575,7 @@ article[class*="rounded-2xl"].admin-glass {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -2661,6 +2662,7 @@ article[class*="rounded-2xl"].admin-glass {
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -2992,6 +2994,7 @@ article[class*="rounded-2xl"].admin-glass {
   font-weight: 600;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -3151,7 +3154,7 @@ article[class*="rounded-2xl"].admin-glass {
 .ch-bigcard-img {
   display: block;
   width: 100%;
-  height: 20rem;
+  height: 28rem;
   object-fit: contain;
   object-position: center bottom;
   padding: 1.25rem 2rem 2.5rem;

@@ -8,16 +8,16 @@ import {
   IoBagHandleOutline,
   IoPersonSharp,
   IoPersonOutline,
-  IoGridSharp,
-  IoGridOutline,
+  IoHeartSharp,
+  IoHeartOutline,
 } from 'react-icons/io5';
 
 const LINKS = [
   { to: '/',           active: IoHomeSharp,         idle: IoHomeOutline,        label: 'الرئيسية', end: true  },
-  { to: '/my-orders',  active: IoListSharp,          idle: IoListOutline,         label: 'طلباتي',   end: false },
-  { to: '/cart',       active: IoBagHandleSharp,     idle: IoBagHandleOutline,    label: 'السلة',    end: false, isCart: true },
-  { to: '/profile',    active: IoPersonSharp,        idle: IoPersonOutline,       label: 'حسابي',    end: false },
-  { to: '/my-orders',  active: IoGridSharp,          idle: IoGridOutline,         label: 'القائمة',  end: false },
+  { to: '/favorites',  active: IoHeartSharp,        idle: IoHeartOutline,       label: 'المفضلة',  end: false },
+  { to: '/cart',       active: IoBagHandleSharp,    idle: IoBagHandleOutline,   label: 'السلة',    end: false, isCart: true },
+  { to: '/my-orders',  active: IoListSharp,         idle: IoListOutline,        label: 'طلباتي',   end: false },
+  { to: '/profile',    active: IoPersonSharp,       idle: IoPersonOutline,      label: 'حسابي',    end: false },
 ];
 
 export default function CustomerNav({ cartCount = 0 }) {
@@ -30,7 +30,7 @@ export default function CustomerNav({ cartCount = 0 }) {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `ch-nav-link${isActive && idx !== 4 ? ' active' : ''}${isCart ? ' cart-link' : ''}`
+              `ch-nav-link${isActive ? ' active' : ''}${isCart ? ' cart-link' : ''}`
             }
             aria-label={label}
           >
@@ -44,9 +44,8 @@ export default function CustomerNav({ cartCount = 0 }) {
                     )}
                   </span>
                 ) : (
-                  isActive && idx !== 4 ? <ActiveIcon size={24}/> : <IdleIcon size={24}/>
+                  isActive ? <ActiveIcon size={24}/> : <IdleIcon size={24}/>
                 )}
-                <span>{label}</span>
               </>
             )}
           </NavLink>

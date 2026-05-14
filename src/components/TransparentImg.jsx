@@ -26,7 +26,11 @@ function processImage(src) {
           const g = data[i + 1];
           const b = data[i + 2];
 
-          if (r > 240 && g > 240 && b > 240) {
+          // Detect fake transparency checkerboards (neutral grays and whites)
+          const isNeutral = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15;
+          
+          if (isNeutral && r > 185) {
+            // Remove checkerboard and white backgrounds completely
             data[i + 3] = 0;
           } else if (r > 215 && g > 215 && b > 215) {
             const lightness = (r + g + b) / 3;
