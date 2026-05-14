@@ -1,33 +1,54 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  IoBagHandleOutline,
-  IoGridOutline,
+  IoHomeSharp,
   IoHomeOutline,
+  IoListSharp,
   IoListOutline,
+  IoBagHandleSharp,
+  IoBagHandleOutline,
+  IoPersonSharp,
   IoPersonOutline,
+  IoGridSharp,
+  IoGridOutline,
 } from 'react-icons/io5';
 
-const links = [
-  { to: '/', icon: IoHomeOutline, label: 'الرئيسية', end: true },
-  { to: '/my-orders', icon: IoListOutline, label: 'الطلبات' },
-  { to: '/cart', icon: IoBagHandleOutline, label: 'السلة' },
-  { to: '/profile', icon: IoPersonOutline, label: 'حسابي' },
-  { to: '/', icon: IoGridOutline, label: 'القائمة', end: true },
+const LINKS = [
+  { to: '/',           active: IoHomeSharp,         idle: IoHomeOutline,        label: 'الرئيسية', end: true  },
+  { to: '/my-orders',  active: IoListSharp,          idle: IoListOutline,         label: 'طلباتي',   end: false },
+  { to: '/cart',       active: IoBagHandleSharp,     idle: IoBagHandleOutline,    label: 'السلة',    end: false, isCart: true },
+  { to: '/profile',    active: IoPersonSharp,        idle: IoPersonOutline,       label: 'حسابي',    end: false },
+  { to: '/my-orders',  active: IoGridSharp,          idle: IoGridOutline,         label: 'القائمة',  end: false },
 ];
 
-export default function CustomerNav() {
+export default function CustomerNav({ cartCount = 0 }) {
   return (
-    <nav className="omega-bottom-nav-app" style={{ '--omega-nav-count': links.length }}>
-      <div className="omega-bottom-nav-inner">
-        {links.map(({ to, icon: Icon, label, end }, index) => (
+    <nav className="ch-bottom-nav" aria-label="التنقل الرئيسي">
+      <div className="ch-bottom-inner">
+        {LINKS.map(({ to, active: ActiveIcon, idle: IdleIcon, label, end, isCart }, idx) => (
           <NavLink
-            key={`${to}-${label}-${index}`}
+            key={`${to}-${idx}`}
             to={to}
             end={end}
-            className={({ isActive }) => `omega-bottom-nav-link${isActive && index !== 4 ? ' active' : ''}`}
+            className={({ isActive }) =>
+              `ch-nav-link${isActive && idx !== 4 ? ' active' : ''}${isCart ? ' cart-link' : ''}`
+            }
+            aria-label={label}
           >
-            <Icon size={24} />
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                {isCart ? (
+                  <span className="ch-nav-cart-bubble">
+                    {isActive ? <ActiveIcon size={26}/> : <IdleIcon size={26}/>}
+                    {cartCount > 0 && (
+                      <span className="ch-nav-cart-count">{cartCount > 9 ? '9+' : cartCount}</span>
+                    )}
+                  </span>
+                ) : (
+                  isActive && idx !== 4 ? <ActiveIcon size={24}/> : <IdleIcon size={24}/>
+                )}
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </div>
