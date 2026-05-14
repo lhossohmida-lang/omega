@@ -28,15 +28,17 @@ export async function gatherFullDataSummary(idToken) {
       purchasesDocs,
       movementsDocs,
       usersDocs,
+      tablesDocs,
       settingsDoc,
     ] = await Promise.all([
-      queryDocs('orders', idToken, { orderBy: [['createdAt', 'DESCENDING']], limit: 200 }),
-      listDocs('products', idToken),
+      queryDocs('orders', idToken, { orderBy: [['createdAt', 'DESCENDING']], limit: 200 }).catch(() => []),
+      listDocs('products', idToken).catch(() => []),
       listDocs('ingredients', idToken).catch(() => []),
       queryDocs('ingredient_purchases', idToken, { orderBy: [['createdAt', 'DESCENDING']], limit: 100 }).catch(() => []),
-      queryDocs('inventory_movements', idToken, { orderBy: [['createdAt', 'DESCENDING']], limit: 50 }),
-      listDocs('users', idToken),
-      getDoc('ai_settings', 'config', idToken),
+      queryDocs('inventory_movements', idToken, { orderBy: [['createdAt', 'DESCENDING']], limit: 50 }).catch(() => []),
+      listDocs('users', idToken).catch(() => []),
+      listDocs('tables', idToken).catch(() => []),
+      getDoc('ai_settings', 'config', idToken).catch(() => ({ exists: false, data: () => ({}) })),
     ]);
 
     const orders = ordersDocs.map(d => ({ id: d.id, ...d.data() }));
@@ -45,6 +47,7 @@ export async function gatherFullDataSummary(idToken) {
     const purchases = purchasesDocs.map(d => ({ id: d.id, ...d.data() }));
     const movements = movementsDocs.map(d => ({ id: d.id, ...d.data() }));
     const users = usersDocs.map(d => ({ id: d.id, ...d.data() }));
+    const tables = tablesDocs.map(d => ({ id: d.id, ...d.data() }));
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
 
     const customers = users.filter(u => u.role === 'customer');
@@ -169,6 +172,14 @@ ${drivers.filter(d => !driverStats[d.id]).map(d => `- ${d.name} (${d.phone}): ل
 👥 المستخدمون:
 - زبائن: ${customers.length} | سائقون: ${drivers.length} | مدراء: ${admins.length}
 
+🪑 الطاولات (${tables.length}):
+${tables.length > 0
+  ? tables.map(t => {
+      const tableOrders = active.filter(o => Number(o.tableNumber) === Number(t.number));
+      return `- طاولة رقم ${t.number} (${t.name || ''}): سعة ${t.capacity || 4}، ${t.active === false ? 'موقوفة' : 'نشطة'}${tableOrders.length > 0 ? ` | ${tableOrders.length} طلب نشط` : ''}`;
+    }).join('\n')
+  : 'لا توجد طاولات معرّفة'}
+
 📦 آخر حركات المخزون:
 ${movements.slice(0, 10).map(m => `- ${m.productName}: ${m.type} ${m.quantity} ${m.note ? `(${m.note})` : ''} - ${fmtDate(m.createdAt)}`).join('\n') || 'لا توجد'}
 
@@ -197,11 +208,12 @@ export const SYSTEM_PROMPT = `أنت "ميم" — المساعد الذكي ال
 🎯 صلاحياتك:
 لديك وصول كامل إلى جميع بيانات التطبيق:
 - المنتجات (الأسعار، التكاليف، المخزون، الفئات، التوفر)
-- الطلبات (الزبائن، السائقين، الحالات، الأرباح، الملاحظات، العناوين)
+- الطلبات (الزبائن، السائقين، الحالات، الأرباح، الملاحظات، العناوين، الطاولة المرتبطة)
 - المواد الخام (الكميات، أسعار الشراء، تاريخ المشتريات)
 - السائقون (الأداء، التوصيلات، الإيرادات)
 - المستخدمون (زبائن، سائقون، مدراء)
 - المخزون وحركاته
+- الطاولات (الأرقام، السعة، الحالة، الطلبات المرتبطة)
 - التقارير المالية اليومية والأسبوعية والشهرية
 
 📐 قواعد الحساب:

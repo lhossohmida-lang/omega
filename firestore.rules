@@ -13,7 +13,9 @@ service cloud.firestore {
 
     // ===== مجموعة المستخدمين =====
     match /users/{userId} {
-      // كل مستخدم موثق يستطيع قراءة وكتابة بياناته الخاصة فقط
+      // الأدمن: قراءة كاملة لكل المستخدمين (للذكاء الاصطناعي والتقارير)
+      allow read: if isSignedIn() && myRole() == 'admin';
+      // كل مستخدم موثّق يقرأ ويكتب بياناته الخاصة فقط
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
