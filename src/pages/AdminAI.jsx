@@ -284,63 +284,9 @@ export default function AdminAI() {
     return { items: sorted, total };
   }, [orders]);
 
-  /* ── Active sidebar nav handler ── */
-  const handleNavClick = (item) => {
-    if (item.to && item.id !== 'ai') {
-      navigate(item.to);
-    }
-  };
-
   return (
-    <div className="kitchen-page" dir="rtl">
-      {/* ───── Sidebar ───── */}
-      <aside className="kitchen-sidebar">
-        <div className="kitchen-brand">
-          <div className="kitchen-brand-icon">
-            <IoRestaurant size={32} />
-          </div>
-          <div className="kitchen-brand-text">
-            <h2>OMEGA</h2>
-            <span>مطعم</span>
-          </div>
-        </div>
-
-        <nav className="kitchen-nav">
-          {SIDEBAR_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => handleNavClick(SIDEBAR_ITEMS.find((s) => s.id === id))}
-              className={`kitchen-nav-item${id === 'ai' ? ' active' : ''}`}
-            >
-              <span className="kitchen-nav-label">{label}</span>
-              <span className="kitchen-nav-icon-wrap">
-                <Icon size={20} />
-              </span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="kitchen-profile">
-          <div className="kitchen-profile-card">
-            <div className="kitchen-profile-info">
-              <p className="kitchen-profile-name">
-                الشيف {userData?.name?.split(' ')?.[0] || 'المدير'}
-              </p>
-              <span className="kitchen-profile-role">مدير النظام</span>
-            </div>
-            <div className="kitchen-profile-avatar">
-              {userData?.name?.[0] || '👨‍💼'}
-              <span className="kitchen-profile-online" />
-            </div>
-          </div>
-          <button type="button" onClick={logout} className="kitchen-logout-btn">
-            <span>تسجيل خروج</span>
-            <IoLogOutOutline size={18} />
-          </button>
-        </div>
-      </aside>
-
+    <div className="kitchen-page ai-page-noside" dir="rtl">
+      <AdminNav />
       {/* ───── Main ───── */}
       <main className="kitchen-main ai-main">
         {/* Header */}
