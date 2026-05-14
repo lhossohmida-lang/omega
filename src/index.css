@@ -3995,6 +3995,15 @@ article[class*="rounded-2xl"].admin-glass {
   gap: 0;
 }
 
+/* AdminAI without sidebar: full-width + space for floating admin nav */
+.ai-page-noside {
+  display: block;
+}
+
+.ai-page-noside .kitchen-main {
+  padding-bottom: 7.5rem;
+}
+
 /* Top header extras */
 .ai-header-actions {
   flex: 1;
