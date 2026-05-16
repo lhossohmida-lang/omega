@@ -13,6 +13,7 @@ import Checkout from './pages/Checkout';
 import TrackOrder from './pages/TrackOrder';
 import MyOrders from './pages/MyOrders';
 import Favorites from './pages/Favorites';
+import MyInfo from './pages/MyInfo';
 
 // Worker
 import WorkerOrders from './pages/WorkerOrders';
@@ -56,6 +57,7 @@ export default function App() {
       <Route path="/track/:id" element={<TrackOrder />} />
       <Route path="/favorites" element={<Favorites />} />
       <Route path="/my-orders" element={<MyOrders />} />
+      <Route path="/my-info" element={<MyInfo />} />
 
       {/* Worker Routes */}
       <Route path="/worker" element={<ProtectedRoute allowedRoles={['worker']}><WorkerOrders /></ProtectedRoute>} />

@@ -8,6 +8,8 @@ import {
   IoBagHandleOutline,
   IoHeartSharp,
   IoHeartOutline,
+  IoPersonSharp,
+  IoPersonOutline,
 } from 'react-icons/io5';
 
 const LINKS = [
@@ -15,6 +17,7 @@ const LINKS = [
   { to: '/favorites',  active: IoHeartSharp,        idle: IoHeartOutline,       label: 'المفضلة',  end: false },
   { to: '/cart',       active: IoBagHandleSharp,    idle: IoBagHandleOutline,   label: 'السلة',    end: false, isCart: true },
   { to: '/my-orders',  active: IoListSharp,         idle: IoListOutline,        label: 'طلباتي',   end: false },
+  { to: '/my-info',    active: IoPersonSharp,       idle: IoPersonOutline,      label: 'معلوماتي', end: false },
 ];
 
 export default function CustomerNav({ cartCount = 0 }) {
