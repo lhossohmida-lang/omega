@@ -77,8 +77,13 @@ export default function Checkout() {
       setOrderCreated(orderId);
       toast.success('تم إرسال طلبك بنجاح!');
     } catch (error) {
-      console.error(error);
-      toast.error(error.message || 'حدث خطأ في إرسال الطلب');
+      console.error('createOrder failed:', error);
+      const code = error?.code || '';
+      let msg = error?.message || 'حدث خطأ في إرسال الطلب';
+      if (code === 'permission-denied' || /permission/i.test(msg) || /insufficient/i.test(msg)) {
+        msg = 'صلاحيات قاعدة البيانات لا تسمح بإنشاء طلب. يجب نشر firestore.rules من Firebase Console.';
+      }
+      toast.error(msg, { duration: 6000 });
     }
     setLoading(false);
   };

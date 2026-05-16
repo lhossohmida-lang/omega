@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
-// المصادقة مطلوبة فقط لـ admin و worker.
-// الزبائن يستخدمون التطبيق بدون تسجيل دخول.
+// المصادقة للإدارة والمطبخ صريحة (email/password).
+// الزبون يُسجّل دخول مجهول (anonymous) بصمت ليعمل مع قواعد Firestore الحالية،
+// مع إنشاء وثيقة users تلقائياً بدور customer.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -17,7 +18,23 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          let userDoc = await getDoc(userRef);
+          if (!userDoc.exists() && firebaseUser.isAnonymous) {
+            // أول زيارة لزبون مجهول — أنشئ وثيقة المستخدم بدور customer
+            try {
+              await setDoc(userRef, {
+                uid: firebaseUser.uid,
+                name: 'زبون',
+                role: 'customer',
+                isAnonymous: true,
+                createdAt: serverTimestamp(),
+              });
+              userDoc = await getDoc(userRef);
+            } catch (err) {
+              console.warn('Failed to create guest user doc:', err);
+            }
+          }
           if (userDoc.exists()) {
             setUserData({ uid: firebaseUser.uid, ...userDoc.data() });
           } else {
@@ -30,6 +47,13 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
         setUserData(null);
+        // لا يوجد مستخدم — سجّل دخول مجهول للزبون (شفاف، بدون شاشة login)
+        try {
+          await signInAnonymously(auth);
+          return; // onAuthStateChanged سيُستدعى مجدداً مع المستخدم المجهول
+        } catch (err) {
+          console.warn('Anonymous sign-in failed (يجب تفعيله من Firebase Console > Authentication > Anonymous):', err?.code || err);
+        }
       }
       setLoading(false);
     });

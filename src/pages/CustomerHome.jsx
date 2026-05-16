@@ -222,6 +222,7 @@ function CarouselSection({ title, icon, onSeeAll, products, favorites, onFav, on
 export default function CustomerHome() {
   const [products, setProducts]     = useState([]);
   const [loading, setLoading]       = useState(true);
+  const [loadError, setLoadError]   = useState(null);
   const [activeCat, setActiveCat]   = useState('all');
   const [search, setSearch]         = useState('');
   const [favorites, setFavorites]   = useState(getFav);
@@ -235,8 +236,19 @@ export default function CustomerHome() {
   /* load products */
   useEffect(() => {
     getAllProducts()
-      .then(d => setProducts(d.filter(p => p.isAvailable !== false)))
-      .catch(console.error)
+      .then(d => {
+        setProducts(d.filter(p => p.isAvailable !== false));
+        setLoadError(null);
+      })
+      .catch(err => {
+        console.error('getAllProducts failed:', err);
+        const code = err?.code || '';
+        if (code === 'permission-denied' || /permission/i.test(err?.message || '')) {
+          setLoadError({ kind: 'permissions', message: 'لا توجد صلاحيات لقراءة المنتجات من قاعدة البيانات.' });
+        } else {
+          setLoadError({ kind: 'generic', message: err?.message || 'تعذّر تحميل المنتجات' });
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -324,6 +336,21 @@ export default function CustomerHome() {
           <div>
             <strong>المطعم مغلق حالياً</strong>
             <span>{businessStatus.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── LOAD ERROR BANNER ── */}
+      {loadError && !loading && (
+        <div className="ch-closed-banner" style={{ borderColor: 'rgba(229,57,53,0.4)' }}>
+          <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+          <div>
+            <strong>تعذّر تحميل القائمة</strong>
+            <span>
+              {loadError.kind === 'permissions'
+                ? 'يجب نشر firestore.rules أو تفعيل المصادقة المجهولة (Anonymous Authentication) من Firebase Console.'
+                : loadError.message}
+            </span>
           </div>
         </div>
       )}
