@@ -1,26 +1,14 @@
 import { useAuth } from '../hooks/useAuth';
 import {
   IoRestaurant,
-  IoNotificationsOutline,
-  IoListOutline,
-  IoBarChartOutline,
-  IoSettingsOutline,
   IoLogOutOutline,
 } from 'react-icons/io5';
 
-export default function WorkerSidebar({
-  active = 'orders',
-  onChangeTab,
-  notifCount = 0,
-}) {
+export default function WorkerSidebar({ active = 'orders', onChangeTab }) {
   const { userData, logout } = useAuth();
 
   const items = [
     { id: 'orders', icon: IoRestaurant, label: 'الطلبات' },
-    { id: 'notifs', icon: IoNotificationsOutline, label: 'الإشعارات', badge: notifCount || null },
-    { id: 'menu', icon: IoListOutline, label: 'القائمة' },
-    { id: 'reports', icon: IoBarChartOutline, label: 'التقارير' },
-    { id: 'settings', icon: IoSettingsOutline, label: 'الإعدادات' },
   ];
 
   return (
@@ -36,7 +24,7 @@ export default function WorkerSidebar({
       </div>
 
       <nav className="kitchen-nav">
-        {items.map(({ id, icon: Icon, label, badge }) => (
+        {items.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
             type="button"
@@ -46,7 +34,6 @@ export default function WorkerSidebar({
             <span className="kitchen-nav-label">{label}</span>
             <span className="kitchen-nav-icon-wrap">
               <Icon size={20} />
-              {badge ? <span className="kitchen-nav-badge">{badge}</span> : null}
             </span>
           </button>
         ))}

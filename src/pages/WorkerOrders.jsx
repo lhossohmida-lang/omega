@@ -207,7 +207,6 @@ export default function WorkerOrders() {
       <WorkerSidebar
         active={activeTab}
         onChangeTab={setActiveTab}
-        notifCount={counts.new}
       />
 
       <main className="kitchen-main">
