@@ -309,9 +309,16 @@ export default function AdminOrders() {
                             {config.label}
                             <config.icon size={18} />
                           </span>
-                          <p className="mt-2 text-[11px] font-bold text-omega-text-muted">
+                          <span
+                            className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black border"
+                            style={
+                              order.isDelivery
+                                ? { color: '#4ade80', background: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)' }
+                                : { color: '#fca5a5', background: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' }
+                            }
+                          >
                             {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
-                          </p>
+                          </span>
                         </div>
                       </div>
 
@@ -426,9 +433,16 @@ export default function AdminOrders() {
                 </div>
                 <p className="text-right text-white">{selected.customerName}</p>
                 <p className="mt-1 text-right text-omega-text-muted" dir="ltr">{selected.customerPhone}</p>
-                <p className="mt-2 text-right text-sm text-omega-text-muted">
+                <span
+                  className="mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-black border"
+                  style={
+                    selected.isDelivery
+                      ? { color: '#4ade80', background: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)' }
+                      : { color: '#fca5a5', background: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' }
+                  }
+                >
                   {selected.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
-                </p>
+                </span>
                 {selected.isDelivery && selected.customerAddress && (
                   <p className="mt-2 flex items-start justify-end gap-2 text-right text-sm text-omega-text-muted">
                     {selected.customerAddress}

@@ -103,9 +103,16 @@ export default function TrackOrder() {
             </div>
             <div className="text-left">
               <p className="text-sm font-bold text-omega-text-muted">نوع الطلب</p>
-              <strong className="text-base font-black text-omega-text">
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-black border"
+                style={
+                  order.isDelivery
+                    ? { color: '#16a34a', background: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)' }
+                    : { color: '#dc2626', background: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' }
+                }
+              >
                 {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
-              </strong>
+              </span>
             </div>
           </div>
         </section>

@@ -155,9 +155,16 @@ export default function MyOrders() {
                   <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                     <div className="text-right">
                       <h2 className="text-xl font-black text-omega-text">{order.customerName || 'زبون'}</h2>
-                      <p className="mt-1 text-sm font-bold text-omega-text-muted">
+                      <span
+                        className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-black border"
+                        style={
+                          order.isDelivery
+                            ? { color: '#16a34a', background: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)' }
+                            : { color: '#dc2626', background: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' }
+                        }
+                      >
                         {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
-                      </p>
+                      </span>
                     </div>
                     <strong className="omega-price text-left">{formatCurrency(order.totalPrice)}</strong>
                   </div>

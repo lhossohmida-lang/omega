@@ -189,13 +189,13 @@ export default function Checkout() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setOrderType('delivery')}
-              className={`py-3 rounded-xl font-bold transition-all ${isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+              className={`py-3 rounded-xl font-bold transition-all ${isDelivery ? 'bg-emerald-500 text-white ring-2 ring-emerald-400/50 shadow-lg shadow-emerald-500/25' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
             >
               🚗 توصيل (150 د.ج)
             </button>
             <button
               onClick={() => setOrderType('table')}
-              className={`py-3 rounded-xl font-bold transition-all ${!isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+              className={`py-3 rounded-xl font-bold transition-all ${!isDelivery ? 'bg-red-600 text-white ring-2 ring-red-500/50 shadow-lg shadow-red-600/25' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
             >
               🍽️ في المطعم
             </button>
