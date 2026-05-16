@@ -1,5 +1,5 @@
-// نظام ساعات العمل — المطعم يعمل من 11:00 صباحاً حتى 22:00 (10 مساءً)
-export const OPEN_HOUR = 11;
+// نظام ساعات العمل — المطعم يعمل من 8:00 صباحاً حتى 22:00 (10 مساءً)
+export const OPEN_HOUR = 8;
 export const CLOSE_HOUR = 22;
 
 export function isOpen(date = new Date()) {

@@ -18,6 +18,7 @@ import {
   IoFlameOutline,
   IoTimeOutline,
   IoStarOutline,
+  IoLockClosedOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -326,6 +327,19 @@ export default function CustomerHome() {
           </div>
         </div>
       )}
+
+      {/* ── STAFF LOGIN ── */}
+      <div className="ch-search-row" style={{ paddingBottom: 0 }}>
+        <button
+          type="button"
+          onClick={() => navigate('/login')}
+          className="ch-staff-login-btn"
+          aria-label="دخول طاقم العمل"
+        >
+          <IoLockClosedOutline size={16} />
+          <span>دخول طاقم العمل</span>
+        </button>
+      </div>
 
       {/* ── SEARCH ── */}
       <div className="ch-search-row">

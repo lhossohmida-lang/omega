@@ -2262,6 +2262,29 @@ article[class*="rounded-2xl"].admin-glass {
 }
 .ch-search-box input::placeholder { color: #b0b7c3; }
 
+/* ── Staff login pill (top of customer page) ── */
+.ch-staff-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-inline-start: auto;
+  padding: 0.45rem 0.85rem;
+  background: rgba(229, 57, 53, 0.08);
+  border: 1px solid rgba(229, 57, 53, 0.25);
+  border-radius: 999px;
+  color: #b91c1c;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+.ch-staff-login-btn:hover {
+  background: rgba(229, 57, 53, 0.14);
+  border-color: rgba(229, 57, 53, 0.4);
+}
+.ch-staff-login-btn:active { transform: scale(0.96); }
+
 /* ── Category tabs ── */
 .ch-cats-wrap {
   padding: 0.85rem 0 0.25rem;
