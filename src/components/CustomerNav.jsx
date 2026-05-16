@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   IoHomeSharp,
   IoHomeOutline,
@@ -6,8 +6,6 @@ import {
   IoListOutline,
   IoBagHandleSharp,
   IoBagHandleOutline,
-  IoPersonSharp,
-  IoPersonOutline,
   IoHeartSharp,
   IoHeartOutline,
 } from 'react-icons/io5';
@@ -17,7 +15,6 @@ const LINKS = [
   { to: '/favorites',  active: IoHeartSharp,        idle: IoHeartOutline,       label: 'المفضلة',  end: false },
   { to: '/cart',       active: IoBagHandleSharp,    idle: IoBagHandleOutline,   label: 'السلة',    end: false, isCart: true },
   { to: '/my-orders',  active: IoListSharp,         idle: IoListOutline,        label: 'طلباتي',   end: false },
-  { to: '/profile',    active: IoPersonSharp,       idle: IoPersonOutline,      label: 'حسابي',    end: false },
 ];
 
 export default function CustomerNav({ cartCount = 0 }) {

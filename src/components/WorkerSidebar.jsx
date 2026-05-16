@@ -1,8 +1,6 @@
 import { useAuth } from '../hooks/useAuth';
 import {
   IoRestaurant,
-  IoGridOutline,
-  IoBicycleOutline,
   IoNotificationsOutline,
   IoListOutline,
   IoBarChartOutline,
@@ -13,15 +11,12 @@ import {
 export default function WorkerSidebar({
   active = 'orders',
   onChangeTab,
-  pendingCount = 0,
   notifCount = 0,
 }) {
   const { userData, logout } = useAuth();
 
   const items = [
     { id: 'orders', icon: IoRestaurant, label: 'الطلبات' },
-    { id: 'tables', icon: IoGridOutline, label: 'الطاولات' },
-    { id: 'delivery', icon: IoBicycleOutline, label: 'التوصيل' },
     { id: 'notifs', icon: IoNotificationsOutline, label: 'الإشعارات', badge: notifCount || null },
     { id: 'menu', icon: IoListOutline, label: 'القائمة' },
     { id: 'reports', icon: IoBarChartOutline, label: 'التقارير' },
@@ -30,7 +25,6 @@ export default function WorkerSidebar({
 
   return (
     <aside className="kitchen-sidebar">
-      {/* Logo */}
       <div className="kitchen-brand">
         <div className="kitchen-brand-icon">
           <IoRestaurant size={32} />
@@ -41,7 +35,6 @@ export default function WorkerSidebar({
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="kitchen-nav">
         {items.map(({ id, icon: Icon, label, badge }) => (
           <button
@@ -59,7 +52,6 @@ export default function WorkerSidebar({
         ))}
       </nav>
 
-      {/* Profile */}
       <div className="kitchen-profile">
         <div className="kitchen-profile-card">
           <div className="kitchen-profile-info">

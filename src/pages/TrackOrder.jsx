@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { subscribeToOrder } from '../services/orderService';
+import { addTrackedOrderId } from '../utils/guestStorage';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatTime, timeAgo } from '../utils/formatDate';
 import CustomerNav from '../components/CustomerNav';
 import {
-  IoArchiveOutline,
   IoArrowBack,
-  IoBicycleOutline,
+  IoBagHandleOutline,
   IoCallOutline,
   IoCheckmarkCircleOutline,
   IoClipboardOutline,
@@ -19,25 +19,22 @@ import {
 const steps = [
   { key: 'pending', label: 'استلام الطلب', icon: IoClipboardOutline },
   { key: 'preparing', label: 'تحضير الأصناف', icon: IoRestaurantOutline },
-  { key: 'accepted_by_driver', label: 'جاهز للتوصيل', icon: IoArchiveOutline },
-  { key: 'on_the_way', label: 'خرج للتوصيل', icon: IoBicycleOutline },
-  { key: 'delivered', label: 'تم التسليم', icon: IoCheckmarkCircleOutline },
+  { key: 'ready', label: 'جاهز', icon: IoCheckmarkCircleOutline },
+  { key: 'delivered', label: 'تم التسليم', icon: IoBagHandleOutline },
 ];
 
-const statusIndex = {
-  pending: 0,
-  preparing: 1,
-  accepted_by_driver: 2,
-  on_the_way: 3,
-  delivered: 4,
-};
+function currentStepIndex(order) {
+  if (!order) return 0;
+  if (order.status === 'delivered') return 3;
+  if (order.workerReady) return 2;
+  if (order.status === 'preparing') return 1;
+  return 0;
+}
 
 const statusLabel = {
   pending: 'جديد',
   preparing: 'قيد التجهيز',
-  accepted_by_driver: 'جاهز',
-  on_the_way: 'للتوصيل',
-  delivered: 'تم التوصيل',
+  delivered: 'تم التسليم',
   cancelled: 'ملغي',
 };
 
@@ -48,10 +45,12 @@ export default function TrackOrder() {
 
   useEffect(() => {
     if (!id) return undefined;
+    // إذا فتح المستخدم رابط الطلب مباشرة، نضيفه إلى قائمة التتبع المحلية
+    addTrackedOrderId(id);
     return subscribeToOrder(id, setOrder);
   }, [id]);
 
-  const currentStep = statusIndex[order?.status] ?? 0;
+  const currentStep = currentStepIndex(order);
   const subtotal = useMemo(
     () => (order?.items || []).reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0),
     [order]
@@ -66,6 +65,9 @@ export default function TrackOrder() {
   }
 
   const cancelled = order.status === 'cancelled';
+  const displayStatus = order.workerReady && order.status !== 'delivered'
+    ? 'جاهز'
+    : (statusLabel[order.status] || order.status);
 
   return (
     <div className="omega-app-shell">
@@ -85,8 +87,8 @@ export default function TrackOrder() {
 
         <section className="omega-card mb-4 p-4">
           <div className="flex items-start justify-between gap-4">
-            <span className={`omega-status-badge ${cancelled ? 'red' : order.status === 'delivered' ? 'green' : 'soft'}`}>
-              {statusLabel[order.status] || order.status}
+            <span className={`omega-status-badge ${cancelled ? 'red' : order.status === 'delivered' || order.workerReady ? 'green' : 'soft'}`}>
+              {displayStatus}
             </span>
             <div className="text-right">
               <strong className="omega-order-id">#{order.id?.slice(-6)}</strong>
@@ -100,8 +102,10 @@ export default function TrackOrder() {
               <strong className="text-3xl font-black text-omega-red">{formatCurrency(order.totalPrice)}</strong>
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold text-omega-text-muted">عدد المنتجات</p>
-              <strong className="text-2xl font-black text-omega-text">{order.items?.length || 0}</strong>
+              <p className="text-sm font-bold text-omega-text-muted">نوع الطلب</p>
+              <strong className="text-base font-black text-omega-text">
+                {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
+              </strong>
             </div>
           </div>
         </section>
@@ -112,7 +116,7 @@ export default function TrackOrder() {
               <span>مسار الطلب</span>
               <IoCheckmarkCircleOutline />
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 const active = index <= currentStep;
@@ -163,7 +167,7 @@ export default function TrackOrder() {
 
         <section className="omega-card mb-4 p-4">
           <div className="omega-section-label mt-0">
-            <span>معلومات التوصيل</span>
+            <span>{order.isDelivery ? 'معلومات التوصيل' : 'معلومات الزبون'}</span>
             <IoPersonOutline />
           </div>
           <div className="space-y-3 text-right">
@@ -172,10 +176,12 @@ export default function TrackOrder() {
               {order.customerPhone}
               <IoCallOutline />
             </p>
-            <p className="omega-meta-line justify-end">
-              {order.customerAddress}
-              <IoLocationOutline />
-            </p>
+            {order.isDelivery && order.customerAddress ? (
+              <p className="omega-meta-line justify-end">
+                {order.customerAddress}
+                <IoLocationOutline />
+              </p>
+            ) : null}
           </div>
         </section>
       </main>

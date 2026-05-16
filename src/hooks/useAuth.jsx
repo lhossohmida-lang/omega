@@ -5,6 +5,8 @@ import { doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
+// المصادقة مطلوبة فقط لـ admin و worker.
+// الزبائن يستخدمون التطبيق بدون تسجيل دخول.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -14,7 +16,6 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // جلب بيانات المستخدم من Firestore
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
@@ -48,8 +49,6 @@ export function AuthProvider({ children }) {
     loading,
     logout,
     isAdmin: userData?.role === 'admin',
-    isDriver: userData?.role === 'driver',
-    isCustomer: userData?.role === 'customer',
     isWorker: userData?.role === 'worker',
   };
 

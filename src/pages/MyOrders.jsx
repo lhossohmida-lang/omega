@@ -1,37 +1,43 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { getCustomerOrders } from '../services/orderService';
+import { getOrdersByIds } from '../services/orderService';
+import { getTrackedOrderIds, clearTrackedOrders } from '../utils/guestStorage';
 import { formatCurrency } from '../utils/formatCurrency';
 import { timeAgo } from '../utils/formatDate';
 import CustomerNav from '../components/CustomerNav';
 import {
   IoArrowBack,
   IoChevronBack,
-  IoFilterOutline,
   IoListOutline,
   IoSearch,
+  IoTrashOutline,
 } from 'react-icons/io5';
 
 const tabs = [
   { key: 'all', label: 'الكل' },
   { key: 'pending', label: 'جديد' },
   { key: 'preparing', label: 'قيد التجهيز' },
-  { key: 'accepted_by_driver', label: 'جاهز' },
-  { key: 'delivered', label: 'تم التوصيل' },
+  { key: 'ready', label: 'جاهز' },
+  { key: 'delivered', label: 'تم التسليم' },
 ];
 
 const statusLabels = {
   pending: { label: 'جديد', tone: 'soft' },
-  accepted_by_driver: { label: 'جاهز', tone: 'green' },
   preparing: { label: 'قيد التجهيز', tone: 'red' },
-  on_the_way: { label: 'للتوصيل', tone: 'green' },
-  delivered: { label: 'تم التوصيل', tone: 'green' },
+  ready: { label: 'جاهز', tone: 'green' },
+  delivered: { label: 'تم التسليم', tone: 'green' },
   cancelled: { label: 'ملغي', tone: 'red' },
 };
 
+function deriveDisplayStatus(order) {
+  if (order.status === 'delivered') return 'delivered';
+  if (order.status === 'cancelled') return 'cancelled';
+  if (order.workerReady) return 'ready';
+  if (order.status === 'preparing') return 'preparing';
+  return 'pending';
+}
+
 export default function MyOrders() {
-  const { userData } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
@@ -39,20 +45,31 @@ export default function MyOrders() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!userData?.uid) return;
-    getCustomerOrders(userData.uid)
+    const ids = getTrackedOrderIds();
+    if (ids.length === 0) {
+      setLoading(false);
+      return;
+    }
+    getOrdersByIds(ids)
       .then(setOrders)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [userData]);
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const value = search.trim().toLowerCase();
     return orders.filter((order) => {
-      if (activeTab !== 'all' && order.status !== activeTab) return false;
-      return !value || order.id?.toLowerCase().includes(value) || order.customerName?.toLowerCase().includes(value);
+      const display = deriveDisplayStatus(order);
+      if (activeTab !== 'all' && display !== activeTab) return false;
+      return !value || order.id?.toLowerCase().includes(value);
     });
   }, [orders, activeTab, search]);
+
+  const handleClear = () => {
+    if (!confirm('سيتم حذف قائمة طلباتك من هذا الجهاز فقط (الطلبات تبقى محفوظة في النظام). متابعة؟')) return;
+    clearTrackedOrders();
+    setOrders([]);
+  };
 
   return (
     <div className="omega-app-shell">
@@ -65,12 +82,16 @@ export default function MyOrders() {
             <div className="omega-mini-logo mx-auto mb-2">
               <img src="/logo.png" alt="OMEGA" />
             </div>
-            <h1>الطلبات</h1>
-            <p>{orders.length} طلب محفوظ</p>
+            <h1>طلباتي</h1>
+            <p>{orders.length} طلب متتبَّع</p>
           </div>
-          <button type="button" className="omega-icon-button red" aria-label="فلترة">
-            <IoFilterOutline size={24} />
-          </button>
+          {orders.length > 0 ? (
+            <button type="button" onClick={handleClear} className="omega-icon-button red" aria-label="مسح القائمة">
+              <IoTrashOutline size={22} />
+            </button>
+          ) : (
+            <span className="omega-icon-button" style={{ visibility: 'hidden' }} />
+          )}
         </header>
 
         <section className="omega-tabs mb-4">
@@ -106,13 +127,13 @@ export default function MyOrders() {
             <div>
               <IoListOutline className="mx-auto mb-3 text-omega-orange" size={42} />
               <strong>لا توجد طلبات</strong>
-              <p>ابدأ بطلب وجبتك الأولى من OMEGA</p>
+              <p>عند الطلب سيتم حفظه هنا تلقائياً لتتبّعه</p>
             </div>
           </section>
         ) : (
           <section className="space-y-3">
             {filteredOrders.map((order) => {
-              const status = statusLabels[order.status] || statusLabels.pending;
+              const status = statusLabels[deriveDisplayStatus(order)] || statusLabels.pending;
               const firstItems = (order.items || []).slice(0, 3);
               return (
                 <article
@@ -133,8 +154,10 @@ export default function MyOrders() {
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                     <div className="text-right">
-                      <h2 className="text-xl font-black text-omega-text">{order.customerName || userData?.name || 'عميل'}</h2>
-                      <p className="mt-1 text-sm font-bold text-omega-text-muted" dir="ltr">{order.customerPhone || ''}</p>
+                      <h2 className="text-xl font-black text-omega-text">{order.customerName || 'زبون'}</h2>
+                      <p className="mt-1 text-sm font-bold text-omega-text-muted">
+                        {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
+                      </p>
                     </div>
                     <strong className="omega-price text-left">{formatCurrency(order.totalPrice)}</strong>
                   </div>

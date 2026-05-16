@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/authService';
-import { getUserData } from '../services/authService';
-import { auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
+import { loginUser, getUserData } from '../services/authService';
 import toast from 'react-hot-toast';
 import { IoEye, IoEyeOff, IoFlash } from 'react-icons/io5';
 
+// شاشة تسجيل الدخول للإدارة والمطبخ فقط (الزبون لا يحتاج تسجيل).
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,12 +22,11 @@ export default function Login() {
     try {
       const user = await loginUser(email, password);
       const userData = await getUserData(user.uid);
-      
+
       toast.success(`مرحباً ${userData?.name || ''}!`);
-      
-      // توجيه حسب الدور
+
       if (userData?.role === 'admin') navigate('/admin');
-      else if (userData?.role === 'driver') navigate('/driver');
+      else if (userData?.role === 'worker') navigate('/worker');
       else navigate('/');
     } catch (error) {
       console.error(error);
@@ -46,19 +44,17 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-omega-dark flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-slide-up">
-        {/* الشعار */}
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto rounded-full overflow-hidden bg-white flex items-center justify-center mb-4 shadow-lg shadow-omega-orange/20">
-            <img src="/logo.png" alt="OMEGA Pizza" className="w-full h-full object-cover" />
+            <img src="/logo.png" alt="OMEGA" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-black text-white mb-1">OMEGA</h1>
-          <p className="text-omega-text-muted text-sm">مطعم عصري • برجر • بيتزا • تاكوس</p>
+          <p className="text-omega-text-muted text-sm">دخول الإدارة والمطبخ</p>
         </div>
 
-        {/* نموذج تسجيل الدخول */}
         <div className="glass rounded-2xl p-6 shadow-xl">
           <h2 className="text-xl font-bold text-white mb-6 text-center">تسجيل الدخول</h2>
-          
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-omega-text-muted mb-2">البريد الإلكتروني</label>
@@ -110,12 +106,13 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-omega-text-muted text-sm">
-              ليس لديك حساب؟{' '}
-              <Link to="/register" className="text-omega-orange hover:text-omega-orange-light font-medium transition-colors">
-                إنشاء حساب
-              </Link>
-            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="text-omega-orange hover:text-omega-orange-light text-sm font-medium transition-colors"
+            >
+              العودة لواجهة الزبائن →
+            </button>
           </div>
         </div>
       </div>

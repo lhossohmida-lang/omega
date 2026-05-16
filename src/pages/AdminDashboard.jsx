@@ -10,18 +10,18 @@ import { useAuth } from '../hooks/useAuth';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
 import {
+  IoArchiveOutline,
   IoBagHandleOutline,
   IoBarChartOutline,
   IoCashOutline,
   IoCheckmarkCircleOutline,
   IoChevronBack,
   IoClipboardOutline,
-  IoCubeOutline,
   IoGridOutline,
-  IoPeopleOutline,
   IoReloadOutline,
   IoRestaurantOutline,
   IoSettingsOutline,
+  IoSparklesOutline,
   IoStarOutline,
   IoTimerOutline,
   IoTrendingUpOutline,
@@ -145,10 +145,9 @@ function QuickTools() {
   const tools = [
     { to: '/admin/orders', icon: IoClipboardOutline, label: 'إدارة الطلبات' },
     { to: '/admin/products', icon: IoRestaurantOutline, label: 'إدارة المنيو' },
-    { to: '/admin/tables', icon: IoGridOutline, label: 'الطاولات' },
-    { to: '/admin/drivers', icon: IoPeopleOutline, label: 'العملاء' },
+    { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
     { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
-    { to: '/admin/inventory', icon: IoSettingsOutline, label: 'الإعدادات' },
+    { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي' },
   ];
 
   return (
@@ -225,11 +224,7 @@ export default function AdminDashboard() {
     const deliveredToday = todayOrders.filter((order) => order.status === 'delivered');
     const deliveredWeek = weekOrders.filter((order) => order.status === 'delivered');
 
-    const getOrderNetOwnerProfit = (order) => {
-      const profit = calculateOrderProfit(order).profit;
-      const driverCut = order.isDelivery && order.driverId ? order.deliveryFee || 0 : 0;
-      return profit - driverCut;
-    };
+    const getOrderNetOwnerProfit = (order) => calculateOrderProfit(order).profit;
 
     const todaySales = deliveredToday.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const allSales = deliveredAll.reduce((sum, order) => sum + (order.totalPrice || 0), 0);

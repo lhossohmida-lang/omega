@@ -3,13 +3,10 @@ import {
   resetOrdersData,
   subscribeToAllOrders,
   updateOrderStatus,
-  routeOrder,
+  confirmOrder,
   createAdminOrder,
 } from '../services/orderService';
-import { subscribeToTables } from '../services/tableService';
 import { getAllProducts } from '../services/productService';
-import { db } from '../firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
@@ -47,35 +44,32 @@ const statusConfig = {
   all: { label: 'الكل', icon: IoList, color: '#ff6b00', bg: 'rgba(255,107,0,0.15)' },
   pending: { label: 'جديد', icon: IoTimeOutline, color: '#e53935', bg: 'rgba(229,57,53,0.14)' },
   preparing: { label: 'قيد التحضير', icon: IoFastFoodOutline, color: '#ff8c33', bg: 'rgba(255,107,0,0.15)' },
-  accepted_by_driver: { label: 'جاهز', icon: IoCheckmarkCircleOutline, color: '#22c55e', bg: 'rgba(34,197,94,0.13)' },
-  on_the_way: { label: 'في الطريق', icon: IoCarOutline, color: '#3b82f6', bg: 'rgba(59,130,246,0.13)' },
+  ready: { label: 'جاهز', icon: IoCheckmarkCircleOutline, color: '#22c55e', bg: 'rgba(34,197,94,0.13)' },
   delivered: { label: 'تم التسليم', icon: IoCarOutline, color: '#8e8e93', bg: 'rgba(255,255,255,0.08)' },
   cancelled: { label: 'ملغي', icon: IoClose, color: '#e53935', bg: 'rgba(229,57,53,0.12)' },
 };
-
-function getTime(timestamp) {
-  if (!timestamp) return 0;
-  if (timestamp.toMillis) return timestamp.toMillis();
-  if (timestamp.seconds) return timestamp.seconds * 1000;
-  return new Date(timestamp).getTime() || 0;
-}
 
 function paymentLabel(order) {
   return order.paymentMethod === 'card' ? 'بطاقة' : 'نقداً';
 }
 
-function nextStatus(status) {
-  if (status === 'pending') return { key: 'preparing', label: 'تحضير', icon: IoFastFoodOutline };
-  if (status === 'preparing') return { key: 'accepted_by_driver', label: 'جاهز', icon: IoCheckmarkCircleOutline };
-  if (status === 'accepted_by_driver' || status === 'on_the_way') return { key: 'delivered', label: 'تسليم', icon: IoCarOutline };
+function displayStatus(order) {
+  if (order.status === 'delivered') return 'delivered';
+  if (order.status === 'cancelled') return 'cancelled';
+  if (order.workerReady) return 'ready';
+  if (order.status === 'preparing') return 'preparing';
+  return 'pending';
+}
+
+function nextAction(order) {
+  const s = displayStatus(order);
+  if (s === 'ready') return { key: 'delivered', label: 'تسليم', icon: IoCarOutline };
   return null;
 }
 
 export default function AdminOrders() {
   const { userData } = useAuth();
   const [orders, setOrders] = useState([]);
-  const [drivers, setDrivers] = useState([]);
-  const [tables, setTables] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -103,51 +97,28 @@ export default function AdminOrders() {
     return () => unsub();
   }, []);
 
-  // تحميل السائقين والطاولات والمنتجات (مرة واحدة + اشتراك realtime للطاولات)
   useEffect(() => {
     (async () => {
-      try {
-        const q = query(collection(db, 'users'), where('role', '==', 'driver'));
-        const snap = await getDocs(q);
-        setDrivers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        console.error('load drivers error:', err);
-      }
       try {
         setProducts(await getAllProducts());
       } catch (err) {
         console.error('load products error:', err);
       }
     })();
-    const unsub = subscribeToTables(setTables);
-    return () => unsub();
   }, []);
 
-  // عدد الطلبات النشطة لكل طاولة
-  const ordersByTable = useMemo(() => {
-    const map = {};
-    for (const o of orders) {
-      if (['delivered', 'cancelled'].includes(o.status)) continue;
-      const n = o.tableNumber ? Number(o.tableNumber) : null;
-      if (n) (map[n] ||= []).push(o);
-    }
-    return map;
-  }, [orders]);
-
-  async function handleConfirmRouting({ destination, driverData, tableNumber }) {
+  async function handleConfirmRouting({ destination }) {
     if (!routingOrder) return;
     try {
-      await routeOrder(routingOrder.id, {
+      await confirmOrder(routingOrder.id, {
         destination,
-        driverData,
-        tableNumber,
         adminUid: userData?.uid,
       });
-      toast.success('تم توجيه الطلب');
+      toast.success('تم تأكيد الطلب');
       setRoutingOrder(null);
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'تعذّر توجيه الطلب');
+      toast.error(err.message || 'تعذّر تأكيد الطلب');
     }
   }
 
@@ -198,7 +169,7 @@ export default function AdminOrders() {
   const filteredOrders = useMemo(() => {
     const value = search.trim().toLowerCase();
     return orders.filter(order => {
-      if (filter !== 'all' && order.status !== filter) return false;
+      if (filter !== 'all' && displayStatus(order) !== filter) return false;
       if (!value) return true;
       return order.id?.toLowerCase().includes(value)
         || order.customerName?.toLowerCase().includes(value)
@@ -208,19 +179,18 @@ export default function AdminOrders() {
 
   const counts = useMemo(() => ({
     all: orders.length,
-    pending: orders.filter(order => order.status === 'pending').length,
-    preparing: orders.filter(order => order.status === 'preparing').length,
-    accepted_by_driver: orders.filter(order => order.status === 'accepted_by_driver').length,
-    on_the_way: orders.filter(order => order.status === 'on_the_way').length,
-    delivered: orders.filter(order => order.status === 'delivered').length,
-    cancelled: orders.filter(order => order.status === 'cancelled').length,
-    today: orders.filter(order => isToday(order.createdAt)).length,
+    pending: orders.filter(o => displayStatus(o) === 'pending').length,
+    preparing: orders.filter(o => displayStatus(o) === 'preparing').length,
+    ready: orders.filter(o => displayStatus(o) === 'ready').length,
+    delivered: orders.filter(o => displayStatus(o) === 'delivered').length,
+    cancelled: orders.filter(o => displayStatus(o) === 'cancelled').length,
+    today: orders.filter(o => isToday(o.createdAt)).length,
   }), [orders]);
 
   const summaryCards = [
-    { label: 'طلبات اليوم', value: counts.today, icon: IoDocumentTextOutline, hint: 'عن أمس' },
+    { label: 'طلبات اليوم', value: counts.today, icon: IoDocumentTextOutline, hint: 'كل الأنواع' },
     { label: 'قيد التحضير', value: counts.preparing, icon: IoFastFoodOutline, hint: 'نشطة الآن' },
-    { label: 'جاهزة للتسليم', value: counts.accepted_by_driver + counts.on_the_way, icon: IoCheckmarkCircleOutline, hint: 'تحتاج سائق' },
+    { label: 'جاهزة', value: counts.ready, icon: IoCheckmarkCircleOutline, hint: 'بانتظار التسليم' },
     { label: 'تم التسليم', value: counts.delivered, icon: IoCarOutline, hint: 'مكتملة' },
   ];
 
@@ -269,7 +239,7 @@ export default function AdminOrders() {
         </section>
 
         <section className="mb-4 grid grid-cols-5 gap-2 sm:gap-3">
-          {['all', 'pending', 'preparing', 'accepted_by_driver', 'delivered'].map(key => {
+          {['all', 'pending', 'preparing', 'ready', 'delivered'].map(key => {
             const config = statusConfig[key];
             const Icon = config.icon;
             const active = filter === key;
@@ -319,8 +289,10 @@ export default function AdminOrders() {
           ) : (
             <div className="space-y-3">
               {filteredOrders.map(order => {
-                const config = statusConfig[order.status] || statusConfig.pending;
-                const ActionIcon = nextStatus(order.status)?.icon;
+                const ds = displayStatus(order);
+                const config = statusConfig[ds] || statusConfig.pending;
+                const action = nextAction(order);
+                const ActionIcon = action?.icon;
                 return (
                   <article key={order.id} className="admin-glass p-3.5">
                     <div className="grid gap-3 lg:grid-cols-[1.1fr_1.25fr_1fr_1.1fr] lg:items-center">
@@ -337,6 +309,9 @@ export default function AdminOrders() {
                             {config.label}
                             <config.icon size={18} />
                           </span>
+                          <p className="mt-2 text-[11px] font-bold text-omega-text-muted">
+                            {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
+                          </p>
                         </div>
                       </div>
 
@@ -376,22 +351,22 @@ export default function AdminOrders() {
                           >
                             <IoEyeOutline size={22} />
                           </button>
-                          {order.status === 'pending' ? (
+                          {ds === 'pending' ? (
                             <button
                               type="button"
                               onClick={() => setRoutingOrder(order)}
                               className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-omega-orange/40 bg-omega-orange/15 px-3 text-omega-orange text-sm font-black transition-transform active:scale-95"
-                              aria-label="توجيه الطلب"
+                              aria-label="تأكيد الطلب"
                             >
                               <IoNavigateCircleOutline size={20} />
-                              توجيه
+                              تأكيد
                             </button>
-                          ) : ActionIcon ? (
+                          ) : action ? (
                             <button
                               type="button"
-                              onClick={() => handleStatusChange(order.id, nextStatus(order.status).key)}
+                              onClick={() => handleStatusChange(order.id, action.key)}
                               className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-transform active:scale-95"
-                              aria-label={nextStatus(order.status).label}
+                              aria-label={action.label}
                             >
                               <ActionIcon size={21} />
                             </button>
@@ -413,9 +388,6 @@ export default function AdminOrders() {
       {routingOrder && (
         <RoutingModal
           order={routingOrder}
-          drivers={drivers}
-          tables={tables}
-          ordersByTable={ordersByTable}
           onClose={() => setRoutingOrder(null)}
           onConfirm={handleConfirmRouting}
         />
@@ -424,9 +396,6 @@ export default function AdminOrders() {
       {showNewOrder && (
         <NewOrderModal
           products={products}
-          drivers={drivers}
-          tables={tables}
-          ordersByTable={ordersByTable}
           onClose={() => setShowNewOrder(false)}
           onSubmit={handleCreateAdminOrder}
         />
@@ -457,12 +426,18 @@ export default function AdminOrders() {
                 </div>
                 <p className="text-right text-white">{selected.customerName}</p>
                 <p className="mt-1 text-right text-omega-text-muted" dir="ltr">{selected.customerPhone}</p>
-                {selected.customerAddress && (
+                <p className="mt-2 text-right text-sm text-omega-text-muted">
+                  {selected.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
+                </p>
+                {selected.isDelivery && selected.customerAddress && (
                   <p className="mt-2 flex items-start justify-end gap-2 text-right text-sm text-omega-text-muted">
                     {selected.customerAddress}
                     <IoLocationOutline className="mt-1 shrink-0" />
                   </p>
                 )}
+                {selected.customerNote ? (
+                  <p className="mt-2 text-right text-sm text-omega-text-muted">📝 {selected.customerNote}</p>
+                ) : null}
               </div>
 
               <div className="admin-control rounded-[1.25rem] p-4">
@@ -496,7 +471,7 @@ export default function AdminOrders() {
               <div className="admin-control rounded-[1.25rem] p-4">
                 <h4 className="mb-3 text-right font-black text-white">تغيير الحالة</h4>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {['pending', 'preparing', 'accepted_by_driver', 'on_the_way', 'delivered', 'cancelled'].map(status => {
+                  {['pending', 'preparing', 'delivered', 'cancelled'].map(status => {
                     const config = statusConfig[status];
                     const active = selected.status === status;
                     return (
@@ -525,150 +500,45 @@ export default function AdminOrders() {
   );
 }
 
-/* ─── Routing Modal ─────────────────────────────────────── */
-function DestinationPicker({ destination, setDestination, drivers, tables, ordersByTable, driverId, setDriverId, tableNumber, setTableNumber }) {
+/* ─── Destination Picker (Table vs Delivery only) ───────── */
+function DestinationPicker({ destination, setDestination }) {
   return (
-    <>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setDestination('table')}
-          className={`rounded-xl p-3 text-sm font-black border transition-all ${
-            destination === 'table'
-              ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
-              : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
-          }`}
-        >
-          <IoRestaurantOutline className="inline ml-1" size={18} />
-          طاولة (داخل المطعم)
-        </button>
-        <button
-          type="button"
-          onClick={() => setDestination('driver')}
-          className={`rounded-xl p-3 text-sm font-black border transition-all ${
-            destination === 'driver'
-              ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
-              : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
-          }`}
-        >
-          <IoCarOutline className="inline ml-1" size={18} />
-          سائق (توصيل)
-        </button>
-      </div>
-
-      {destination === 'driver' && (
-        <div className="mt-3">
-          <label className="text-omega-text-muted text-xs font-bold mb-1.5 block text-right">
-            اختر السائق
-          </label>
-          {drivers.length === 0 ? (
-            <p className="text-omega-text-dim text-sm text-right py-3">
-              لا يوجد سائقون مسجّلون
-            </p>
-          ) : (
-            <div className="space-y-1.5 max-h-52 overflow-y-auto">
-              {drivers.map((d) => {
-                const active = driverId === d.id;
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setDriverId(d.id)}
-                    className={`w-full flex items-center justify-between gap-2 rounded-xl p-3 text-right border transition-all ${
-                      active
-                        ? 'bg-omega-orange/15 border-omega-orange/50'
-                        : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {active && <IoCheckmarkCircleOutline className="text-omega-orange" size={20} />}
-                      <span className="text-omega-text-muted text-xs" dir="ltr">{d.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <p className="text-white font-bold text-sm">{d.name}</p>
-                      </div>
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-omega-orange to-omega-red flex items-center justify-center text-white font-black text-sm">
-                        {d.name?.[0] || 'س'}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {destination === 'table' && (
-        <div className="mt-3">
-          <label className="text-omega-text-muted text-xs font-bold mb-1.5 block text-right">
-            اختر الطاولة
-          </label>
-          {tables.filter(t => t.active !== false).length === 0 ? (
-            <p className="text-omega-text-dim text-sm text-right py-3">
-              لا توجد طاولات نشطة
-            </p>
-          ) : (
-            <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto">
-              {tables.filter(t => t.active !== false).map((t) => {
-                const occupied = (ordersByTable[Number(t.number)] || []).length > 0;
-                const active = tableNumber === t.number;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTableNumber(t.number)}
-                    className={`relative rounded-xl p-2 border-2 transition-all ${
-                      active
-                        ? 'border-omega-orange bg-omega-orange/15'
-                        : occupied
-                        ? 'border-yellow-500/40 bg-yellow-500/[0.06] hover:border-yellow-500/60'
-                        : 'border-emerald-500/30 bg-emerald-500/[0.04] hover:border-emerald-500/50'
-                    }`}
-                    title={occupied ? 'مشغولة بطلب نشط' : 'متاحة'}
-                  >
-                    <div className={`w-full h-10 rounded-lg flex items-center justify-center text-lg font-black ${
-                      active ? 'bg-omega-orange text-white' : occupied ? 'bg-yellow-500/20 text-yellow-300' : 'bg-emerald-500/20 text-emerald-300'
-                    }`}>
-                      {t.number}
-                    </div>
-                    <p className="text-[10px] text-omega-text-muted mt-1 truncate">
-                      {occupied ? `🔥 ${(ordersByTable[Number(t.number)] || []).length}` : 'متاحة'}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </>
+    <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() => setDestination('table')}
+        className={`rounded-xl p-4 text-sm font-black border transition-all ${
+          destination === 'table'
+            ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
+            : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
+        }`}
+      >
+        <IoRestaurantOutline className="mx-auto mb-1.5" size={24} />
+        طلب طاولة (داخل المطعم)
+      </button>
+      <button
+        type="button"
+        onClick={() => setDestination('delivery')}
+        className={`rounded-xl p-4 text-sm font-black border transition-all ${
+          destination === 'delivery'
+            ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
+            : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
+        }`}
+      >
+        <IoCarOutline className="mx-auto mb-1.5" size={24} />
+        طلب توصيل
+      </button>
+    </div>
   );
 }
 
-function RoutingModal({ order, drivers, tables, ordersByTable, onClose, onConfirm }) {
-  const [destination, setDestination] = useState(order.isDelivery ? 'driver' : 'table');
-  const [driverId, setDriverId] = useState(order.assignedDriverId || null);
-  const [tableNumber, setTableNumber] = useState(order.tableNumber || null);
+function RoutingModal({ order, onClose, onConfirm }) {
+  const [destination, setDestination] = useState(order.isDelivery ? 'delivery' : 'table');
   const [submitting, setSubmitting] = useState(false);
 
   const handleConfirm = async () => {
-    if (destination === 'driver' && !driverId) {
-      toast.error('اختر سائقاً');
-      return;
-    }
-    if (destination === 'table' && !tableNumber) {
-      toast.error('اختر طاولة');
-      return;
-    }
     setSubmitting(true);
-    const driverData = drivers.find(d => d.id === driverId);
-    await onConfirm({
-      destination,
-      driverData: driverData ? { uid: driverData.id, name: driverData.name, phone: driverData.phone } : null,
-      tableNumber,
-    });
+    await onConfirm({ destination });
     setSubmitting(false);
   };
 
@@ -685,7 +555,7 @@ function RoutingModal({ order, drivers, tables, ordersByTable, onClose, onConfir
             <IoClose size={18} />
           </button>
           <div className="text-right">
-            <h2 className="text-white text-lg font-black">توجيه الطلب #{order.id?.slice(-4)}</h2>
+            <h2 className="text-white text-lg font-black">تأكيد الطلب #{order.id?.slice(-4)}</h2>
             <p className="text-omega-text-muted text-xs mt-0.5">
               {order.customerName} • {formatCurrency(order.totalPrice)}
             </p>
@@ -695,13 +565,6 @@ function RoutingModal({ order, drivers, tables, ordersByTable, onClose, onConfir
         <DestinationPicker
           destination={destination}
           setDestination={setDestination}
-          drivers={drivers}
-          tables={tables}
-          ordersByTable={ordersByTable}
-          driverId={driverId}
-          setDriverId={setDriverId}
-          tableNumber={tableNumber}
-          setTableNumber={setTableNumber}
         />
 
         <button
@@ -710,7 +573,7 @@ function RoutingModal({ order, drivers, tables, ordersByTable, onClose, onConfir
           disabled={submitting}
           className="mt-5 w-full rounded-xl bg-gradient-to-l from-omega-orange to-omega-red py-3 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-60 active:scale-[0.98]"
         >
-          {submitting ? '...جاري التأكيد' : 'تأكيد التوجيه'}
+          {submitting ? '...جاري التأكيد' : 'إرسال للمطبخ'}
         </button>
       </div>
     </div>
@@ -718,15 +581,13 @@ function RoutingModal({ order, drivers, tables, ordersByTable, onClose, onConfir
 }
 
 /* ─── New Walk-in Order Modal ───────────────────────────── */
-function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSubmit }) {
-  const [step, setStep] = useState(1); // 1: items, 2: destination
-  const [cart, setCart] = useState({}); // { productId: quantity }
+function NewOrderModal({ products, onClose, onSubmit }) {
+  const [step, setStep] = useState(1);
+  const [cart, setCart] = useState({});
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [destination, setDestination] = useState('table');
-  const [driverId, setDriverId] = useState(null);
-  const [tableNumber, setTableNumber] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchProd, setSearchProd] = useState('');
 
@@ -759,14 +620,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
       toast.error('أضف منتجات أولاً');
       return;
     }
-    if (destination === 'driver' && !driverId) {
-      toast.error('اختر سائقاً');
-      return;
-    }
-    if (destination === 'table' && !tableNumber) {
-      toast.error('اختر طاولة');
-      return;
-    }
     setSubmitting(true);
     const items = cartEntries.map(({ product, quantity }) => ({
       productId: product.id,
@@ -777,18 +630,14 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
       category: product.category || '',
       quantity,
     }));
-    const driverData = drivers.find(d => d.id === driverId);
     const payload = {
       items,
       totalPrice,
       customerName: customerName || 'زبون داخل المطعم',
       customerPhone: customerPhone || '',
       customerNote,
-      isDelivery: destination === 'driver',
-      tableNumber: destination === 'table' ? Number(tableNumber) : null,
-      assignedDriverId: destination === 'driver' ? driverData?.id || null : null,
-      assignedDriverName: destination === 'driver' ? driverData?.name || '' : null,
-      assignedDriverPhone: destination === 'driver' ? driverData?.phone || '' : null,
+      isDelivery: destination === 'delivery',
+      orderType: destination,
     };
     await onSubmit(payload);
     setSubmitting(false);
@@ -814,7 +663,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
           </div>
         </div>
 
-        {/* progress */}
         <div className="flex gap-2 mb-4">
           <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-omega-orange' : 'bg-white/10'}`} />
           <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-omega-orange' : 'bg-white/10'}`} />
@@ -822,7 +670,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
 
         {step === 1 ? (
           <>
-            {/* Search products */}
             <label className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2 mb-3">
               <IoSearch className="text-omega-text-muted" size={18} />
               <input
@@ -883,7 +730,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
               )}
             </div>
 
-            {/* customer info */}
             <div className="grid grid-cols-2 gap-2 mb-3">
               <input
                 type="text"
@@ -909,7 +755,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
               className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right resize-none mb-3"
             />
 
-            {/* Summary */}
             {itemsCount > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-3 mb-3">
                 <span className="text-omega-orange font-black text-lg">
@@ -925,7 +770,7 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
               disabled={!canGoNext}
               className="w-full rounded-xl bg-gradient-to-l from-omega-orange to-omega-red py-3 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-50 active:scale-[0.98]"
             >
-              التالي — اختيار الوجهة
+              التالي — اختيار نوع الطلب
             </button>
           </>
         ) : (
@@ -938,13 +783,6 @@ function NewOrderModal({ products, drivers, tables, ordersByTable, onClose, onSu
             <DestinationPicker
               destination={destination}
               setDestination={setDestination}
-              drivers={drivers}
-              tables={tables}
-              ordersByTable={ordersByTable}
-              driverId={driverId}
-              setDriverId={setDriverId}
-              tableNumber={tableNumber}
-              setTableNumber={setTableNumber}
             />
 
             <div className="mt-5 grid grid-cols-2 gap-2">

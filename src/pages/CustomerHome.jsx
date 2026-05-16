@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getCountFromServer, query, where } from 'firebase/firestore';
 import { getAllProducts } from '../services/productService';
-import { db } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getStatusMessage } from '../utils/businessHours';
+import { getTrackedOrderIds } from '../utils/guestStorage';
 import CustomerNav from '../components/CustomerNav';
 import TransparentImg from '../components/TransparentImg';
 import {
@@ -229,7 +227,6 @@ export default function CustomerHome() {
   const [cart, setCart]             = useState(getCart);
   const [ordersCount, setOrdersCount] = useState(0);
   const [heroIdx, setHeroIdx]       = useState(0);
-  const { userData }                = useAuth();
   const navigate                    = useNavigate();
   const businessStatus              = getStatusMessage();
   const searchRef                   = useRef(null);
@@ -242,13 +239,10 @@ export default function CustomerHome() {
       .finally(() => setLoading(false));
   }, []);
 
-  /* orders count */
+  /* عدد الطلبات المتتبَّعة محلياً */
   useEffect(() => {
-    if (!userData?.uid) return;
-    getCountFromServer(query(collection(db, 'orders'), where('customerId', '==', userData.uid)))
-      .then(s => setOrdersCount(s.data().count))
-      .catch(() => {});
-  }, [userData?.uid]);
+    setOrdersCount(getTrackedOrderIds().length);
+  }, []);
 
   /* filtered */
   const filtered = useMemo(() => {

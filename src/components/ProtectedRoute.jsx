@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 
-// مكون حماية الصفحات حسب الدور
+// حماية مسارات الإدارة والمطبخ فقط — الزبائن لا يحتاجون تسجيل دخول.
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, userData, loading, logout } = useAuth();
 
@@ -27,7 +27,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
           <div className="text-5xl mb-4">⚠️</div>
           <h3 className="text-white font-bold mb-2">خطأ في تحميل البيانات</h3>
           <p className="text-omega-text-muted text-sm mb-6">
-            لم نتمكن من جلب بيانات حسابك. قد يكون هذا بسبب إعدادات الصلاحيات (Firestore Rules) أو عدم تفعيل المصادقة في Firebase.
+            لم نتمكن من جلب بيانات حسابك. تحقّق من إعدادات Firestore Rules أو تفعيل المصادقة في Firebase.
           </p>
           <button
             onClick={async () => {
@@ -49,9 +49,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (allowedRoles && !allowedRoles.includes(userData.role)) {
-    // إعادة التوجيه حسب الدور
     if (userData.role === 'admin') return <Navigate to="/admin" replace />;
-    if (userData.role === 'driver') return <Navigate to="/driver" replace />;
     if (userData.role === 'worker') return <Navigate to="/worker" replace />;
     return <Navigate to="/" replace />;
   }

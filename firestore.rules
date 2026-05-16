@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // دالة مساعدة لجلب دور المستخدم الحالي
     function myRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
@@ -11,54 +10,53 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // ===== مجموعة المستخدمين =====
+    function isStaff() {
+      return isSignedIn() && (myRole() == 'admin' || myRole() == 'worker');
+    }
+
+    // ===== المستخدمون (الإدارة والمطبخ فقط) =====
     match /users/{userId} {
-      // الأدمن: قراءة كاملة لكل المستخدمين (للذكاء الاصطناعي والتقارير)
       allow read: if isSignedIn() && myRole() == 'admin';
-      // كل مستخدم موثّق يقرأ ويكتب بياناته الخاصة فقط
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // ===== مجموعة الطلبات =====
+    // ===== الطلبات =====
     match /orders/{orderId} {
-      // الإدارة: صلاحية كاملة
-      allow read, write: if isSignedIn() && myRole() == 'admin';
+      // إنشاء وقراءة الطلب بمعرفه: متاح للجميع (الزبون بدون تسجيل دخول)
+      allow create: if true;
+      allow get: if true;
 
-      // الزبون: يقرأ طلباته فقط، وينشئ طلبات جديدة
-      allow read: if isSignedIn() && myRole() == 'customer'
-                    && resource.data.customerId == request.auth.uid;
-      allow create: if isSignedIn() && myRole() == 'customer';
+      // قائمة الطلبات (الاستعلامات): للإدارة والمطبخ فقط
+      allow list: if isStaff();
 
-      // السائق: يقرأ الطلبات المتاحة ويُحدّث طلباته
-      allow read: if isSignedIn() && myRole() == 'driver';
-      allow update: if isSignedIn() && myRole() == 'driver';
+      // التحديث: الإدارة تتحكم كاملاً
+      allow update: if isSignedIn() && myRole() == 'admin';
 
-      // العامل: يقرأ الطلبات قيد التحضير ويُحدّث حقول العامل فقط (started/ready/archived)
-      allow read: if isSignedIn() && myRole() == 'worker';
+      // المطبخ يستطيع تعديل حقول العامل وحالة الأصناف فقط
       allow update: if isSignedIn() && myRole() == 'worker'
                     && request.resource.data.diff(resource.data)
                          .affectedKeys().hasOnly([
                            'workerReady', 'workerReadyAt',
                            'workerStarted', 'workerStartedAt',
-                           'workerArchived', 'workerArchivedAt'
+                           'workerArchived', 'workerArchivedAt',
+                           'itemStatuses'
                          ]);
+
+      allow delete: if isSignedIn() && myRole() == 'admin';
     }
 
-    // ===== مجموعة المنتجات =====
+    // ===== المنتجات =====
     match /products/{productId} {
-      // الجميع يستطيع قراءة المنتجات (سائق، عامل، زبون، إدارة)
-      allow read: if isSignedIn();
-      // إنشاء/حذف: للإدارة فقط
+      // قراءة عامة لكي يستعرض الزبون المنيو بدون تسجيل دخول
+      allow read: if true;
       allow create, delete: if isSignedIn() && myRole() == 'admin';
-      // تحديث: الإدارة كاملاً، وأي مستخدم موثّق على حقول soldCount و updatedAt فقط
-      // (يسمح بتحديث عدّاد المبيعات عند إنشاء طلب من قبل الزبون)
-      allow update: if isSignedIn() && (
-        myRole() == 'admin' ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['soldCount', 'updatedAt'])
-      );
+      // تحديث: الإدارة كاملاً، وأي طرف على حقل soldCount/updatedAt فقط
+      // (يسمح بتحديث عدّاد المبيعات من قبل الزبائن الضيوف)
+      allow update: if (isSignedIn() && myRole() == 'admin') ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['soldCount', 'updatedAt']);
     }
 
-    // ===== المخزون والمكونات =====
+    // ===== المخزون والمكوّنات =====
     match /inventory_movements/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
     }
@@ -78,14 +76,6 @@ service cloud.firestore {
 
     match /ai_settings/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
-    }
-
-    // ===== الطاولات =====
-    match /tables/{tableId} {
-      // الكتابة للإدارة فقط
-      allow write: if isSignedIn() && myRole() == 'admin';
-      // القراءة لكل المستخدمين الموثّقين (المطبخ والعامل والزبون والإدارة)
-      allow read: if isSignedIn();
     }
   }
 }

@@ -1,38 +1,42 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { createOrder } from '../services/orderService';
 import { formatCurrency } from '../utils/formatCurrency';
+import {
+  getGuestId,
+  getCustomerInfo,
+  saveCustomerInfo,
+  addTrackedOrderId,
+} from '../utils/guestStorage';
 import CustomerNav from '../components/CustomerNav';
 import {
   IoArrowForward, IoCheckmarkCircle, IoLocationOutline,
   IoCallOutline, IoChatbubbleEllipsesOutline, IoBagHandleOutline,
-  IoPersonOutline, IoChevronBack, IoReceiptOutline
+  IoPersonOutline, IoChevronBack, IoReceiptOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
 function getCart() { try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; } }
 function clearCart() { localStorage.setItem('omega_cart', '[]'); }
 
-const categoryEmoji = (cat) =>
-  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : '🥤';
-
 export default function Checkout() {
-  const { userData } = useAuth();
   const navigate = useNavigate();
+  const savedInfo = getCustomerInfo();
   const [form, setForm] = useState({
-    customerName: userData?.name || '',
-    customerPhone: userData?.phone || '',
-    customerAddress: '',
+    customerName: savedInfo.name || '',
+    customerPhone: savedInfo.phone || '',
+    customerAddress: savedInfo.address || '',
     customerNote: '',
   });
   const [loading, setLoading] = useState(false);
   const [orderCreated, setOrderCreated] = useState(null);
-  const [isDelivery, setIsDelivery] = useState(true);
+  // طلب طاولة (داخل المطعم) أو توصيل
+  const [orderType, setOrderType] = useState('delivery');
 
   const cart = getCart();
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const isDelivery = orderType === 'delivery';
   const deliveryFee = isDelivery ? 150 : 0;
   const finalTotal = total + deliveryFee;
 
@@ -40,22 +44,35 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.customerName?.trim()) { toast.error('يرجى إدخال الاسم'); return; }
     if (!form.customerPhone?.trim()) { toast.error('يرجى إدخال رقم الهاتف'); return; }
     if (isDelivery && !form.customerAddress?.trim()) { toast.error('يرجى إدخال عنوان التوصيل'); return; }
     if (cart.length === 0) { toast.error('السلة فارغة'); return; }
+
     setLoading(true);
     try {
       const orderId = await createOrder({
-        customerId: userData.uid,
+        customerId: getGuestId(),
         customerName: form.customerName,
         customerPhone: form.customerPhone,
-        customerAddress: isDelivery ? form.customerAddress : 'استلام من المطعم',
+        customerAddress: isDelivery ? form.customerAddress : 'داخل المطعم',
         customerNote: form.customerNote,
         items: cart,
         totalPrice: finalTotal,
-        isDelivery,
+        orderType,
         deliveryFee,
       });
+
+      // حفظ معلومات الزبون للاستخدام لاحقاً
+      saveCustomerInfo({
+        name: form.customerName,
+        phone: form.customerPhone,
+        address: form.customerAddress,
+      });
+
+      // تخزين الطلب محلياً لتتبعه لاحقاً
+      addTrackedOrderId(orderId);
+
       clearCart();
       setOrderCreated(orderId);
       toast.success('تم إرسال طلبك بنجاح!');
@@ -80,7 +97,7 @@ export default function Checkout() {
           <h2 className="text-3xl font-black text-white mb-2">تم إرسال طلبك! 🎉</h2>
           <p className="text-omega-text-muted text-sm mb-1">رقم الطلب</p>
           <p className="gradient-text text-2xl font-black mb-4">#{orderCreated.slice(-6).toUpperCase()}</p>
-          <p className="text-omega-text-muted text-sm mb-6">سيتم إعلامك عندما يقبل السائق طلبك</p>
+          <p className="text-omega-text-muted text-sm mb-6">احتفظ برقم الطلب لتتبّع حالة التحضير</p>
           <div className="space-y-2">
             <button onClick={() => navigate(`/track/${orderCreated}`)}
               className="btn-primary w-full">
@@ -123,7 +140,6 @@ export default function Checkout() {
             <span className="text-omega-text-muted text-xs">{itemCount} منتج</span>
           </div>
 
-          {/* Items */}
           <div className="space-y-2.5 mb-4">
             {cart.map(item => (
               <div key={item.productId} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
@@ -144,7 +160,6 @@ export default function Checkout() {
             ))}
           </div>
 
-          {/* Total */}
           <div className="space-y-2 mt-4 pt-3 border-t border-white/10">
             <div className="flex items-center justify-between text-sm text-white/70">
               <span>المجموع</span>
@@ -163,45 +178,43 @@ export default function Checkout() {
           </div>
         </div>
 
-        {/* ===== Delivery Option ===== */}
+        {/* ===== Order Type ===== */}
         <div className="rounded-xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-4 animate-fade-in" style={{ animationDelay: '40ms' }}>
-          <h3 className="text-white font-black text-base mb-3">طريقة الاستلام</h3>
+          <h3 className="text-white font-black text-base mb-3">نوع الطلب</h3>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setIsDelivery(true)}
+              onClick={() => setOrderType('delivery')}
               className={`py-3 rounded-xl font-bold transition-all ${isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
             >
               🚗 توصيل (150 د.ج)
             </button>
             <button
-              onClick={() => setIsDelivery(false)}
+              onClick={() => setOrderType('table')}
               className={`py-3 rounded-xl font-bold transition-all ${!isDelivery ? 'bg-omega-orange text-white ring-2 ring-omega-orange/50 shadow-lg shadow-omega-orange/20' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
             >
-              🏪 استلام من المطعم
+              🍽️ في المطعم
             </button>
           </div>
         </div>
 
-        {/* ===== Delivery info ===== */}
+        {/* ===== Customer info ===== */}
         <form onSubmit={handleSubmit}
           className="rounded-xl bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/10 backdrop-blur p-4 space-y-3.5 animate-fade-in"
           style={{ animationDelay: '80ms' }}
         >
           <h3 className="text-white font-black text-base flex items-center gap-2 mb-1">
-            <IoLocationOutline className="text-omega-orange" size={18} /> معلومات التوصيل
+            <IoLocationOutline className="text-omega-orange" size={18} /> معلومات الاتصال
           </h3>
 
-          {/* Name */}
           <div>
             <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
-              <IoPersonOutline size={13} /> الاسم
+              <IoPersonOutline size={13} /> الاسم *
             </label>
             <input type="text" name="customerName" value={form.customerName} onChange={handleChange}
               placeholder="اسمك"
               className="w-full px-4 py-3.5 rounded-2xl bg-omega-dark/60 border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/50 focus:bg-omega-dark/80 transition-all" />
           </div>
 
-          {/* Phone */}
           <div>
             <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
               <IoCallOutline size={13} /> رقم الهاتف *
@@ -211,7 +224,6 @@ export default function Checkout() {
               className="w-full px-4 py-3.5 rounded-2xl bg-omega-dark/60 border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/50 focus:bg-omega-dark/80 transition-all" />
           </div>
 
-          {/* Address */}
           {isDelivery && (
             <div>
               <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
@@ -220,14 +232,13 @@ export default function Checkout() {
               <input type="text" name="customerAddress" value={form.customerAddress} onChange={handleChange}
                 placeholder="الحي، الشارع، رقم العمارة..."
                 className="w-full px-4 py-3.5 rounded-2xl bg-omega-dark/60 border border-white/10 text-white text-sm placeholder-omega-text-dim focus:outline-none focus:border-omega-orange/50 focus:bg-omega-dark/80 transition-all" />
-              <p className="text-omega-text-dim text-[10px] mt-1.5 mr-1">كن دقيقاً ليصل السائق بسرعة</p>
+              <p className="text-omega-text-dim text-[10px] mt-1.5 mr-1">كن دقيقاً ليصل الطلب بسرعة</p>
             </div>
           )}
 
-          {/* Note */}
           <div>
             <label className="text-omega-text-muted text-[12px] block mb-1.5 mr-1 flex items-center gap-1.5">
-              <IoChatbubbleEllipsesOutline size={13} /> ملاحظة للطباخ أو السائق (اختياري)
+              <IoChatbubbleEllipsesOutline size={13} /> ملاحظة (اختياري)
             </label>
             <textarea name="customerNote" value={form.customerNote} onChange={handleChange} rows="2"
               placeholder="مثال: بدون بصل، الطابق الثالث..."
@@ -236,7 +247,6 @@ export default function Checkout() {
         </form>
       </div>
 
-      {/* Fixed bottom CTA */}
       <div className="fixed bottom-24 left-3 right-3 z-40 max-w-lg mx-auto">
         <div className="bg-omega-dark/95 backdrop-blur-2xl border border-white/10 rounded-xl p-2 flex items-center gap-2 shadow-2xl shadow-black/80">
           <div className="flex items-center gap-2 px-3">

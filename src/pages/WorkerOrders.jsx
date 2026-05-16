@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   subscribeToWorkerOrders,
-  markWorkerOrderReady,
-  markWorkerStartPreparing,
+  setItemStatus,
   archiveWorkerOrder,
   archiveAllReadyOrders,
 } from '../services/orderService';
-import { subscribeToTables } from '../services/tableService';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { timeAgo } from '../utils/formatDate';
 import WorkerSidebar from '../components/WorkerSidebar';
@@ -19,23 +17,26 @@ import {
   IoDocumentTextOutline,
   IoCallOutline,
   IoLocationOutline,
-  IoBicycleOutline,
   IoFlame,
   IoCheckmarkCircle,
   IoVolumeHighOutline,
   IoVolumeMuteOutline,
   IoTrashOutline,
+  IoArrowUndoOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
-const categoryEmoji = {
-  pizza: '🍕',
-  burger: '🍔',
-  tacos: '🌮',
-  drinks: '🥤',
-  appetizers: '🍟',
-  desserts: '🍰',
-};
+// أقسام المطبخ — كل قسم له اسم وأيقونة ولون
+const CATEGORIES = [
+  { id: 'pizza',      label: 'بيتزا',   emoji: '🍕', tone: 'red'    },
+  { id: 'tacos',      label: 'تاكوس',   emoji: '🌮', tone: 'orange' },
+  { id: 'burger',     label: 'برغر',    emoji: '🍔', tone: 'yellow' },
+  { id: 'appetizers', label: 'مقبلات',  emoji: '🍟', tone: 'pink'   },
+  { id: 'drinks',     label: 'مشروبات', emoji: '🥤', tone: 'blue'   },
+  { id: 'desserts',   label: 'حلويات',  emoji: '🍰', tone: 'red'    },
+];
+
+const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
 
 function fmtClock(d = new Date()) {
   return d.toLocaleTimeString('ar-EG', {
@@ -46,9 +47,13 @@ function fmtClock(d = new Date()) {
   });
 }
 
+function categoryFromItem(item) {
+  const cat = (item.category || '').toLowerCase();
+  return CATEGORY_MAP[cat] ? cat : 'appetizers';
+}
+
 export default function WorkerOrders() {
   const [orders, setOrders] = useState([]);
-  const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(null);
   const [activeTab, setActiveTab] = useState('orders');
@@ -62,13 +67,12 @@ export default function WorkerOrders() {
     return () => clearInterval(t);
   }, []);
 
-  /* orders + tables subscriptions */
+  /* orders subscription */
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 6000);
 
     const unsubOrders = subscribeToWorkerOrders((data) => {
       clearTimeout(timeout);
-      // فلترة الطلبات المؤرشفة (المحذوفة من واجهة المطبخ)
       const visible = data.filter((o) => !o.workerArchived);
       setOrders(visible);
       setLoading(false);
@@ -83,41 +87,63 @@ export default function WorkerOrders() {
       }
       previousCountRef.current = visible.length;
     });
-    const unsubTables = subscribeToTables(setTables);
 
     return () => {
       clearTimeout(timeout);
       unsubOrders();
-      unsubTables();
     };
   }, [soundOn]);
 
-  /* derive */
-  const tableOrders = useMemo(
-    () => orders.filter((o) => o.tableNumber),
-    [orders]
-  );
-  const deliveryOrders = useMemo(
-    () => orders.filter((o) => !o.tableNumber),
-    [orders]
-  );
-
-  const counts = useMemo(() => {
-    const newCount = orders.filter((o) => !o.workerStarted && !o.workerReady).length;
-    const preparingCount = orders.filter((o) => o.workerStarted && !o.workerReady).length;
-    const readyCount = orders.filter((o) => o.workerReady).length;
-    return {
-      total: orders.length,
-      preparing: preparingCount,
-      ready: readyCount,
-      new: newCount,
-    };
+  /* derive item-level cards grouped by category */
+  const itemsByCategory = useMemo(() => {
+    const groups = Object.fromEntries(CATEGORIES.map(c => [c.id, []]));
+    for (const order of orders) {
+      (order.items || []).forEach((item, index) => {
+        const cat = categoryFromItem(item);
+        const itemStatus = order.itemStatuses?.[String(index)] || 'new';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push({
+          order,
+          item,
+          index,
+          itemStatus,
+          key: `${order.id}-${index}`,
+        });
+      });
+    }
+    // ترتيب: العناصر الجديدة أولاً، ثم قيد التحضير، ثم الجاهزة
+    const rank = { new: 0, preparing: 1, ready: 2 };
+    for (const cat of Object.keys(groups)) {
+      groups[cat].sort((a, b) => {
+        const r = rank[a.itemStatus] - rank[b.itemStatus];
+        if (r !== 0) return r;
+        const at = a.order.createdAt?.seconds || 0;
+        const bt = b.order.createdAt?.seconds || 0;
+        return bt - at;
+      });
+    }
+    return groups;
   }, [orders]);
 
-  const handleStartPreparing = async (orderId) => {
-    setActing(orderId);
+  const counts = useMemo(() => {
+    let totalItems = 0, preparing = 0, ready = 0, newItems = 0;
+    for (const order of orders) {
+      (order.items || []).forEach((_, i) => {
+        totalItems++;
+        const s = order.itemStatuses?.[String(i)] || 'new';
+        if (s === 'preparing') preparing++;
+        else if (s === 'ready') ready++;
+        else newItems++;
+      });
+    }
+    return { total: totalItems, preparing, ready, new: newItems };
+  }, [orders]);
+
+  const handleStartItem = async (orderId, itemIndex) => {
+    const key = `${orderId}-${itemIndex}`;
+    setActing(key);
     try {
-      await markWorkerStartPreparing(orderId);
+      await setItemStatus(orderId, itemIndex, 'preparing');
       toast.success('بدأ التحضير 🔥');
     } catch (e) {
       toast.error(e.message || 'فشل');
@@ -125,11 +151,24 @@ export default function WorkerOrders() {
     setActing(null);
   };
 
-  const handleMarkReady = async (orderId) => {
-    setActing(orderId);
+  const handleReadyItem = async (orderId, itemIndex) => {
+    const key = `${orderId}-${itemIndex}`;
+    setActing(key);
     try {
-      await markWorkerOrderReady(orderId);
-      toast.success('الطلب جاهز ✅');
+      await setItemStatus(orderId, itemIndex, 'ready');
+      toast.success('جاهز ✅');
+    } catch (e) {
+      toast.error(e.message || 'فشل');
+    }
+    setActing(null);
+  };
+
+  const handleResetItem = async (orderId, itemIndex) => {
+    const key = `${orderId}-${itemIndex}`;
+    setActing(key);
+    try {
+      await setItemStatus(orderId, itemIndex, null);
+      toast('تم إعادة الصنف للحالة الأولى', { icon: '↩️' });
     } catch (e) {
       toast.error(e.message || 'فشل');
     }
@@ -137,7 +176,7 @@ export default function WorkerOrders() {
   };
 
   const handleArchive = async (orderId) => {
-    setActing(orderId);
+    setActing(`archive-${orderId}`);
     try {
       await archiveWorkerOrder(orderId);
       toast.success('تم حذف الطلب من الواجهة 🗑️');
@@ -168,12 +207,10 @@ export default function WorkerOrders() {
       <WorkerSidebar
         active={activeTab}
         onChangeTab={setActiveTab}
-        pendingCount={counts.new}
         notifCount={counts.new}
       />
 
       <main className="kitchen-main">
-        {/* Top header */}
         <header className="kitchen-header">
           <div className="kitchen-header-actions">
             <button type="button" className="kitchen-bell" aria-label="إشعارات">
@@ -203,14 +240,14 @@ export default function WorkerOrders() {
                 title="حذف كل الطلبات الجاهزة من الواجهة"
               >
                 <IoTrashOutline size={16} />
-                <span>حذف الجاهزة ({counts.ready})</span>
+                <span>حذف الجاهزة</span>
               </button>
             )}
           </div>
           <div className="kitchen-header-title">
             <div className="kitchen-header-text">
               <h1>واجهة المطبخ</h1>
-              <p>إدارة الطلبات في الوقت الحقيقي</p>
+              <p>الطلبات مقسومة حسب نوع الصنف</p>
             </div>
             <div className="kitchen-header-logo">
               <IoRestaurant size={28} />
@@ -218,20 +255,19 @@ export default function WorkerOrders() {
           </div>
         </header>
 
-        {/* Stats */}
         <section className="kitchen-stats">
           <StatCard
             icon={<IoDocumentTextOutline size={22} />}
             value={counts.total}
-            label="إجمالي الطلبات"
-            sub="كل الطلبات"
+            label="إجمالي الأصناف"
+            sub="كل الأصناف المطلوبة"
             tone="red"
           />
           <StatCard
             icon={<IoTimeOutline size={22} />}
             value={counts.preparing}
             label="قيد التحضير"
-            sub="طلبات جارية"
+            sub="أصناف جارية"
             tone="orange"
           />
           <StatCard
@@ -244,71 +280,52 @@ export default function WorkerOrders() {
           <StatCard
             icon={<IoAlarmOutline size={22} />}
             value={counts.new}
-            label="طلبات جديدة"
+            label="جديدة"
             sub="تحتاج انتباه"
             tone="pink"
           />
         </section>
 
-        {/* Loading */}
         {loading ? (
           <div className="kitchen-loading">
             <div className="kitchen-spinner" />
             <p>جاري التحميل...</p>
           </div>
+        ) : counts.total === 0 ? (
+          <EmptySection text="لا توجد طلبات حالياً" emoji="🍽️" />
         ) : (
-          <>
-            {/* Tables section */}
-            <SectionHeader
-              icon={<IoRestaurant size={20} />}
-              title="طلبات الطاولات"
-              count={tableOrders.length}
-            />
-            {tableOrders.length === 0 ? (
-              <EmptySection text="لا توجد طلبات طاولات حالياً" emoji="🪑" />
-            ) : (
-              <div className="kitchen-cards-grid">
-                {tableOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    type="table"
-                    acting={acting}
-                    onStart={handleStartPreparing}
-                    onReady={handleMarkReady}
-                    onArchive={handleArchive}
-                  />
-                ))}
+          CATEGORIES.map((cat) => {
+            const items = itemsByCategory[cat.id] || [];
+            if (items.length === 0) return null;
+            return (
+              <div key={cat.id}>
+                <SectionHeader
+                  emoji={cat.emoji}
+                  title={cat.label}
+                  count={items.length}
+                />
+                <div className="kitchen-cards-grid">
+                  {items.map(({ order, item, index, itemStatus, key }) => (
+                    <ItemCard
+                      key={key}
+                      order={order}
+                      item={item}
+                      itemIndex={index}
+                      itemStatus={itemStatus}
+                      acting={acting}
+                      categoryEmoji={cat.emoji}
+                      onStart={handleStartItem}
+                      onReady={handleReadyItem}
+                      onReset={handleResetItem}
+                      onArchive={handleArchive}
+                    />
+                  ))}
+                </div>
               </div>
-            )}
-
-            {/* Delivery section */}
-            <SectionHeader
-              icon={<IoBicycleOutline size={20} />}
-              title="طلبات التوصيل"
-              count={deliveryOrders.length}
-            />
-            {deliveryOrders.length === 0 ? (
-              <EmptySection text="لا توجد طلبات توصيل حالياً" emoji="🛵" />
-            ) : (
-              <div className="kitchen-cards-grid">
-                {deliveryOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    type="delivery"
-                    acting={acting}
-                    onStart={handleStartPreparing}
-                    onReady={handleMarkReady}
-                    onArchive={handleArchive}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+            );
+          })
         )}
 
-        {/* Footer */}
         <footer className="kitchen-footer">
           <div className="kitchen-footer-msg">
             <IoFlame size={18} />
@@ -340,13 +357,13 @@ function StatCard({ icon, value, label, sub, tone }) {
   );
 }
 
-function SectionHeader({ icon, title, count }) {
+function SectionHeader({ emoji, title, count }) {
   return (
     <div className="kitchen-section-header">
       <span className="kitchen-section-count">{count}</span>
       <h2>
         {title}
-        <span className="kitchen-section-icon">{icon}</span>
+        <span className="kitchen-section-icon" aria-hidden="true">{emoji}</span>
       </h2>
     </div>
   );
@@ -361,33 +378,18 @@ function EmptySection({ text, emoji }) {
   );
 }
 
-function OrderCard({ order, type, acting, onStart, onReady, onArchive }) {
-  // determine status
-  let status = 'new';
-  if (order.workerReady) status = 'ready';
-  else if (order.workerStarted) status = 'preparing';
-
+function ItemCard({ order, item, itemIndex, itemStatus, acting, categoryEmoji, onStart, onReady, onReset, onArchive }) {
   const statusConfig = {
-    new: { label: 'جديد', cls: 'kitchen-card-new' },
-    preparing: { label: 'قيد التحضير', cls: 'kitchen-card-preparing' },
-    ready: { label: 'جاهز', cls: 'kitchen-card-ready' },
+    new:       { label: 'جديد',         cls: 'kitchen-card-new' },
+    preparing: { label: 'قيد التحضير',  cls: 'kitchen-card-preparing' },
+    ready:     { label: 'جاهز',         cls: 'kitchen-card-ready' },
   };
-  const cfg = statusConfig[status];
-
-  const itemImg = (item) => {
-    if (item.image) {
-      return <img src={item.image} alt={item.name} className="kitchen-item-img" />;
-    }
-    return (
-      <span className="kitchen-item-emoji">
-        {categoryEmoji[item.category] || '🍽️'}
-      </span>
-    );
-  };
+  const cfg = statusConfig[itemStatus] || statusConfig.new;
+  const key = `${order.id}-${itemIndex}`;
+  const isBusy = acting === key;
 
   return (
     <article className={`kitchen-card ${cfg.cls}`}>
-      {/* Top: status + time */}
       <div className="kitchen-card-head">
         <span className="kitchen-card-time">
           <IoTimeOutline size={13} />
@@ -396,86 +398,102 @@ function OrderCard({ order, type, acting, onStart, onReady, onArchive }) {
         <span className="kitchen-card-status">{cfg.label}</span>
       </div>
 
-      {/* Title */}
       <h3 className="kitchen-card-title">
-        {type === 'table'
-          ? `طاولة ${order.tableNumber}`
-          : 'طلب توصيل'}
+        <span aria-hidden="true" style={{ marginInlineStart: 6 }}>{categoryEmoji}</span>
+        {item.name}
       </h3>
 
-      {/* Customer info (delivery only) */}
-      {type === 'delivery' && (
-        <div className="kitchen-card-customer">
+      <div className="kitchen-card-customer">
+        <div className="kitchen-customer-row">
+          <span>طلب #{order.id?.slice(-6).toUpperCase()}</span>
+          <IoDocumentTextOutline size={14} />
+        </div>
+        <div className="kitchen-customer-row">
+          <span>{order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'} — {order.customerName || 'زبون'}</span>
+        </div>
+        {order.isDelivery && order.customerPhone ? (
           <div className="kitchen-customer-row">
-            <span>{order.customerName || 'زبون'}</span>
+            <span dir="ltr">{order.customerPhone}</span>
             <IoCallOutline size={14} />
           </div>
-          {order.customerPhone && (
-            <div className="kitchen-customer-row">
-              <span dir="ltr">{order.customerPhone}</span>
-              <IoCallOutline size={14} />
-            </div>
-          )}
-          {order.customerAddress && (
-            <div className="kitchen-customer-row">
-              <span className="kitchen-address">{order.customerAddress}</span>
-              <IoLocationOutline size={14} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Items list */}
-      <div className="kitchen-card-items">
-        {order.items?.map((item, i) => (
-          <div key={i} className="kitchen-item-row">
-            <span className="kitchen-item-qty">×{item.quantity}</span>
-            <span className="kitchen-item-name">{item.name}</span>
-            <div className="kitchen-item-thumb">{itemImg(item)}</div>
+        ) : null}
+        {order.isDelivery && order.customerAddress ? (
+          <div className="kitchen-customer-row">
+            <span className="kitchen-address">{order.customerAddress}</span>
+            <IoLocationOutline size={14} />
           </div>
-        ))}
+        ) : null}
+        {order.customerNote ? (
+          <div className="kitchen-customer-row">
+            <span style={{ fontStyle: 'italic', opacity: 0.85 }}>📝 {order.customerNote}</span>
+          </div>
+        ) : null}
       </div>
 
-      {/* Action */}
-      {status === 'new' && (
+      <div className="kitchen-card-items">
+        <div className="kitchen-item-row">
+          <span className="kitchen-item-qty">×{item.quantity}</span>
+          <span className="kitchen-item-name">{item.name}</span>
+          <div className="kitchen-item-thumb">
+            {item.image
+              ? <img src={item.image} alt={item.name} className="kitchen-item-img" />
+              : <span className="kitchen-item-emoji">{categoryEmoji}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      {itemStatus === 'new' && (
         <button
           type="button"
-          onClick={() => onStart(order.id)}
-          disabled={acting === order.id}
+          onClick={() => onStart(order.id, itemIndex)}
+          disabled={isBusy}
           className="kitchen-card-btn kitchen-btn-new"
         >
-          {acting === order.id ? '...جاري' : 'بدء التحضير 👨‍🍳'}
+          {isBusy ? '...جاري' : 'بدء التحضير 👨‍🍳'}
         </button>
       )}
-      {status === 'preparing' && (
+      {itemStatus === 'preparing' && (
         <button
           type="button"
-          onClick={() => onReady(order.id)}
-          disabled={acting === order.id}
+          onClick={() => onReady(order.id, itemIndex)}
+          disabled={isBusy}
           className="kitchen-card-btn kitchen-btn-preparing"
         >
-          {acting === order.id ? '...جاري' : 'متابعة التحضير ⏱'}
+          {isBusy ? '...جاري' : 'تم التحضير ✓'}
         </button>
       )}
-      {status === 'ready' && (
+      {itemStatus === 'ready' && (
         <div className="kitchen-card-ready-actions">
           <button
             type="button"
-            onClick={() => onArchive?.(order.id)}
-            disabled={acting === order.id}
+            onClick={() => onReset(order.id, itemIndex)}
+            disabled={isBusy}
             className="kitchen-card-archive-btn"
-            title="حذف من الواجهة"
-            aria-label="حذف"
+            title="إعادة الصنف للحالة الأولى"
+            aria-label="تراجع"
           >
-            <IoTrashOutline size={16} />
+            <IoArrowUndoOutline size={16} />
           </button>
+          {order.workerReady ? (
+            <button
+              type="button"
+              onClick={() => onArchive?.(order.id)}
+              disabled={acting === `archive-${order.id}`}
+              className="kitchen-card-archive-btn"
+              title="حذف الطلب من الواجهة"
+              aria-label="حذف"
+            >
+              <IoTrashOutline size={16} />
+            </button>
+          ) : null}
           <button
             type="button"
             disabled
             className="kitchen-card-btn kitchen-btn-ready"
           >
             <IoCheckmarkCircle size={18} />
-            جاهز للتقديم
+            جاهز
           </button>
         </div>
       )}
