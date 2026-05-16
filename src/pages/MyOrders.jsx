@@ -172,7 +172,7 @@ export default function MyOrders() {
                   <div className="mt-3 omega-meta-line">
                     {firstItems.map((item, index) => (
                       <span key={`${item.name}-${index}`}>
-                        {item.quantity} {item.name}
+                        {item.type === 'offer' ? 'عرض: ' : ''}{item.quantity} {item.name}
                       </span>
                     ))}
                   </div>

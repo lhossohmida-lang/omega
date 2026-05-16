@@ -1,27 +1,27 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { OmegaMark } from './AdminHeader';
+import InstallAppButton from './InstallAppButton';
 import {
   IoArchiveOutline,
   IoBagHandleOutline,
   IoBarChartOutline,
   IoClose,
   IoCubeOutline,
-  IoDownloadOutline,
   IoHomeOutline,
   IoLogOutOutline,
   IoMenu,
   IoNotificationsOutline,
+  IoPricetagOutline,
   IoSparklesOutline,
 } from 'react-icons/io5';
-import toast from 'react-hot-toast';
 
 const bottomTabs = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
+  { to: '/admin/offers', icon: IoPricetagOutline, label: 'العروض' },
   { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
 ];
 
@@ -29,6 +29,7 @@ const menuLinks = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
+  { to: '/admin/offers', icon: IoPricetagOutline, label: 'العروض الخاصة' },
   { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
   { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي', badge: 'جديد' },
   { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
@@ -39,18 +40,6 @@ export default function AdminNav() {
   const [clickingTo, setClickingTo] = useState(null);
   const { logout, userData } = useAuth();
   const navigate = useNavigate();
-  const { canInstall, isIOS, install } = useInstallPrompt();
-
-  const handleInstall = async () => {
-    if (isIOS) {
-      toast('لتثبيت التطبيق: اضغط زر المشاركة ثم أضف إلى الشاشة الرئيسية', {
-        duration: 5000,
-        icon: '📱',
-      });
-      return;
-    }
-    await install();
-  };
 
   const handleNavClick = (e, to) => {
     e.preventDefault();
@@ -143,12 +132,7 @@ export default function AdminNav() {
             </div>
           ) : null}
 
-          {canInstall || isIOS ? (
-            <button type="button" onClick={handleInstall} className="omega-install-button">
-              <IoDownloadOutline size={22} />
-              تثبيت التطبيق
-            </button>
-          ) : null}
+          <InstallAppButton target="admin" className="omega-install-button" />
 
           <button type="button" onClick={logout} className="omega-logout-button">
             <IoLogOutOutline size={23} />

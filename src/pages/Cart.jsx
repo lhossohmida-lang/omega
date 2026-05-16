@@ -117,13 +117,32 @@ export default function Cart() {
                   {/* Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h4 className="text-white text-sm font-bold truncate flex-1">{item.name}</h4>
+                      <div className="min-w-0 flex-1 text-right">
+                        <h4 className="text-white text-sm font-bold truncate">{item.name}</h4>
+                        {item.type === 'offer' && (
+                          <span className="mt-1 inline-flex rounded-full bg-omega-orange/10 px-2 py-0.5 text-[10px] font-black text-omega-orange">
+                            عرض خاص
+                          </span>
+                        )}
+                      </div>
                       <button onClick={() => removeItem(item.productId)}
                         className="w-7 h-7 rounded-lg bg-omega-red/10 text-omega-red hover:bg-omega-red/20 flex items-center justify-center transition-colors flex-shrink-0">
                         <IoTrash size={14} />
                       </button>
                     </div>
                     <p className="gradient-text font-black text-base">{formatCurrency(item.price)}</p>
+                    {item.type === 'offer' && item.components?.length > 0 && (
+                      <div className="mt-2 rounded-lg bg-white/[0.04] border border-white/8 px-2.5 py-2 text-right">
+                        <p className="mb-1 text-[10px] font-black text-omega-text-muted">مكونات العرض</p>
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          {item.components.map(component => (
+                            <span key={component.productId} className="rounded-full bg-omega-orange/10 px-2 py-0.5 text-[10px] font-bold text-omega-orange">
+                              {component.quantity}x {component.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Qty controls */}
                     <div className="flex items-center justify-between mt-2">

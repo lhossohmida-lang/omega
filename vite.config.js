@@ -22,6 +22,29 @@ export default defineConfig({
         dir: 'rtl',
         start_url: '/',
         scope: '/',
+        shortcuts: [
+          {
+            name: 'تطبيق العملاء',
+            short_name: 'العملاء',
+            description: 'فتح واجهة العملاء مباشرة',
+            url: '/?launch=customer',
+            icons: [{ src: '/logo.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'تطبيق الإدارة',
+            short_name: 'الإدارة',
+            description: 'فتح لوحة إدارة OMEGA مباشرة',
+            url: '/admin?launch=admin',
+            icons: [{ src: '/logo.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'تطبيق العمال',
+            short_name: 'العمال',
+            description: 'فتح واجهة العمال مباشرة',
+            url: '/worker?launch=worker',
+            icons: [{ src: '/logo.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           {
             src: '/logo.png',

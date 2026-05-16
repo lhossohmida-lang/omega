@@ -155,8 +155,20 @@ export default function Checkout() {
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-bold truncate">{item.name}</p>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {item.type === 'offer' && (
+                      <span className="rounded-full bg-omega-orange/10 px-2 py-0.5 text-[10px] font-black text-omega-orange">
+                        عرض
+                      </span>
+                    )}
+                    <p className="text-white text-sm font-bold truncate">{item.name}</p>
+                  </div>
                   <p className="text-omega-text-dim text-[11px]">{formatCurrency(item.price)} × {item.quantity}</p>
+                  {item.type === 'offer' && item.components?.length > 0 && (
+                    <p className="mt-1 line-clamp-2 text-[10px] font-bold text-omega-text-muted">
+                      {item.components.map(component => `${component.quantity}x ${component.name}`).join(' + ')}
+                    </p>
+                  )}
                 </div>
                 <span className="text-omega-orange font-black text-sm flex-shrink-0">
                   {formatCurrency(item.price * item.quantity)}

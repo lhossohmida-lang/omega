@@ -8,6 +8,188 @@ import { isOpen, getStatusMessage } from '../utils/businessHours';
 
 const ORDERS_COL = 'orders';
 const PRODUCTS_COL = 'products';
+const OFFERS_COL = 'special_offers';
+const INVENTORY_COL = 'inventory_movements';
+
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function lineTotal(items = []) {
+  return items.reduce((sum, item) => sum + (toNumber(item.price) * Math.max(1, toNumber(item.quantity, 1))), 0);
+}
+
+function offerUnitCost(components = []) {
+  return components.reduce(
+    (sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))),
+    0
+  );
+}
+
+async function normalizeProductItem(item) {
+  const productDoc = await getDoc(doc(db, PRODUCTS_COL, item.productId));
+  if (!productDoc.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
+  const product = productDoc.data();
+  if (product.isAvailable === false) {
+    throw new Error(`المنتج ${item.name} غير متاح حالياً`);
+  }
+
+  return {
+    productId: item.productId,
+    name: product.name || item.name,
+    price: toNumber(product.price, toNumber(item.price)),
+    costPrice: toNumber(product.costPrice, toNumber(item.costPrice)),
+    image: product.image || item.image || '',
+    category: product.category || item.category || '',
+    quantity: Math.max(1, toNumber(item.quantity, 1)),
+  };
+}
+
+async function normalizeOfferItem(item) {
+  const offerId = item.offerId || String(item.productId || '').replace(/^offer_/, '');
+  const offerDoc = await getDoc(doc(db, OFFERS_COL, offerId));
+  if (!offerDoc.exists()) throw new Error(`العرض ${item.name} غير موجود`);
+
+  const offer = { id: offerDoc.id, ...offerDoc.data() };
+  if (offer.isActive === false) throw new Error(`العرض ${offer.title || item.name} غير متاح حالياً`);
+
+  const components = [];
+  for (const component of offer.items || []) {
+    const productDoc = await getDoc(doc(db, PRODUCTS_COL, component.productId));
+    if (!productDoc.exists()) throw new Error(`أحد مكونات العرض غير موجود`);
+    const product = productDoc.data();
+    if (product.isAvailable === false) {
+      throw new Error(`المنتج ${product.name || component.name} داخل العرض غير متاح حالياً`);
+    }
+    components.push({
+      productId: component.productId,
+      productName: product.name || component.productName || component.name,
+      name: product.name || component.productName || component.name,
+      quantity: Math.max(1, toNumber(component.quantity, 1)),
+      unitPrice: toNumber(product.price, toNumber(component.unitPrice ?? component.price)),
+      price: toNumber(product.price, toNumber(component.unitPrice ?? component.price)),
+      costPrice: toNumber(product.costPrice, toNumber(component.costPrice)),
+      image: product.image || component.image || '',
+      category: product.category || component.category || '',
+    });
+  }
+
+  return {
+    productId: `offer_${offer.id}`,
+    type: 'offer',
+    offerId: offer.id,
+    name: offer.title || item.name,
+    description: offer.description || item.description || '',
+    price: toNumber(offer.offerPrice, toNumber(item.price)),
+    oldPrice: offer.originalTotalPrice ?? offer.oldPrice ?? item.oldPrice ?? null,
+    originalTotalPrice: offer.originalTotalPrice ?? offer.oldPrice ?? null,
+    discountValue: offer.discountValue ?? null,
+    discountPercent: offer.discountPercent ?? null,
+    costPrice: offerUnitCost(components),
+    image: offer.image || components.find(component => component.image)?.image || item.image || '',
+    category: 'offers',
+    quantity: Math.max(1, toNumber(item.quantity, 1)),
+    components,
+  };
+}
+
+async function normalizeOrderItems(items = []) {
+  const normalized = [];
+  for (const item of items) {
+    if (item.type === 'offer' || item.offerId || String(item.productId || '').startsWith('offer_')) {
+      normalized.push(await normalizeOfferItem(item));
+    } else {
+      normalized.push(await normalizeProductItem(item));
+    }
+  }
+  return normalized;
+}
+
+function inventoryLinesFromItems(items = []) {
+  const lines = new Map();
+  const addLine = (component, multiplier = 1, source = '') => {
+    if (!component.productId) return;
+    const quantity = Math.max(1, toNumber(component.quantity, 1)) * Math.max(1, toNumber(multiplier, 1));
+    const current = lines.get(component.productId) || {
+      productId: component.productId,
+      productName: component.productName || component.name || '',
+      quantity: 0,
+      sources: [],
+    };
+    current.quantity += quantity;
+    if (source) current.sources.push(source);
+    lines.set(component.productId, current);
+  };
+
+  for (const item of items) {
+    if (item.type === 'offer' && item.components?.length) {
+      for (const component of item.components) {
+        addLine(component, item.quantity, item.name);
+      }
+    } else {
+      addLine(item, item.quantity, item.name);
+    }
+  }
+
+  return [...lines.values()];
+}
+
+async function queueInventoryConsumption(batch, orderId, items, createdBy = null) {
+  const lines = inventoryLinesFromItems(items);
+  for (const line of lines) {
+    const productRef = doc(db, PRODUCTS_COL, line.productId);
+    const productDoc = await getDoc(productRef);
+    if (!productDoc.exists()) continue;
+
+    const product = productDoc.data();
+    const updates = {
+      soldCount: toNumber(product.soldCount) + line.quantity,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (typeof product.stock === 'number') {
+      const stock = Math.max(0, product.stock - line.quantity);
+      updates.stock = stock;
+      updates.isAvailable = stock > 0;
+    }
+
+    batch.update(productRef, updates);
+    batch.set(doc(collection(db, INVENTORY_COL)), {
+      productId: line.productId,
+      productName: product.name || line.productName,
+      type: 'sale',
+      quantity: line.quantity,
+      note: line.sources.length ? `طلب #${orderId.slice(-6)} - ${line.sources.join('، ')}` : `طلب #${orderId.slice(-6)}`,
+      orderId,
+      createdBy,
+      createdAt: serverTimestamp(),
+    });
+  }
+}
+
+async function moveOrderToPreparing(orderId, updates = {}, createdBy = null) {
+  const orderRef = doc(db, ORDERS_COL, orderId);
+  const orderSnap = await getDoc(orderRef);
+  if (!orderSnap.exists()) throw new Error('الطلب غير موجود');
+
+  const order = orderSnap.data();
+  const batch = writeBatch(db);
+  const data = {
+    status: 'preparing',
+    routedAt: serverTimestamp(),
+    ...updates,
+  };
+
+  if (!order.inventoryDeducted) {
+    await queueInventoryConsumption(batch, orderId, order.items || [], createdBy);
+    data.inventoryDeducted = true;
+    data.inventoryDeductedAt = serverTimestamp();
+  }
+
+  batch.update(orderRef, data);
+  await batch.commit();
+}
 
 // إنشاء طلب جديد من زبون (داخل المطعم أو توصيل)
 // orderData.orderType: 'table' | 'delivery'
@@ -16,31 +198,26 @@ export async function createOrder(orderData) {
     throw new Error(getStatusMessage().message);
   }
 
-  // التحقق من تفعيل المنتجات
-  for (const item of orderData.items) {
-    const productDoc = await getDoc(doc(db, PRODUCTS_COL, item.productId));
-    if (!productDoc.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
-    const product = productDoc.data();
-    if (product.isAvailable === false) {
-      throw new Error(`المنتج ${item.name} غير متاح حالياً`);
-    }
-  }
-
-  let totalCost = 0;
-  for (const item of orderData.items) {
-    totalCost += (item.costPrice || 0) * item.quantity;
-  }
+  const items = await normalizeOrderItems(orderData.items || []);
+  const deliveryFee = toNumber(orderData.deliveryFee, 0);
+  const totalPrice = lineTotal(items) + deliveryFee;
+  const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
 
   const isDelivery = orderData.orderType === 'delivery';
 
   const order = {
     ...orderData,
+    items,
+    deliveryFee,
+    totalPrice,
     isDelivery,
     totalCost,
-    profit: (orderData.totalPrice || 0) - totalCost,
+    profit: totalPrice - totalCost,
     status: 'pending',
     paymentMethod: 'cash',
     itemStatuses: {},
+    inventoryDeducted: false,
+    inventoryDeductedAt: null,
     createdAt: serverTimestamp(),
     acceptedAt: null,
     deliveredAt: null,
@@ -48,17 +225,6 @@ export async function createOrder(orderData) {
   };
 
   const orderRef = await addDoc(collection(db, ORDERS_COL), order);
-
-  for (const item of orderData.items) {
-    const productRef = doc(db, PRODUCTS_COL, item.productId);
-    const productDoc = await getDoc(productRef);
-    const soldCount = (productDoc.data()?.soldCount || 0) + item.quantity;
-    await updateDoc(productRef, {
-      soldCount,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
   return orderRef.id;
 }
 
@@ -137,6 +303,11 @@ export function subscribeToWorkerOrders(callback) {
 
 // تحديث حالة الطلب
 export async function updateOrderStatus(orderId, status) {
+  if (status === 'preparing') {
+    await moveOrderToPreparing(orderId);
+    return;
+  }
+
   const updates = { status };
   if (status === 'delivered') {
     updates.deliveredAt = serverTimestamp();
@@ -150,38 +321,32 @@ export async function updateOrderStatus(orderId, status) {
 // تأكيد الطلب من قبل الإدارة (تحويله إلى حالة "تحضير")
 // destination: 'table' | 'delivery'
 export async function confirmOrder(orderId, { destination = 'table', adminUid = null } = {}) {
-  await updateDoc(doc(db, ORDERS_COL, orderId), {
-    status: 'preparing',
+  await moveOrderToPreparing(orderId, {
     isDelivery: destination === 'delivery',
-    routedAt: serverTimestamp(),
     routedBy: adminUid,
-  });
+  }, adminUid);
 }
 
 // إنشاء طلب من الإدارة مباشرة (Walk-in) — يبدأ من حالة preparing
 export async function createAdminOrder(orderData) {
-  for (const item of orderData.items) {
-    const productDoc = await getDoc(doc(db, PRODUCTS_COL, item.productId));
-    if (!productDoc.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
-    const product = productDoc.data();
-    if (product.isAvailable === false) {
-      throw new Error(`المنتج ${item.name} غير متاح حالياً`);
-    }
-  }
-
-  let totalCost = 0;
-  for (const item of orderData.items) {
-    totalCost += (item.costPrice || 0) * item.quantity;
-  }
+  const items = await normalizeOrderItems(orderData.items || []);
+  const deliveryFee = toNumber(orderData.deliveryFee, 0);
+  const totalPrice = lineTotal(items) + deliveryFee;
+  const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
 
   const order = {
     ...orderData,
+    items,
+    deliveryFee,
+    totalPrice,
     totalCost,
-    profit: (orderData.totalPrice || 0) - totalCost,
+    profit: totalPrice - totalCost,
     status: 'preparing',
     paymentMethod: orderData.paymentMethod || 'cash',
     createdBy: 'admin',
     itemStatuses: {},
+    inventoryDeducted: true,
+    inventoryDeductedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
     routedAt: serverTimestamp(),
     acceptedAt: null,
@@ -189,17 +354,11 @@ export async function createAdminOrder(orderData) {
     cancelledAt: null,
   };
 
-  const orderRef = await addDoc(collection(db, ORDERS_COL), order);
-
-  for (const item of orderData.items) {
-    const productRef = doc(db, PRODUCTS_COL, item.productId);
-    const productDoc = await getDoc(productRef);
-    const soldCount = (productDoc.data()?.soldCount || 0) + item.quantity;
-    await updateDoc(productRef, {
-      soldCount,
-      updatedAt: serverTimestamp(),
-    });
-  }
+  const orderRef = doc(collection(db, ORDERS_COL));
+  const batch = writeBatch(db);
+  batch.set(orderRef, order);
+  await queueInventoryConsumption(batch, orderRef.id, items, orderData.customerId || 'admin');
+  await batch.commit();
 
   return orderRef.id;
 }

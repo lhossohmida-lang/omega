@@ -56,6 +56,13 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['soldCount', 'updatedAt']);
     }
 
+    // ===== العروض الخاصة =====
+    match /special_offers/{offerId} {
+      // قراءة عامة لكي تظهر العروض في واجهة الزبائن بدون تسجيل دخول
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && myRole() == 'admin';
+    }
+
     // ===== المخزون والمكوّنات =====
     match /inventory_movements/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';

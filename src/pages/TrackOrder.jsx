@@ -151,7 +151,17 @@ export default function TrackOrder() {
           {(order.items || []).map((item, index) => (
             <div key={`${item.name}-${index}`} className="omega-item-row">
               <span className="font-bold text-omega-text-muted">{formatCurrency((item.price || 0) * (item.quantity || 1))}</span>
-              <strong className="text-omega-text">{item.quantity}x {item.name}</strong>
+              <div className="text-right">
+                <strong className="text-omega-text">
+                  {item.quantity}x {item.name}
+                  {item.type === 'offer' ? <span className="mr-2 rounded-full bg-omega-orange/10 px-2 py-0.5 text-[10px] text-omega-orange">عرض خاص</span> : null}
+                </strong>
+                {item.type === 'offer' && item.components?.length > 0 && (
+                  <p className="mt-1 text-[11px] font-bold text-omega-text-muted">
+                    {item.components.map(component => `${component.quantity}x ${component.name}`).join(' + ')}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
           <div className="mt-3 border-t border-gray-100 pt-3">

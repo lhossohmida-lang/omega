@@ -1,4 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
+import InstallAppButton from './InstallAppButton';
 import {
   IoRestaurant,
   IoLogOutOutline,
@@ -56,6 +57,7 @@ export default function WorkerSidebar({ active = 'orders', onChangeTab }) {
           <span>تسجيل خروج</span>
           <IoLogOutOutline size={18} />
         </button>
+        <InstallAppButton target="worker" className="kitchen-install-btn" compact />
       </div>
     </aside>
   );

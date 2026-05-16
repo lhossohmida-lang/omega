@@ -8,6 +8,7 @@ import {
 import { playLoudAlarm } from '../utils/soundUtils';
 import { timeAgo } from '../utils/formatDate';
 import WorkerSidebar from '../components/WorkerSidebar';
+import InstallAppButton from '../components/InstallAppButton';
 import {
   IoNotificationsOutline,
   IoRestaurant,
@@ -28,6 +29,7 @@ import toast from 'react-hot-toast';
 
 // أقسام المطبخ — كل قسم يجمع كل أصنافه من جميع الطلبات النشطة
 const CATEGORIES = [
+  { id: 'offers',     label: 'عروض خاصة', emoji: '🏷️', tone: 'yellow' },
   { id: 'pizza',      label: 'بيتزا',   emoji: '🍕', tone: 'red'    },
   { id: 'tacos',      label: 'تاكوس',   emoji: '🌮', tone: 'orange' },
   { id: 'burger',     label: 'برغر',    emoji: '🍔', tone: 'yellow' },
@@ -48,6 +50,7 @@ function fmtClock(d = new Date()) {
 }
 
 function categoryFromItem(item) {
+  if (item.type === 'offer') return 'offers';
   const cat = (item.category || '').toLowerCase();
   return CATEGORY_MAP[cat] ? cat : 'appetizers';
 }
@@ -206,6 +209,7 @@ export default function WorkerOrders() {
       <main className="kitchen-main">
         <header className="kitchen-header">
           <div className="kitchen-header-actions">
+            <InstallAppButton target="worker" className="kitchen-install-header-btn" compact />
             <button type="button" className="kitchen-bell" aria-label="إشعارات">
               <IoNotificationsOutline size={20} />
               {counts.new > 0 && <span className="kitchen-bell-badge">{counts.new}</span>}
@@ -434,6 +438,13 @@ function ItemRow({ row, categoryEmoji, acting, onStart, onReady, onReset, onArch
           {order.customerNote ? (
             <div className="kitchen-row-line3">
               <span className="kitchen-row-note">📝 {order.customerNote}</span>
+            </div>
+          ) : null}
+          {item.type === 'offer' && item.components?.length > 0 ? (
+            <div className="kitchen-row-line3">
+              <span className="kitchen-row-note">
+                مكونات العرض: {item.components.map(component => `${component.quantity}x ${component.name}`).join(' + ')}
+              </span>
             </div>
           ) : null}
         </div>

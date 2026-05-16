@@ -1,6 +1,13 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
+import {
+  getLaunchTargetFromSearch,
+  getSavedLaunchPath,
+  isStandaloneApp,
+  saveInstallTarget,
+} from './utils/installTarget';
 
 // Auth
 import Login from './pages/Login';
@@ -8,6 +15,7 @@ import Login from './pages/Login';
 // Customer Pages (لا تتطلب تسجيل دخول)
 import CustomerHome from './pages/CustomerHome';
 import ProductDetails from './pages/ProductDetails';
+import OfferDetails from './pages/OfferDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import TrackOrder from './pages/TrackOrder';
@@ -25,9 +33,27 @@ import AdminProducts from './pages/AdminProducts';
 import AdminInventory from './pages/AdminInventory';
 import AdminAI from './pages/AdminAI';
 import AdminReports from './pages/AdminReports';
+import AdminSpecialOffers from './pages/AdminSpecialOffers';
 
 export default function App() {
   const { userData, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const launchTarget = getLaunchTargetFromSearch(location.search);
+    if (launchTarget) {
+      saveInstallTarget(launchTarget);
+    }
+
+    if (!isStandaloneApp()) return;
+
+    const targetPath = launchTarget ? getSavedLaunchPath() : getSavedLaunchPath();
+    const isLaunchRoot = location.pathname === '/' || location.pathname === '/customer';
+    if (isLaunchRoot && targetPath !== location.pathname) {
+      navigate(targetPath, { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
 
   if (loading) {
     return (
@@ -51,7 +77,9 @@ export default function App() {
 
       {/* Customer Routes — متاحة للجميع */}
       <Route path="/" element={<CustomerHome />} />
+      <Route path="/customer" element={<Navigate to="/" replace />} />
       <Route path="/product/:id" element={<ProductDetails />} />
+      <Route path="/offer/:id" element={<OfferDetails />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/track/:id" element={<TrackOrder />} />
@@ -60,12 +88,14 @@ export default function App() {
       <Route path="/my-info" element={<MyInfo />} />
 
       {/* Worker Routes */}
+      <Route path="/staff" element={<Navigate to="/worker" replace />} />
       <Route path="/worker" element={<ProtectedRoute allowedRoles={['worker']}><WorkerOrders /></ProtectedRoute>} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminOrders /></ProtectedRoute>} />
       <Route path="/admin/products" element={<ProtectedRoute allowedRoles={['admin']}><AdminProducts /></ProtectedRoute>} />
+      <Route path="/admin/offers" element={<ProtectedRoute allowedRoles={['admin']}><AdminSpecialOffers /></ProtectedRoute>} />
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventory /></ProtectedRoute>} />
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />

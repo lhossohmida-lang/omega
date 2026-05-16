@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllProducts } from '../services/productService';
+import { getActiveSpecialOffers } from '../services/offerService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getStatusMessage } from '../utils/businessHours';
 import { getTrackedOrderIds } from '../utils/guestStorage';
 import CustomerNav from '../components/CustomerNav';
 import TransparentImg from '../components/TransparentImg';
+import InstallAppButton from '../components/InstallAppButton';
 import {
   IoAdd,
   IoBagHandleOutline,
@@ -17,8 +19,8 @@ import {
   IoChevronForwardOutline,
   IoFlameOutline,
   IoTimeOutline,
-  IoStarOutline,
   IoLockClosedOutline,
+  IoPricetagOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -41,6 +43,26 @@ function fallbackImg(cat) {
     appetizers: '/fried-chicken.png',
     desserts: '/dessert.png',
   }[cat] || '/burger-classic.png';
+}
+
+function offerImage(offer) {
+  return offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png';
+}
+
+function offerItemsLabel(items = []) {
+  if (!items.length) return 'عرض خاص من OMEGA';
+  return items.map(item => `${item.quantity || 1} ${item.productName || item.name}`).join(' + ');
+}
+
+function offerOriginalPrice(offer) {
+  return Number(offer.originalTotalPrice || offer.oldPrice || 0);
+}
+
+function offerDiscount(offer) {
+  const original = offerOriginalPrice(offer);
+  const discountValue = Math.max(0, Number(offer.discountValue ?? (original - (offer.offerPrice || 0))));
+  const discountPercent = Number(offer.discountPercent ?? (original > 0 ? Math.round((discountValue / original) * 100) : 0));
+  return { original, discountValue, discountPercent };
 }
 
 /* ─── data ─────────────────────────────────── */
@@ -130,22 +152,55 @@ function SectionRow({ title, icon, onSeeAll, children }) {
   );
 }
 
-/* ── Carousel: big full-width image, swipeable ── */
-function CarouselSection({ title, icon, onSeeAll, products, favorites, onFav, onAdd, onOpen }) {
+function SpecialOfferCard({ offer, onOpen, onAdd }) {
+  const { original, discountValue, discountPercent } = offerDiscount(offer);
+  return (
+    <article className="ch-offer-card">
+      <button type="button" className="ch-offer-media" onClick={onOpen}>
+        <img src={offerImage(offer)} alt={offer.title} className="ch-offer-img" />
+        <span className="ch-offer-badge">
+          <IoPricetagOutline size={13} />
+          {offer.isFeatured ? 'عرض مميز' : 'خصم خاص'}
+        </span>
+        {discountPercent > 0 && (
+          <span className="ch-offer-save-badge">-{formatCurrency(discountValue)}</span>
+        )}
+      </button>
+      <button type="button" className="ch-offer-body" onClick={onOpen}>
+        <h3>{offer.title}</h3>
+        <p>{offer.description || offerItemsLabel(offer.items)}</p>
+        <div className="ch-offer-items">{offerItemsLabel(offer.items)}</div>
+      </button>
+      <div className="ch-offer-footer">
+        <div className="ch-offer-price">
+          {original > 0 ? <span>{formatCurrency(original)}</span> : null}
+          <strong>{formatCurrency(offer.offerPrice)}</strong>
+        </div>
+        <button type="button" className="ch-offer-add" onClick={onAdd}>
+          <IoAdd size={18} />
+          اطلب الآن
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ── Carousel: big full-width offers, swipeable ── */
+function OffersCarousel({ offers, onOpen, onAdd }) {
   const [idx, setIdx] = useState(0);
   const startX = useRef(null);
 
-  const prev = () => setIdx(i => (i - 1 + products.length) % products.length);
-  const next = () => setIdx(i => (i + 1) % products.length);
+  const prev = () => setIdx(i => (i - 1 + offers.length) % offers.length);
+  const next = () => setIdx(i => (i + 1) % offers.length);
 
   /* auto-advance every 4 s */
   useEffect(() => {
-    if (products.length < 2) return;
+    if (offers.length < 2) return;
     const t = setInterval(next, 4000);
     return () => clearInterval(t);
-  }, [products.length]);
+  }, [offers.length]);
 
-  /* touch / mouse drag */
+  /* touch drag */
   const onTouchStart = (e) => { startX.current = e.touches[0].clientX; };
   const onTouchEnd   = (e) => {
     if (startX.current === null) return;
@@ -154,61 +209,90 @@ function CarouselSection({ title, icon, onSeeAll, products, favorites, onFav, on
     startX.current = null;
   };
 
-  if (!products.length) return null;
-  const p = products[idx];
+  if (!offers.length) return null;
+  const offer = offers[idx];
+  const { original, discountValue, discountPercent } = offerDiscount(offer);
 
   return (
     <section className="ch-section" style={{ marginTop: '0.5rem' }}>
-      {/* big image card – image only, no info */}
       <div
-        className="ch-bigcard-wrap"
+        className="ch-bigcard-wrap ch-offer-carousel"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
+        style={{ cursor: 'pointer' }}
       >
-        {/* decorative plant leaves – pure CSS */}
+        {/* decorative leaves */}
         <span className="ch-bigcard-leaf ch-leaf-1" aria-hidden="true"/>
         <span className="ch-bigcard-leaf ch-leaf-2" aria-hidden="true"/>
         <span className="ch-bigcard-leaf ch-leaf-3" aria-hidden="true"/>
         <span className="ch-bigcard-leaf ch-leaf-4" aria-hidden="true"/>
 
-        {/* favourite */}
-        <button
-          type="button"
-          className="ch-bigcard-fav"
-          onClick={() => onFav(p.id)}
-          aria-label="مفضلة"
-        >
-          {favorites.includes(p.id)
-            ? <IoHeart className="ch-fav-on" size={20}/>
-            : <IoHeartOutline size={20}/>}
-        </button>
+        {/* discount badge */}
+        {discountPercent > 0 && (
+          <span className="ch-offer-carousel-badge">
+            <IoPricetagOutline size={13} />
+            خصم {discountPercent}%
+          </span>
+        )}
+
+        {/* save badge */}
+        {discountValue > 0 && (
+          <span className="ch-offer-carousel-save">
+            وفر {formatCurrency(discountValue)}
+          </span>
+        )}
 
         {/* full-bleed food image */}
         <button
           type="button"
           className="ch-bigcard-img-btn"
-          onClick={() => onOpen(p.id)}
-          aria-label={p.name}
+          onClick={() => onOpen(offer)}
+          aria-label={offer.title}
         >
           <TransparentImg
-            key={p.id}
-            src={p.image || fallbackImg(p.category)}
-            alt={p.name}
+            key={offer.id}
+            src={offerImage(offer)}
+            alt={offer.title}
             className="ch-bigcard-img"
             draggable={false}
+            fallback={
+              <div className="ch-bigcard-img-placeholder" />
+            }
           />
         </button>
 
-        {/* dots only */}
-        {products.length > 1 && (
+        {/* info overlay at bottom */}
+        <div className="ch-offer-carousel-info">
+          <div className="ch-offer-carousel-text">
+            <h3>{offer.title}</h3>
+            <p>{offer.description || offerItemsLabel(offer.items)}</p>
+          </div>
+          <div className="ch-offer-carousel-price-row">
+            <div className="ch-offer-carousel-prices">
+              {original > 0 && <span>{formatCurrency(original)}</span>}
+              <strong>{formatCurrency(offer.offerPrice)}</strong>
+            </div>
+            <button
+              type="button"
+              className="ch-offer-carousel-add"
+              onClick={(e) => { e.stopPropagation(); onAdd(offer); }}
+            >
+              <IoAdd size={16} />
+              اطلب
+            </button>
+          </div>
+        </div>
+
+        {/* dots */}
+        {offers.length > 1 && (
           <div className="ch-bigcard-dots">
-            {products.map((_, i) => (
+            {offers.map((_, i) => (
               <button
                 key={i}
                 type="button"
                 className={`ch-bigcard-dot${i === idx ? ' active' : ''}`}
                 onClick={() => setIdx(i)}
-                aria-label={`منتج ${i + 1}`}
+                aria-label={`عرض ${i + 1}`}
               />
             ))}
           </div>
@@ -221,6 +305,7 @@ function CarouselSection({ title, icon, onSeeAll, products, favorites, onFav, on
 /* ─── main page ────────────────────────────── */
 export default function CustomerHome() {
   const [products, setProducts]     = useState([]);
+  const [offers, setOffers]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [loadError, setLoadError]   = useState(null);
   const [activeCat, setActiveCat]   = useState('all');
@@ -250,6 +335,15 @@ export default function CustomerHome() {
         }
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  /* load active special offers */
+  useEffect(() => {
+    getActiveSpecialOffers()
+      .then(setOffers)
+      .catch(err => {
+        console.warn('getActiveSpecialOffers failed:', err);
+      });
   }, []);
 
   /* عدد الطلبات المتتبَّعة محلياً */
@@ -289,6 +383,44 @@ export default function CustomerHome() {
     });
     updateCart(next);
     toast.success(`تمت إضافة ${product.name} ✓`);
+  };
+  const handleAddOffer = (offer) => {
+    if (!businessStatus.open) { toast.error(businessStatus.message); return; }
+    const cartId = `offer_${offer.id}`;
+    const unitCost = (offer.items || []).reduce(
+      (sum, item) => sum + (Number(item.costPrice || 0) * Number(item.quantity || 1)),
+      0
+    );
+    const components = (offer.items || []).map(item => ({
+      productId: item.productId,
+      name: item.productName || item.name,
+      productName: item.productName || item.name,
+      quantity: Number(item.quantity || 1),
+      price: Number(item.unitPrice ?? item.price ?? 0),
+      unitPrice: Number(item.unitPrice ?? item.price ?? 0),
+      costPrice: Number(item.costPrice || 0),
+      image: item.image || '',
+      category: item.category || '',
+    }));
+
+    const next = [...cart];
+    const i = next.findIndex(item => item.productId === cartId);
+    if (i >= 0) next[i].quantity += 1;
+    else next.push({
+      productId: cartId,
+      type: 'offer',
+      offerId: offer.id,
+      name: offer.title,
+      price: Number(offer.offerPrice || 0),
+      oldPrice: offerOriginalPrice(offer) || null,
+      costPrice: unitCost,
+      image: offerImage(offer),
+      quantity: 1,
+      components,
+      description: offer.description || offerItemsLabel(offer.items),
+    });
+    updateCart(next);
+    toast.success(`تمت إضافة ${offer.title} ✓`);
   };
   const toggleFav = (id) => {
     const next = favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id];
@@ -357,15 +489,18 @@ export default function CustomerHome() {
 
       {/* ── STAFF LOGIN ── */}
       <div className="ch-search-row" style={{ paddingBottom: 0 }}>
-        <button
-          type="button"
-          onClick={() => navigate('/login')}
-          className="ch-staff-login-btn"
-          aria-label="دخول طاقم العمل"
-        >
-          <IoLockClosedOutline size={16} />
-          <span>دخول طاقم العمل</span>
-        </button>
+        <div className="ch-top-actions">
+          <InstallAppButton target="customer" className="ch-install-btn" compact />
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="ch-staff-login-btn"
+            aria-label="دخول طاقم العمل"
+          >
+            <IoLockClosedOutline size={16} />
+            <span>دخول طاقم العمل</span>
+          </button>
+        </div>
       </div>
 
       {/* ── SEARCH ── */}
@@ -517,17 +652,12 @@ export default function CustomerHome() {
                 </div>
               )}
 
-              {/* FAVORITES OR TOP PRODUCTS – full-width carousel */}
-              {products.length > 0 && (
-                <CarouselSection
-                  title={favorites.length > 0 ? "وجباتك المفضلة" : "الأكثر طلباً"}
-                  icon={favorites.length > 0 ? "❤️" : "🔥"}
-                  onSeeAll={() => {}}
-                  products={favorites.length > 0 ? products.filter(p => favorites.includes(p.id)) : products.slice(0, 8)}
-                  favorites={favorites}
-                  onFav={toggleFav}
-                  onAdd={handleAdd}
-                  onOpen={(id) => navigate(`/product/${id}`)}
+              {/* SPECIAL OFFERS – full-width swipeable carousel */}
+              {offers.length > 0 && (
+                <OffersCarousel
+                  offers={offers}
+                  onOpen={(offer) => navigate(`/offer/${offer.id}`)}
+                  onAdd={handleAddOffer}
                 />
               )}
 

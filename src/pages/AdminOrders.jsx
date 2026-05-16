@@ -461,12 +461,24 @@ export default function AdminOrders() {
                 </div>
                 <div className="space-y-2">
                   {(selected.items || []).map((item, index) => (
-                    <div key={`${item.name}-${index}`} className="flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-2">
-                      <span className="font-bold text-white">{formatCurrency((item.price || 0) * (item.quantity || 1))}</span>
-                      <span className="text-omega-text">
-                        {item.name}
-                        <b className="mr-2 text-omega-orange">x{item.quantity}</b>
-                      </span>
+                    <div key={`${item.name}-${index}`} className="rounded-xl bg-white/[0.03] px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-bold text-white">{formatCurrency((item.price || 0) * (item.quantity || 1))}</span>
+                        <span className="text-omega-text">
+                          {item.type === 'offer' ? <b className="ml-2 rounded-full bg-omega-orange/10 px-2 py-0.5 text-[10px] text-omega-orange">عرض</b> : null}
+                          {item.name}
+                          <b className="mr-2 text-omega-orange">x{item.quantity}</b>
+                        </span>
+                      </div>
+                      {item.type === 'offer' && item.components?.length > 0 && (
+                        <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+                          {item.components.map(component => (
+                            <span key={component.productId} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-bold text-omega-text-muted">
+                              {component.quantity}x {component.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
