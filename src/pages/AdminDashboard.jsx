@@ -146,6 +146,7 @@ function QuickTools() {
     { to: '/admin/orders', icon: IoClipboardOutline, label: 'إدارة الطلبات' },
     { to: '/admin/products', icon: IoRestaurantOutline, label: 'إدارة المنيو' },
     { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
+    { to: '/admin/attendance', icon: IoTimerOutline, label: 'الدوام والأجور' },
     { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
     { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي' },
   ];

@@ -15,13 +15,14 @@ import {
   IoNotificationsOutline,
   IoPricetagOutline,
   IoSparklesOutline,
+  IoTimeOutline,
 } from 'react-icons/io5';
 
 const bottomTabs = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
-  { to: '/admin/offers', icon: IoPricetagOutline, label: 'العروض' },
+  { to: '/admin/attendance', icon: IoTimeOutline, label: 'الدوام' },
   { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
 ];
 
@@ -31,6 +32,7 @@ const menuLinks = [
   { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
   { to: '/admin/offers', icon: IoPricetagOutline, label: 'العروض الخاصة' },
   { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
+  { to: '/admin/attendance', icon: IoTimeOutline, label: 'الدوام والأجور' },
   { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي', badge: 'جديد' },
   { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
 ];

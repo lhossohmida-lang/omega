@@ -22,6 +22,7 @@ import TrackOrder from './pages/TrackOrder';
 import MyOrders from './pages/MyOrders';
 import Favorites from './pages/Favorites';
 import MyInfo from './pages/MyInfo';
+import PublicAttendance from './pages/PublicAttendance';
 
 // Worker
 import WorkerOrders from './pages/WorkerOrders';
@@ -34,6 +35,7 @@ import AdminInventory from './pages/AdminInventory';
 import AdminAI from './pages/AdminAI';
 import AdminReports from './pages/AdminReports';
 import AdminSpecialOffers from './pages/AdminSpecialOffers';
+import AdminAttendance from './pages/AdminAttendance';
 
 export default function App() {
   const { userData, loading } = useAuth();
@@ -86,6 +88,7 @@ export default function App() {
       <Route path="/favorites" element={<Favorites />} />
       <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/my-info" element={<MyInfo />} />
+      <Route path="/attendance" element={<PublicAttendance />} />
 
       {/* Worker Routes */}
       <Route path="/staff" element={<Navigate to="/worker" replace />} />
@@ -99,6 +102,7 @@ export default function App() {
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventory /></ProtectedRoute>} />
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
+      <Route path="/admin/attendance" element={<ProtectedRoute allowedRoles={['admin']}><AdminAttendance /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />

@@ -3,6 +3,7 @@ import InstallAppButton from './InstallAppButton';
 import {
   IoRestaurant,
   IoLogOutOutline,
+  IoTimeOutline,
 } from 'react-icons/io5';
 
 export default function WorkerSidebar({ active = 'orders', onChangeTab }) {
@@ -10,6 +11,7 @@ export default function WorkerSidebar({ active = 'orders', onChangeTab }) {
 
   const items = [
     { id: 'orders', icon: IoRestaurant, label: 'الطلبات' },
+    { id: 'attendance', icon: IoTimeOutline, label: 'تسجيل الدوام' },
   ];
 
   return (
