@@ -14,10 +14,11 @@ service cloud.firestore {
       return isSignedIn() && (myRole() == 'admin' || myRole() == 'worker');
     }
 
-    // ===== المستخدمون (الإدارة والمطبخ فقط) =====
+    // ===== المستخدمون =====
     match /users/{userId} {
-      allow read: if isSignedIn() && myRole() == 'admin';
+      allow read, write: if isSignedIn() && myRole() == 'admin';
       allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if resource.data.role == 'worker';
     }
 
     // ===== الطلبات =====
@@ -83,6 +84,11 @@ service cloud.firestore {
 
     match /ai_settings/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== سجلات الحضور والورديات =====
+    match /attendance/{docId} {
+      allow read, write: if true;
     }
   }
 }

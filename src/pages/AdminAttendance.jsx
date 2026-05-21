@@ -6,7 +6,9 @@ import {
   getAllWorkers,
   getAllSessions,
   updateWorkerHourlyRate,
-  registerNewWorker
+  registerNewWorker,
+  registerManualSession,
+  checkOutWorker
 } from '../services/attendanceService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import {
@@ -18,7 +20,8 @@ import {
   IoSaveOutline,
   IoRefreshOutline,
   IoCheckmarkCircle,
-  IoPersonAddOutline
+  IoPersonAddOutline,
+  IoStopOutline
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -36,6 +39,24 @@ export default function AdminAttendance() {
     hourlyRate: ''
   });
   const [registering, setRegistering] = useState(false);
+
+  // استمارة تسجيل حضور وانصراف يدوي
+  const [manualSession, setManualSession] = useState({
+    uid: '',
+    checkIn: '',
+    checkOut: '',
+    hourlyRate: ''
+  });
+  const [registeringManual, setRegisteringManual] = useState(false);
+
+  const handleManualWorkerChange = (uid) => {
+    const selected = workers.find(w => w.uid === uid);
+    setManualSession(prev => ({
+      ...prev,
+      uid,
+      hourlyRate: selected ? (selected.hourlyRate || 0) : ''
+    }));
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -116,6 +137,57 @@ export default function AdminAttendance() {
       toast.error(error.message || 'فشل تسجيل حساب العامل الجديد');
     } finally {
       setRegistering(false);
+    }
+  };
+
+  // تسجيل وردية حضور يدوية لعامل
+  const handleRegisterManualSession = async (e) => {
+    e.preventDefault();
+    const { uid, checkIn, checkOut, hourlyRate } = manualSession;
+    if (!uid || !checkIn || !checkOut || !hourlyRate) {
+      toast.error('يرجى ملء جميع حقول الوردية اليدوية');
+      return;
+    }
+
+    const selectedWorker = workers.find(w => w.uid === uid);
+    if (!selectedWorker) return;
+
+    setRegisteringManual(true);
+    try {
+      await registerManualSession({
+        uid,
+        name: selectedWorker.name,
+        checkIn,
+        checkOut,
+        hourlyRate: Number(hourlyRate) || 0
+      });
+
+      toast.success(`تم تسجيل حضور وانصراف الموظف ${selectedWorker.name} يدوياً بنجاح ✅`);
+      setManualSession({
+        uid: '',
+        checkIn: '',
+        checkOut: '',
+        hourlyRate: ''
+      });
+      loadData();
+    } catch (error) {
+      toast.error(error.message || 'فشل تسجيل الوردية اليدوية');
+    } finally {
+      setRegisteringManual(false);
+    }
+  };
+
+  // تسجيل خروج قسري لموظف قيد العمل
+  const handleForceCheckOut = async (session) => {
+    const ok = confirm(`هل أنت متأكد من إنهاء وردية الموظف ${session.name} وتسجيل خروجه النهائي؟`);
+    if (!ok) return;
+
+    try {
+      await checkOutWorker(session.id, session, session.hourlyRate || 0);
+      toast.success(`تم تسجيل خروج الموظف ${session.name} بنجاح ✅`);
+      loadData();
+    } catch (error) {
+      toast.error(error.message || 'فشل تسجيل خروج الموظف');
     }
   };
 
@@ -285,6 +357,77 @@ export default function AdminAttendance() {
                 </form>
               </div>
 
+              {/* نموذج تسجيل حضور وانصراف يدوي */}
+              <div className="omega-panel">
+                <div className="omega-section-head mb-4">
+                  <IoCalendarOutline size={20} className="text-omega-orange" />
+                  <h2>تسجيل حضور وانصراف يدوي</h2>
+                </div>
+                <form onSubmit={handleRegisterManualSession} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-omega-text-muted mb-1 text-right">اختر الموظف</label>
+                    <select
+                      required
+                      value={manualSession.uid}
+                      onChange={(e) => handleManualWorkerChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-omega-border bg-white text-gray-900 text-xs focus:outline-none focus:border-omega-orange font-bold cursor-pointer"
+                    >
+                      <option value="">-- اختر الموظف --</option>
+                      {workers.map((w) => (
+                        <option key={w.uid} value={w.uid}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-omega-text-muted mb-1 text-right">وقت الدخول</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={manualSession.checkIn}
+                        onChange={(e) => setManualSession(prev => ({ ...prev, checkIn: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-omega-border bg-white text-gray-900 text-xs focus:outline-none focus:border-omega-orange font-bold text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-omega-text-muted mb-1 text-right">وقت الخروج</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={manualSession.checkOut}
+                        onChange={(e) => setManualSession(prev => ({ ...prev, checkOut: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-omega-border bg-white text-gray-900 text-xs focus:outline-none focus:border-omega-orange font-bold text-center"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-omega-text-muted mb-1 text-right">سعر الساعة للوردية (د.ج)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={manualSession.hourlyRate}
+                      onChange={(e) => setManualSession(prev => ({ ...prev, hourlyRate: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-omega-border bg-white text-gray-900 text-xs focus:outline-none focus:border-omega-orange font-bold text-center"
+                      placeholder="200"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={registeringManual}
+                    className="w-full py-3 rounded-xl bg-gradient-to-l from-omega-orange to-omega-red text-white font-black text-xs flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-omega-orange/10 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    <IoCalendarOutline size={16} />
+                    <span>{registeringManual ? 'جاري تسجيل الوردية...' : 'تسجيل الوردية اليدوية في النظام'}</span>
+                  </button>
+                </form>
+              </div>
+
               {/* لوحة إعدادات أجور العمال */}
               <div className="omega-panel">
                 <div className="omega-section-head mb-4">
@@ -366,6 +509,7 @@ export default function AdminAttendance() {
                           <th className="pb-3 text-right">صافي الساعات</th>
                           <th className="pb-3 text-right">سعر الساعة</th>
                           <th className="pb-3 text-left">الأجر المحتسب</th>
+                          <th className="pb-3 text-center">الإجراءات</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-omega-border/40 text-gray-800">
@@ -413,6 +557,20 @@ export default function AdminAttendance() {
                                 <span className="text-green-600 font-black animate-pulse">يُحسب عند الخروج</span>
                               ) : (
                                 `${formatCurrency(session.totalPay || 0)}`
+                              )}
+                            </td>
+                            <td className="py-3.5 text-center">
+                              {session.status !== 'completed' ? (
+                                <button
+                                  onClick={() => handleForceCheckOut(session)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-omega-red hover:bg-omega-red-dark text-white font-black text-[10px] flex items-center justify-center gap-1 mx-auto active:scale-95 transition-all shadow-sm shadow-omega-red/10 cursor-pointer"
+                                  title="تسجيل الخروج النهائي للموظف"
+                                >
+                                  <IoStopOutline size={12} />
+                                  <span>تسجيل خروج</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-[10px] font-black">مكتملة ✅</span>
                               )}
                             </td>
                           </tr>

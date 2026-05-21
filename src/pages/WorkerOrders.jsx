@@ -6,6 +6,7 @@ import {
   archiveAllReadyOrders,
 } from '../services/orderService';
 import {
+  getAllWorkers,
   getActiveSession,
   checkInWorker,
   goOnBreak,
@@ -13,7 +14,6 @@ import {
   checkOutWorker,
   getWorkerSessions
 } from '../services/attendanceService';
-import { useAuth } from '../hooks/useAuth';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { timeAgo } from '../utils/formatDate';
 import WorkerSidebar from '../components/WorkerSidebar';
@@ -80,17 +80,61 @@ export default function WorkerOrders() {
   const [clock, setClock] = useState(fmtClock());
   const previousCountRef = useRef(0);
 
-  // Attendance states
-  const { userData } = useAuth();
+  // Attendance states — per-worker selection (no Firebase login required)
+  const [workers, setWorkers] = useState([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState('');
+  const [selectedWorker, setSelectedWorker] = useState(null);
   const [activeSession, setActiveSession] = useState(null);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Load all workers once on mount
+  useEffect(() => {
+    getAllWorkers().then(setWorkers).catch(console.error);
+  }, []);
+
+  // Clock ticker
   useEffect(() => {
     const t = setInterval(() => setClock(fmtClock()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Load session data whenever selected worker or tab changes
+  const loadAttendanceData = async (uid) => {
+    const id = uid ?? selectedWorkerId;
+    if (!id) return;
+    setAttendanceLoading(true);
+    try {
+      const active = await getActiveSession(id);
+      setActiveSession(active);
+      const history = await getWorkerSessions(id);
+      setAttendanceHistory(history);
+    } catch (e) {
+      console.error('Error fetching attendance data:', e);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const handleWorkerSelect = async (uid) => {
+    setSelectedWorkerId(uid);
+    if (!uid) {
+      setSelectedWorker(null);
+      setActiveSession(null);
+      setAttendanceHistory([]);
+      return;
+    }
+    const w = workers.find(wk => wk.uid === uid) || null;
+    setSelectedWorker(w);
+    await loadAttendanceData(uid);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'attendance' && selectedWorkerId) {
+      loadAttendanceData(selectedWorkerId);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 6000);
@@ -118,36 +162,14 @@ export default function WorkerOrders() {
     };
   }, [soundOn]);
 
-  // Fetch attendance data
-  const loadAttendanceData = async () => {
-    if (!userData?.uid) return;
-    setAttendanceLoading(true);
-    try {
-      const active = await getActiveSession(userData.uid);
-      setActiveSession(active);
-      const history = await getWorkerSessions(userData.uid);
-      setAttendanceHistory(history);
-    } catch (e) {
-      console.error('Error fetching attendance data:', e);
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (userData?.uid) {
-      loadAttendanceData();
-    }
-  }, [userData, activeTab]);
-
   // Attendance handlers
   const handleCheckIn = async () => {
-    if (!userData?.uid) return;
+    if (!selectedWorker) return;
     setActionLoading(true);
     try {
-      const session = await checkInWorker(userData.uid, userData.name, userData.hourlyRate || 0);
+      const session = await checkInWorker(selectedWorker.uid, selectedWorker.name, selectedWorker.hourlyRate || 0);
       setActiveSession(session);
-      toast.success('تم تسجيل دخولك للدوام بنجاح 👨‍🍳 بالتوفيق!');
+      toast.success(`أهلاً ${selectedWorker.name}! تم تسجيل دخولك للدوام بنجاح 👨‍🍳 بالتوفيق!`);
       loadAttendanceData();
     } catch (e) {
       toast.error(e.message || 'فشل تسجيل الدخول للدوام');
@@ -175,7 +197,7 @@ export default function WorkerOrders() {
     setActionLoading(true);
     try {
       await returnFromBreak(activeSession.id, activeSession.breaks || []);
-      toast.success('مرحباً بعودتك! تم استئناف العمل الدوام 🔥');
+      toast.success('مرحباً بعودتك! تم استئناف الدوام 🔥');
       loadAttendanceData();
     } catch (e) {
       toast.error(e.message || 'فشل تسجيل عودة الدخول');
@@ -185,16 +207,16 @@ export default function WorkerOrders() {
   };
 
   const handleCheckOut = async () => {
-    if (!activeSession) return;
-    const ok = confirm('هل أنت متأكد من إنهاء الدوام وتسجيل الخروج النهائي؟');
+    if (!activeSession || !selectedWorker) return;
+    const ok = confirm(`هل أنت متأكد من إنهاء دوام ${selectedWorker.name} وتسجيل الخروج النهائي؟`);
     if (!ok) return;
 
     setActionLoading(true);
     try {
-      const result = await checkOutWorker(activeSession.id, activeSession, userData.hourlyRate || 0);
+      const result = await checkOutWorker(activeSession.id, activeSession, selectedWorker.hourlyRate || 0);
       setActiveSession(null);
       toast.success(
-        `تم تسجيل خروجك بنجاح! ✅\nساعات العمل: ${result.totalHours} ساعة\nالأجر المحتسب: ${result.totalPay} د.ج`,
+        `تم تسجيل خروج ${selectedWorker.name} بنجاح! ✅\nساعات العمل: ${result.totalHours} ساعة\nالأجر المحتسب: ${result.totalPay} د.ج`,
         { duration: 6000 }
       );
       loadAttendanceData();
@@ -480,7 +502,33 @@ export default function WorkerOrders() {
              ========================================================= */
           <div className="space-y-6 animate-fade-in text-white">
             
-            {attendanceLoading ? (
+            {/* اختيار اسم الموظف */}
+            <div className="glass rounded-2xl p-4 border border-white/10 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="text-right flex-1">
+                <h3 className="text-sm font-black text-white">من أنت؟</h3>
+                <p className="text-xs text-omega-text-dim mt-0.5">اختر اسمك من القائمة لتسجيل دوامك الخاص</p>
+              </div>
+              <select
+                value={selectedWorkerId}
+                onChange={(e) => handleWorkerSelect(e.target.value)}
+                className="w-full sm:w-64 px-4 py-3 rounded-xl border border-white/10 bg-white/10 text-white font-bold text-sm focus:outline-none focus:border-omega-orange appearance-none cursor-pointer"
+              >
+                <option value="" className="text-black">-- اختر اسمك --</option>
+                {workers.map((w) => (
+                  <option key={w.uid} value={w.uid} className="text-black">
+                    {w.name} {w.phone ? `(${w.phone})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {!selectedWorkerId ? (
+              <div className="glass rounded-3xl p-12 border border-white/5 text-center flex flex-col items-center gap-4">
+                <span className="text-5xl animate-bounce">👋</span>
+                <h3 className="text-lg font-black text-white">اختر اسمك أولاً</h3>
+                <p className="text-sm text-omega-text-dim max-w-sm leading-relaxed">اختر اسمك من القائمة بالأعلى لتسجيل دخولك أو خروجك من الدوام.</p>
+              </div>
+            ) : attendanceLoading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <div className="w-12 h-12 border-4 border-omega-orange border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-omega-text-dim text-sm">جاري جلب تفاصيل الدوام...</p>
@@ -495,7 +543,8 @@ export default function WorkerOrders() {
                   <div className="glass rounded-3xl p-6 border border-white/5 shadow-xl relative overflow-hidden bg-white/[0.02]">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/[0.01] rounded-full -mr-10 -mt-10" />
                     
-                    <h3 className="text-sm font-black text-omega-text-dim mb-4">حالة الدوام الحالية</h3>
+                    <h3 className="text-sm font-black text-omega-text-dim mb-1">حالة الدوام الحالية</h3>
+                    <p className="text-xs font-bold text-omega-orange mb-4">{selectedWorker?.name}</p>
                     
                     <div className="flex items-center gap-3 mb-6">
                       {activeSession?.status === 'active' ? (
@@ -547,7 +596,7 @@ export default function WorkerOrders() {
                       <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 text-right text-xs text-omega-text-muted font-bold mb-6">
                         <div className="flex justify-between items-center">
                           <span>سعر ساعة عملك الحالي:</span>
-                          <span className="text-omega-orange font-black text-sm">{(userData?.hourlyRate) || 0} د.ج/ساعة</span>
+                          <span className="text-omega-orange font-black text-sm">{(selectedWorker?.hourlyRate) || 0} د.ج/ساعة</span>
                         </div>
                         <p className="text-[10px] text-omega-text-dim mt-2 leading-relaxed">
                           * سعر الساعة يحدده صاحب الإدارة من لوحة التحكم، وسوف يُستخدم لحساب أجر فترات العمل بدقة.
@@ -685,7 +734,6 @@ export default function WorkerOrders() {
                     )}
                   </div>
                 </div>
-                
               </div>
             )}
           </div>

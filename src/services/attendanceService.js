@@ -249,3 +249,37 @@ export async function registerNewWorker({ name, phone, hourlyRate }) {
     throw new Error('فشل تسجيل الموظف الجديد');
   }
 }
+
+// 11. تسجيل وردية عمل يدوية كاملة لعامل معين
+export async function registerManualSession({ uid, name, checkIn, checkOut, hourlyRate }) {
+  try {
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const totalDurationMs = checkOutDate.getTime() - checkInDate.getTime();
+    
+    if (totalDurationMs <= 0) {
+      throw new Error('وقت الخروج يجب أن يكون بعد وقت الدخول');
+    }
+
+    const totalHours = Number((totalDurationMs / (1000 * 60 * 60)).toFixed(2));
+    const totalPay = Number((totalHours * Number(hourlyRate)).toFixed(2));
+
+    const docRef = await addDoc(collection(db, 'attendance'), {
+      uid,
+      name,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      breaks: [],
+      status: 'completed',
+      hourlyRate: Number(hourlyRate) || 0,
+      totalHours,
+      totalPay,
+      createdAt: serverTimestamp(),
+    });
+
+    return docRef.id;
+  } catch (error) {
+    console.error('Error registering manual session:', error);
+    throw new Error(error.message || 'فشل تسجيل الوردية اليدوية');
+  }
+}
