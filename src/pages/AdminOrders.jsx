@@ -16,6 +16,7 @@ import { isToday, timeAgo } from '../utils/formatDate';
 import { calculateOrderProfit } from '../utils/calculateProfit';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
+import localSync, { SYNC_EVENTS } from '../services/localSync';
 import {
   IoAdd,
   IoBagHandleOutline,
@@ -99,7 +100,18 @@ export default function AdminOrders() {
 
       previousOrdersRef.current = data;
     });
-    return () => unsub();
+
+    // استماع لتحديثات الشبكة المحلية (بدون إنترنت)
+    const unsubLocal = localSync.on(SYNC_EVENTS.ORDER_UPDATED, () => {
+      // فقط إذا Firebase غير متصل — الوصف يعتمد على offline cache
+      toast('🔄 تحديث من الشبكة المحلية', { duration: 1500 });
+    });
+    const unsubNew = localSync.on(SYNC_EVENTS.ORDER_CREATED, () => {
+      playLoudAlarm();
+      toast('طلب جديد من الشبكة! 🔔', { duration: 3000 });
+    });
+
+    return () => { unsub(); unsubLocal(); unsubNew(); };
   }, []);
 
   // حذف تلقائي للطلبات الجاهزة بعد 3 دقائق
@@ -163,6 +175,8 @@ export default function AdminOrders() {
       });
       toast.success('تم إنشاء الطلب');
       setShowNewOrder(false);
+      // إشعار المطبخ بطلب جديد
+      localSync.emit(SYNC_EVENTS.ORDER_CREATED, { source: 'admin' });
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'تعذّر إنشاء الطلب');
@@ -175,6 +189,8 @@ export default function AdminOrders() {
       toast.success('تم تحديث حالة الطلب');
       setOrders(current => current.map(order => order.id === orderId ? { ...order, status: newStatus } : order));
       setSelected(current => current?.id === orderId ? { ...current, status: newStatus } : current);
+      // إشعار المطبخ عبر الشبكة المحلية
+      localSync.emit(SYNC_EVENTS.ORDER_UPDATED, { orderId, newStatus });
     } catch (error) {
       console.error(error);
       toast.error('تعذر تحديث الطلب');

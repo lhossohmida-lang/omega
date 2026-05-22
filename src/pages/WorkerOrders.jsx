@@ -14,6 +14,7 @@ import {
   checkOutWorker,
   getWorkerSessions
 } from '../services/attendanceService';
+import localSync, { SYNC_EVENTS } from '../services/localSync';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { timeAgo } from '../utils/formatDate';
 import WorkerSidebar from '../components/WorkerSidebar';
@@ -156,9 +157,21 @@ export default function WorkerOrders() {
       previousCountRef.current = visible.length;
     });
 
+    // إشعار من الإدارة بطلب جديد (شبكة محلية)
+    const unsubNew = localSync.on(SYNC_EVENTS.ORDER_CREATED, () => {
+      if (soundOn) playLoudAlarm();
+      toast('🔔 طلب جديد من الإدارة!', { duration: 4000 });
+    });
+    // تحديث حالة طلب من الإدارة (ex: تسليم)
+    const unsubUpd = localSync.on(SYNC_EVENTS.ORDER_UPDATED, () => {
+      toast('🔄 تحديث من الإدارة', { duration: 1500 });
+    });
+
     return () => {
       clearTimeout(timeout);
       unsubOrders();
+      unsubNew();
+      unsubUpd();
     };
   }, [soundOn]);
 
@@ -301,6 +314,7 @@ export default function WorkerOrders() {
     try {
       await setItemStatus(orderId, itemIndex, 'preparing');
       toast.success('بدأ التحضير 🔥');
+      localSync.emit(SYNC_EVENTS.ORDER_UPDATED, { orderId, itemIndex, status: 'preparing' });
     } catch (e) {
       toast.error(e.message || 'فشل');
     }
@@ -312,6 +326,7 @@ export default function WorkerOrders() {
     try {
       await setItemStatus(orderId, itemIndex, 'ready');
       toast.success('جاهز ✅');
+      localSync.emit(SYNC_EVENTS.ORDER_UPDATED, { orderId, itemIndex, status: 'ready' });
     } catch (e) {
       toast.error(e.message || 'فشل');
     }
