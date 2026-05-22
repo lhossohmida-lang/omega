@@ -12,6 +12,7 @@ import {
   addWithdrawal,
   getAllWithdrawals,
   deleteWithdrawal,
+  deleteWorker,
 } from '../services/attendanceService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import {
@@ -68,6 +69,13 @@ export default function AdminAttendance() {
   const [rates, setRates] = useState({});
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
+  // مودال تأكيد تعديل سعر الساعة
+  const [rateConfirmModal, setRateConfirmModal] = useState(null); // { uid, name, oldRate, newRate }
+
+  // مودال تأكيد حذف عامل
+  const [deleteWorkerModal, setDeleteWorkerModal] = useState(null); // { uid, name }
+  const [deletingWorker, setDeletingWorker] = useState(false);
+
   // نموذج إضافة عامل جديد
   const [newWorker, setNewWorker] = useState({ name: '', phone: '', hourlyRate: '' });
   const [registering, setRegistering] = useState(false);
@@ -117,6 +125,21 @@ export default function AdminAttendance() {
   useEffect(() => { loadData(); }, []);
 
   const handleRateChange = (uid, val) => setRates((prev) => ({ ...prev, [uid]: val }));
+
+  const handleDeleteWorker = async () => {
+    if (!deleteWorkerModal) return;
+    setDeletingWorker(true);
+    try {
+      await deleteWorker(deleteWorkerModal.uid);
+      toast.success(`تم حذف الموظف ${deleteWorkerModal.name} بنجاح ✅`);
+      setDeleteWorkerModal(null);
+      loadData();
+    } catch (e) {
+      toast.error(e.message || 'فشل حذف الموظف');
+    } finally {
+      setDeletingWorker(false);
+    }
+  };
 
   const handleSaveRate = async (uid) => {
     const rate = Number(rates[uid]);
@@ -423,11 +446,12 @@ export default function AdminAttendance() {
                   <div className="space-y-4">
                     {workers.map((worker) => (
                       <div key={worker.uid} className="flex items-center justify-between p-3.5 rounded-2xl bg-omega-gray/20 border border-omega-border">
-                        <div className="text-right">
+                        <div className="text-right flex-1 min-w-0">
                           <h4 className="font-black text-gray-900 text-sm">{worker.name}</h4>
                           <p className="text-[11px] text-omega-text-muted mt-0.5">{worker.phone || 'بدون رقم هاتف'}</p>
+                          <p className="text-[10px] text-omega-text-dim mt-0.5">الحالي: {worker.hourlyRate || 0} د.ج</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <div className="relative">
                             <input type="number"
                               value={rates[worker.uid] !== undefined ? rates[worker.uid] : ''}
@@ -436,10 +460,23 @@ export default function AdminAttendance() {
                               placeholder="0" min="0" />
                             <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold">د.ج</span>
                           </div>
-                          <button onClick={() => handleSaveRate(worker.uid)} disabled={updatingUid === worker.uid}
+                          <button
+                            onClick={() => setRateConfirmModal({
+                              uid: worker.uid,
+                              name: worker.name,
+                              oldRate: worker.hourlyRate || 0,
+                              newRate: Number(rates[worker.uid]) || 0
+                            })}
+                            disabled={updatingUid === worker.uid}
                             className="p-2 rounded-xl bg-omega-orange text-white hover:bg-omega-orange-dark active:scale-95 transition-all disabled:opacity-50"
-                            title="حفظ سعر الساعة">
+                            title="تأكيد تعديل سعر الساعة">
                             <IoSaveOutline size={16} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteWorkerModal({ uid: worker.uid, name: worker.name })}
+                            className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 active:scale-95 transition-all"
+                            title="حذف الموظف">
+                            <IoTrashOutline size={16} />
                           </button>
                         </div>
                       </div>
@@ -685,6 +722,64 @@ export default function AdminAttendance() {
         )}
       </main>
 
+      {/* مودال تأكيد تعديل سعر الساعة */}
+      {rateConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+          <button className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setRateConfirmModal(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-5">
+              <button onClick={() => setRateConfirmModal(null)}
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors cursor-pointer">
+                <IoCloseOutline size={20} />
+              </button>
+              <div className="text-right">
+                <h3 className="font-black text-gray-900 text-base">تأكيد تعديل سعر الساعة</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{rateConfirmModal.name}</p>
+              </div>
+            </div>
+
+            {/* تفاصيل التغيير */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-5 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="font-black text-gray-500 text-sm">{rateConfirmModal.oldRate} د.ج</span>
+                <span className="text-xs text-gray-400">السعر الحالي</span>
+              </div>
+              <div className="flex items-center justify-center">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="mx-3 text-lg">↓</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-black text-omega-orange text-base">{rateConfirmModal.newRate} د.ج</span>
+                <span className="text-xs text-gray-400">السعر الجديد</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 text-right mb-5">
+              هل أنت متأكد من تعديل سعر ساعة الموظف <strong>{rateConfirmModal.name}</strong> من <strong>{rateConfirmModal.oldRate} د.ج</strong> إلى <strong>{rateConfirmModal.newRate} د.ج</strong>؟
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRateConfirmModal(null)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-black text-sm hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">
+                إلغاء
+              </button>
+              <button
+                disabled={updatingUid === rateConfirmModal.uid}
+                onClick={async () => {
+                  await handleSaveRate(rateConfirmModal.uid);
+                  setRateConfirmModal(null);
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-l from-omega-orange to-omega-red text-white font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg active:scale-95 transition-all disabled:opacity-50 cursor-pointer">
+                <IoSaveOutline size={16} />
+                {updatingUid === rateConfirmModal.uid ? 'جاري الحفظ...' : 'تأكيد الحفظ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* مودال سحب الراتب */}
       {withdrawalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
@@ -726,6 +821,40 @@ export default function AdminAttendance() {
                 {addingWithdrawal ? 'جاري التسجيل...' : 'تسجيل السحب'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* مودال تأكيد حذف الموظف */}
+      {deleteWorkerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+          <button className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteWorkerModal(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+            {/* أيقونة تحذير */}
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <IoTrashOutline size={30} className="text-red-500" />
+            </div>
+            <h3 className="font-black text-gray-900 text-lg text-center mb-1">حذف الموظف</h3>
+            <p className="text-sm text-gray-500 text-center mb-2">
+              هل أنت متأكد من حذف <strong className="text-gray-800">{deleteWorkerModal.name}</strong>؟
+            </p>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3 mb-5 text-center">
+              <p className="text-red-600 text-xs font-bold">⚠️ سيتم حذف بيانات الموظف نهائياً ولا يمكن التراجع</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteWorkerModal(null)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-black text-sm hover:bg-gray-50 active:scale-95 transition-all cursor-pointer">
+                إلغاء
+              </button>
+              <button
+                onClick={handleDeleteWorker}
+                disabled={deletingWorker}
+                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 cursor-pointer">
+                <IoTrashOutline size={16} />
+                {deletingWorker ? 'جاري الحذف...' : 'تأكيد الحذف'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,9 +1,11 @@
-// Local development server — Vercel-equivalent endpoints for npm run server
-// In production, Vercel serverless functions in /api/ are used instead.
+// Local development server — API endpoints + WebSocket for local network sync
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+import { networkInterfaces } from 'os';
 import chatHandler from '../api/admin-ai/chat.js';
 import executeHandler from '../api/admin-ai/execute-action.js';
 
@@ -21,18 +23,69 @@ const aiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Wrap Vercel handlers as Express routes
 function wrap(handler) {
-  return async (req, res) => {
-    // Vercel-style: req.body (already parsed), res.status().json()
-    await handler(req, res);
-  };
+  return async (req, res) => { await handler(req, res); };
 }
 
 app.post('/api/admin-ai/chat', aiLimiter, wrap(chatHandler));
 app.post('/api/admin-ai/execute-action', wrap(executeHandler));
 
+// ─── WebSocket للمزامنة المحلية ───
+const httpServer = createServer(app);
+const wss = new WebSocketServer({ server: httpServer });
+
+// تخزين المتصلين
+const clients = new Set();
+
+wss.on('connection', (ws, req) => {
+  clients.add(ws);
+  const ip = req.socket.remoteAddress;
+  console.log(`🔌 جهاز متصل: ${ip} | المتصلون: ${clients.size}`);
+
+  // إرسال تأكيد الاتصال
+  ws.send(JSON.stringify({ type: 'connected', clientCount: clients.size }));
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString());
+      console.log(`📨 حدث: ${msg.type} من ${ip}`);
+
+      // بث الرسالة لجميع المتصلين الآخرين
+      for (const client of clients) {
+        if (client !== ws && client.readyState === 1) {
+          client.send(JSON.stringify(msg));
+        }
+      }
+    } catch (e) {
+      console.error('خطأ في تحليل الرسالة:', e.message);
+    }
+  });
+
+  ws.on('close', () => {
+    clients.delete(ws);
+    console.log(`❌ جهاز قطع الاتصال | المتصلون: ${clients.size}`);
+  });
+
+  ws.on('error', () => clients.delete(ws));
+});
+
+// عرض عنوان IP المحلي عند الإطلاق
+function getLocalIP() {
+  const nets = networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    for (const net of iface) {
+      if (net.family === 'IPv4' && !net.internal) return net.address;
+    }
+  }
+  return 'localhost';
+}
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`🚀 OMEGA Backend Server running on port ${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  const ip = getLocalIP();
+  console.log('\n🚀 OMEGA Backend Server');
+  console.log(`   http://localhost:${PORT}`);
+  console.log(`   http://${ip}:${PORT}  ← شبكة WiFi المحلية`);
+  console.log(`\n🔌 WebSocket جاهز على ws://${ip}:${PORT}`);
+  console.log(`   أدخل هذا العنوان في إعدادات الشبكة المحلية:\n   IP: ${ip}\n`);
 });

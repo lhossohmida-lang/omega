@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { OmegaMark } from './AdminHeader';
 import InstallAppButton from './InstallAppButton';
+import LocalNetworkSettings from './LocalNetworkSettings';
+import localSync from '../services/localSync';
 import {
   IoArchiveOutline,
   IoBagHandleOutline,
@@ -16,6 +18,7 @@ import {
   IoPricetagOutline,
   IoSparklesOutline,
   IoTimeOutline,
+  IoWifiOutline,
 } from 'react-icons/io5';
 
 const bottomTabs = [
@@ -40,8 +43,16 @@ const menuLinks = [
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
   const [clickingTo, setClickingTo] = useState(null);
+  const [showNetSettings, setShowNetSettings] = useState(false);
+  const [wifiConnected, setWifiConnected] = useState(localSync.isConnected);
   const { logout, userData } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const u1 = localSync.on('_connected', () => setWifiConnected(true));
+    const u2 = localSync.on('_disconnected', () => setWifiConnected(false));
+    return () => { u1(); u2(); };
+  }, []);
 
   const handleNavClick = (e, to) => {
     e.preventDefault();
@@ -61,6 +72,24 @@ export default function AdminNav() {
           <IoNotificationsOutline size={25} />
           <span />
         </button>
+
+        {/* زر الشبكة المحلية */}
+        <button
+          type="button"
+          onClick={() => setShowNetSettings(true)}
+          title={wifiConnected ? 'الشبكة المحلية متصلة' : 'إعداد الشبكة المحلية'}
+          style={{
+            width: 44, height: 44, borderRadius: 14,
+            background: wifiConnected ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
+            border: `2px solid ${wifiConnected ? '#22c55e' : 'rgba(255,255,255,0.15)'}`,
+            color: wifiConnected ? '#22c55e' : 'rgba(255,255,255,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.3s',
+          }}
+        >
+          <IoWifiOutline size={20} />
+        </button>
+
         <button
           type="button"
           className="admin-menu-float"
@@ -70,6 +99,8 @@ export default function AdminNav() {
           <IoMenu size={31} />
         </button>
       </div>
+
+      {showNetSettings && <LocalNetworkSettings onClose={() => setShowNetSettings(false)} />}
 
       {open ? (
         <button

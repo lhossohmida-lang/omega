@@ -251,7 +251,17 @@ export async function registerNewWorker({ name, phone, hourlyRate }) {
   }
 }
 
-// 11. حذف سجل حضور (وردية) واحد
+// 11. حذف عامل من النظام
+export async function deleteWorker(uid) {
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch (error) {
+    console.error('Error deleting worker:', error);
+    throw new Error('فشل حذف الموظف');
+  }
+}
+
+// 12. حذف سجل حضور (وردية) واحد
 export async function deleteSession(sessionId) {
   try {
     await deleteDoc(doc(db, 'attendance', sessionId));

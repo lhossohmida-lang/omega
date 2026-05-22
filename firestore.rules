@@ -95,5 +95,10 @@ service cloud.firestore {
     match /wage_withdrawals/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
     }
+
+    // ===== جدول تخطيط ورديات الموظفين =====
+    match /work_schedule_plans/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
   }
 }
