@@ -9,6 +9,7 @@ import {
   where,
   orderBy,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   addDoc,
   limit
@@ -250,7 +251,57 @@ export async function registerNewWorker({ name, phone, hourlyRate }) {
   }
 }
 
-// 11. تسجيل وردية عمل يدوية كاملة لعامل معين
+// 11. حذف سجل حضور (وردية) واحد
+export async function deleteSession(sessionId) {
+  try {
+    await deleteDoc(doc(db, 'attendance', sessionId));
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    throw new Error('فشل حذف سجل الحضور');
+  }
+}
+
+// 12. تسجيل سحب مبلغ من راتب عامل
+export async function addWithdrawal(uid, workerName, amount, note = '') {
+  try {
+    const docRef = await addDoc(collection(db, 'wage_withdrawals'), {
+      uid,
+      name: workerName,
+      amount: Number(amount),
+      note: note || '',
+      date: new Date(),
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding withdrawal:', error);
+    throw new Error('فشل تسجيل السحب');
+  }
+}
+
+// 13. جلب جميع سحوبات الرواتب
+export async function getAllWithdrawals() {
+  try {
+    const q = query(collection(db, 'wage_withdrawals'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.error('Error getting withdrawals:', error);
+    return [];
+  }
+}
+
+// 14. حذف سحب راتب واحد
+export async function deleteWithdrawal(withdrawalId) {
+  try {
+    await deleteDoc(doc(db, 'wage_withdrawals', withdrawalId));
+  } catch (error) {
+    console.error('Error deleting withdrawal:', error);
+    throw new Error('فشل حذف السحب');
+  }
+}
+
+// 15. تسجيل وردية عمل يدوية كاملة لعامل معين
 export async function registerManualSession({ uid, name, checkIn, checkOut, hourlyRate }) {
   try {
     const checkInDate = new Date(checkIn);

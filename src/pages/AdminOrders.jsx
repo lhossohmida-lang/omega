@@ -5,6 +5,8 @@ import {
   updateOrderStatus,
   confirmOrder,
   createAdminOrder,
+  deleteOrder,
+  deleteReadyOrders,
 } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
 import { useAuth } from '../hooks/useAuth';
@@ -37,6 +39,7 @@ import {
   IoRestaurantOutline,
   IoSearch,
   IoTimeOutline,
+  IoTrashOutline,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -76,9 +79,11 @@ export default function AdminOrders() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [resetting, setResetting] = useState(false);
+  const [deletingReady, setDeletingReady] = useState(false);
   const [routingOrder, setRoutingOrder] = useState(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const previousOrdersRef = useRef([]);
+  const deletionTimers = useRef({});
 
   useEffect(() => {
     const unsub = subscribeToAllOrders((data) => {
@@ -96,6 +101,34 @@ export default function AdminOrders() {
     });
     return () => unsub();
   }, []);
+
+  // حذف تلقائي للطلبات الجاهزة بعد 3 دقائق
+  useEffect(() => {
+    const currentIds = new Set(orders.map(o => o.id));
+
+    // إلغاء التوقيتات للطلبات التي لم تعد جاهزة أو محذوفة
+    Object.keys(deletionTimers.current).forEach(id => {
+      const order = orders.find(o => o.id === id);
+      if (!order || displayStatus(order) !== 'ready') {
+        clearTimeout(deletionTimers.current[id]);
+        delete deletionTimers.current[id];
+      }
+    });
+
+    // جدولة حذف الطلبات الجاهزة
+    orders.forEach(order => {
+      if (displayStatus(order) === 'ready' && !deletionTimers.current[order.id]) {
+        deletionTimers.current[order.id] = setTimeout(async () => {
+          try {
+            await deleteOrder(order.id);
+          } catch { /* silent */ }
+          delete deletionTimers.current[order.id];
+        }, 3 * 60 * 1000);
+      }
+    });
+  }, [orders]);
+
+  useEffect(() => () => Object.values(deletionTimers.current).forEach(clearTimeout), []);
 
   useEffect(() => {
     (async () => {
@@ -145,6 +178,32 @@ export default function AdminOrders() {
     } catch (error) {
       console.error(error);
       toast.error('تعذر تحديث الطلب');
+    }
+  }
+
+  async function handleDeleteOrder(orderId) {
+    const ok = confirm('هل تريد حذف هذا الطلب نهائياً؟');
+    if (!ok) return;
+    try {
+      await deleteOrder(orderId);
+      if (selected?.id === orderId) setSelected(null);
+      toast.success('تم حذف الطلب');
+    } catch (err) {
+      toast.error(err.message || 'تعذّر حذف الطلب');
+    }
+  }
+
+  async function handleDeleteReadyOrders() {
+    const ok = confirm('هل تريد حذف جميع الطلبات الجاهزة نهائياً؟');
+    if (!ok) return;
+    setDeletingReady(true);
+    try {
+      const count = await deleteReadyOrders();
+      toast.success(`تم حذف ${count} طلب جاهز`);
+    } catch (err) {
+      toast.error(err.message || 'تعذّر حذف الطلبات الجاهزة');
+    } finally {
+      setDeletingReady(false);
     }
   }
 
@@ -225,6 +284,16 @@ export default function AdminOrders() {
           <button className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-white">
             <IoFilterOutline className="text-omega-orange" size={25} />
             فلترة
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDeleteReadyOrders}
+            disabled={deletingReady}
+            className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-emerald-400 disabled:opacity-60"
+          >
+            <IoTrashOutline size={20} />
+            {deletingReady ? 'جاري الحذف...' : 'حذف الجاهزة'}
           </button>
 
           <button
@@ -378,8 +447,13 @@ export default function AdminOrders() {
                               <ActionIcon size={21} />
                             </button>
                           ) : null}
-                          <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-omega-text-muted">
-                            <IoEllipsisVertical size={22} />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/8 text-red-400 transition-transform active:scale-95"
+                            aria-label="حذف الطلب"
+                          >
+                            <IoTrashOutline size={20} />
                           </button>
                         </div>
                       </div>

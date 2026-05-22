@@ -90,5 +90,10 @@ service cloud.firestore {
     match /attendance/{docId} {
       allow read, write: if true;
     }
+
+    // ===== سحوبات الرواتب =====
+    match /wage_withdrawals/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
   }
 }

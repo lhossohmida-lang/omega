@@ -2,7 +2,7 @@ import { db } from '../firebase';
 import {
   collection, doc, addDoc, updateDoc, getDoc, getDocs,
   query, where, orderBy, serverTimestamp,
-  onSnapshot, writeBatch,
+  onSnapshot, writeBatch, deleteDoc,
 } from 'firebase/firestore';
 import { isOpen, getStatusMessage } from '../utils/businessHours';
 
@@ -475,6 +475,32 @@ export async function resetOrdersData() {
     deletedOrders: ordersSnap.size,
     resetProducts: productsSnap.size,
   };
+}
+
+// حذف طلب واحد نهائياً
+export async function deleteOrder(orderId) {
+  try {
+    await deleteDoc(doc(db, ORDERS_COL, orderId));
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    throw new Error('فشل حذف الطلب');
+  }
+}
+
+// حذف جميع الطلبات الجاهزة (workerReady=true)
+export async function deleteReadyOrders() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, ORDERS_COL), where('workerReady', '==', true))
+    );
+    const batch = writeBatch(db);
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    return snap.size;
+  } catch (error) {
+    console.error('Error deleting ready orders:', error);
+    throw new Error('فشل حذف الطلبات الجاهزة');
+  }
 }
 
 // جلب الطلبات حسب الحالة (للإدارة)
