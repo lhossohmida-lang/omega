@@ -706,11 +706,27 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   const [destination, setDestination] = useState('table');
   const [submitting, setSubmitting] = useState(false);
   const [searchProd, setSearchProd] = useState('');
+  const [activeCat, setActiveCat] = useState('all');
+
+  const CAT_META = {
+    all:        { label: 'الكل',    emoji: '🍽️' },
+    pizza:      { label: 'بيتزا',   emoji: '🍕' },
+    burger:     { label: 'برغر',    emoji: '🍔' },
+    tacos:      { label: 'تاكوس',   emoji: '🌮' },
+    drinks:     { label: 'مشروبات', emoji: '🥤' },
+    desserts:   { label: 'حلويات', emoji: '🍰' },
+    appetizers: { label: 'مقبلات', emoji: '🍟' },
+  };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
+  const existingCats = ['all', ...Object.keys(CAT_META).filter(k =>
+    k !== 'all' && availableProducts.some(p => p.category === k)
+  )];
+
   const filteredProducts = availableProducts.filter(p => {
-    if (!searchProd.trim()) return true;
-    return p.name?.toLowerCase().includes(searchProd.toLowerCase());
+    const matchCat = activeCat === 'all' || p.category === activeCat;
+    const q = searchProd.trim().toLowerCase();
+    return matchCat && (!q || p.name?.toLowerCase().includes(q));
   });
 
   // For sized products the cart key = `${productId}__${sizeLabel}`
@@ -772,44 +788,67 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 backdrop-blur-sm p-3 sm:items-center">
-      <div className="w-full max-w-xl rounded-3xl bg-omega-dark border border-white/10 p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-white/5 p-2 text-white hover:bg-white/10"
-            aria-label="إغلاق"
-          >
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
+      <div className="w-full max-w-xl rounded-t-[1.8rem] sm:rounded-3xl bg-[#111] border border-white/10 shadow-2xl max-h-[96vh] flex flex-col">
+
+        {/* رأس */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+          <button type="button" onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white">
             <IoClose size={18} />
           </button>
           <div className="text-right">
-            <h2 className="text-white text-lg font-black">طلب جديد من الإدارة</h2>
-            <p className="text-omega-text-muted text-xs mt-0.5">
-              الخطوة {step} من 2
-            </p>
+            <h2 className="text-white text-lg font-black">طلب جديد</h2>
+            <p className="text-omega-text-dim text-[11px]">الخطوة {step} من 2</p>
           </div>
         </div>
-
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-1.5 px-5 mb-3 shrink-0">
           <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-omega-orange' : 'bg-white/10'}`} />
           <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-omega-orange' : 'bg-white/10'}`} />
         </div>
 
         {step === 1 ? (
           <>
-            <label className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2 mb-3">
-              <IoSearch className="text-omega-text-muted" size={18} />
-              <input
-                type="text"
-                placeholder="ابحث عن منتج..."
-                value={searchProd}
-                onChange={e => setSearchProd(e.target.value)}
-                className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-omega-text-dim text-right"
-              />
-            </label>
+            {/* بحث */}
+            <div className="px-5 mb-2 shrink-0">
+              <label className="flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-3 py-2.5">
+                <IoSearch className="text-omega-text-dim shrink-0" size={17} />
+                <input type="text" placeholder="ابحث عن منتج..."
+                  value={searchProd}
+                  onChange={e => { setSearchProd(e.target.value); setActiveCat('all'); }}
+                  className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
+              </label>
+            </div>
 
-            <div className="space-y-1.5 max-h-72 overflow-y-auto mb-3">
+            {/* أزرار الفئات */}
+            {!searchProd.trim() && (
+              <div className="flex gap-2 overflow-x-auto px-5 pb-3 shrink-0 scrollbar-hide">
+                {existingCats.map(cat => {
+                  const m = CAT_META[cat];
+                  const active = activeCat === cat;
+                  return (
+                    <button key={cat} type="button" onClick={() => setActiveCat(cat)}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black border transition-all ${
+                        active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.8)]'
+                               : 'bg-white/5 text-omega-text-muted border-white/10'}` }>
+                      <span>{m.emoji}</span>{m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* قائمة المنتجات */}
+            <div className="flex-1 overflow-y-auto px-5 min-h-0">
+              {filteredProducts.length === 0
+                ? <p className="text-omega-text-dim text-sm text-center py-10">لا توجد منتجات</p>
+                : <div className="space-y-2 pb-2">
+                    {filteredProducts.map(p => (
+                      <ProductRow key={p.id} p={p} cart={cart} addItem={addItem} removeItem={removeItem} />
+                    ))}
+                  </div>
+              }
+            </div>
               {filteredProducts.length === 0 ? (
                 <p className="text-omega-text-dim text-sm text-center py-6">لا توجد منتجات</p>
               ) : (
@@ -909,79 +948,52 @@ function NewOrderModal({ products, onClose, onSubmit }) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <input
-                type="text"
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                placeholder="الهاتف (اختياري)"
-                className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right"
-                dir="ltr"
-              />
-              <input
-                type="text"
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-                placeholder="اسم الزبون (اختياري)"
-                className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right"
-              />
-            </div>
-            <textarea
-              value={customerNote}
-              onChange={e => setCustomerNote(e.target.value)}
-              placeholder="ملاحظة (اختياري)"
-              rows={2}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right resize-none mb-3"
-            />
-
-            {itemsCount > 0 && (
-              <div className="flex items-center justify-between rounded-xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-3 mb-3">
-                <span className="text-omega-orange font-black text-lg">
-                  {formatCurrency(totalPrice)}
-                </span>
-                <span className="text-white text-sm font-bold">{itemsCount} منتج</span>
+            {/* زبون + زر التالي */}
+            <div className="px-5 pt-3 pb-5 shrink-0 border-t border-white/8 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
+                  placeholder="الهاتف (اختياري)" dir="ltr"
+                  className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
+                <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
+                  placeholder="اسم الزبون (اختياري)"
+                  className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
               </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              disabled={!canGoNext}
-              className="w-full rounded-xl bg-gradient-to-l from-omega-orange to-omega-red py-3 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-50 active:scale-[0.98]"
-            >
-              التالي — اختيار نوع الطلب
-            </button>
+              <textarea value={customerNote} onChange={e => setCustomerNote(e.target.value)}
+                placeholder="ملاحظة (اختياري)" rows={2}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right resize-none" />
+              {itemsCount > 0 && (
+                <div className="flex items-center justify-between rounded-2xl bg-omega-orange/12 border border-omega-orange/30 px-4 py-2.5">
+                  <span className="text-omega-orange font-black text-xl">{formatCurrency(totalPrice)}</span>
+                  <span className="text-white text-sm font-bold">{itemsCount} صنف</span>
+                </div>
+              )}
+              <button type="button" onClick={() => setStep(2)} disabled={itemsCount === 0}
+                className="w-full rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-3.5 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-40 active:scale-[0.98] transition-transform">
+                التالي — اختيار نوع الطلب ←
+              </button>
+            </div>
           </>
         ) : (
-          <>
-            <div className="mb-4 rounded-xl bg-omega-orange/[0.06] border border-omega-orange/20 p-3 flex items-center justify-between">
-              <span className="text-omega-orange font-black">{formatCurrency(totalPrice)}</span>
-              <span className="text-white text-sm font-bold">{itemsCount} منتج • {customerName || 'زبون داخل المطعم'}</span>
+          <div className="flex-1 overflow-y-auto px-5 pb-6 pt-3">
+            <div className="mb-5 rounded-2xl bg-omega-orange/[0.08] border border-omega-orange/25 p-4 flex items-center justify-between">
+              <span className="text-omega-orange font-black text-2xl">{formatCurrency(totalPrice)}</span>
+              <div className="text-right">
+                <p className="text-white font-bold text-sm">{customerName || 'زبون داخل المطعم'}</p>
+                <p className="text-omega-text-dim text-xs mt-0.5">{itemsCount} صنف</p>
+              </div>
             </div>
-
-            <DestinationPicker
-              destination={destination}
-              setDestination={setDestination}
-            />
-
+            <DestinationPicker destination={destination} setDestination={setDestination} />
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="rounded-xl bg-white/5 border border-white/10 py-3 text-white text-sm font-bold hover:bg-white/10"
-              >
-                رجوع
+              <button type="button" onClick={() => setStep(1)}
+                className="rounded-2xl bg-white/5 border border-white/10 py-3.5 text-white text-sm font-bold">
+                ← رجوع
               </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="rounded-xl bg-gradient-to-l from-omega-orange to-omega-red py-3 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-60 active:scale-[0.98]"
-              >
-                {submitting ? '...جاري الحفظ' : 'إنشاء الطلب'}
+              <button type="button" onClick={handleSubmit} disabled={submitting}
+                className="rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-3.5 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-60 active:scale-[0.98]">
+                {submitting ? '...جاري الحفظ' : 'إنشاء الطلب ✓'}
               </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
