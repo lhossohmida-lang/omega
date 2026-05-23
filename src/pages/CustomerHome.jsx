@@ -21,6 +21,7 @@ import {
   IoTimeOutline,
   IoLockClosedOutline,
   IoPricetagOutline,
+  IoClose,
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -132,7 +133,40 @@ function GridCard({ product, fav, onFav, onAdd, onOpen }) {
   );
 }
 
-function SectionRow({ title, icon, onSeeAll, children }) {
+/* ─── SizePickerModal ──────────────────────── */
+function SizePickerModal({ product, onClose, onAdd }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-md rounded-t-[1.8rem] border-t border-white/10 bg-[#121212] px-5 pb-10 pt-5"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white">
+            <IoClose size={18} />
+          </button>
+          <p className="font-black text-white text-lg">{product.name}</p>
+        </div>
+        <p className="mb-3 text-right text-sm text-omega-text-muted">اختر الحجم</p>
+        <div className="grid gap-2.5">
+          {product.sizes.map(sz => (
+            <button
+              key={sz.label}
+              type="button"
+              onClick={() => onAdd(product, sz)}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-right transition-all hover:border-omega-orange/50 hover:bg-omega-orange/8 active:scale-[0.98]"
+            >
+              <span className="font-black text-omega-orange text-lg">{formatCurrency(sz.price)}</span>
+              <span className="font-black text-white text-base">{sz.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
   return (
     <section className="ch-section">
       <div className="ch-section-head">
@@ -314,6 +348,7 @@ export default function CustomerHome() {
   const [cart, setCart]             = useState(getCart);
   const [ordersCount, setOrdersCount] = useState(0);
   const [heroIdx, setHeroIdx]       = useState(0);
+  const [sizePicker, setSizePicker] = useState(null); // product to pick size for
   const navigate                    = useNavigate();
   const businessStatus              = getStatusMessage();
   const searchRef                   = useRef(null);
@@ -370,6 +405,11 @@ export default function CustomerHome() {
   const updateCart = (next) => { setCart(next); saveCart(next); };
   const handleAdd = (product) => {
     if (!businessStatus.open) { toast.error(businessStatus.message); return; }
+    // If product has sizes, show size picker modal
+    if (product.hasSizes && product.sizes?.length > 0) {
+      setSizePicker(product);
+      return;
+    }
     const next = [...cart];
     const i    = next.findIndex(it => it.productId === product.id);
     if (i >= 0) next[i].quantity += 1;
@@ -383,6 +423,24 @@ export default function CustomerHome() {
     });
     updateCart(next);
     toast.success(`تمت إضافة ${product.name} ✓`);
+  };
+  const handleAddWithSize = (product, sz) => {
+    setSizePicker(null);
+    const cartId = `${product.id}__${sz.label}`;
+    const itemName = `${product.name} (${sz.label})`;
+    const next = [...cart];
+    const i = next.findIndex(it => it.productId === cartId);
+    if (i >= 0) next[i].quantity += 1;
+    else next.push({
+      productId: cartId,
+      name: itemName,
+      price: sz.price,
+      costPrice: sz.costPrice || 0,
+      image: product.image || '',
+      quantity: 1,
+    });
+    updateCart(next);
+    toast.success(`تمت إضافة ${itemName} ✓`);
   };
   const handleAddOffer = (offer) => {
     if (!businessStatus.open) { toast.error(businessStatus.message); return; }
@@ -693,6 +751,15 @@ export default function CustomerHome() {
       )}
 
       <CustomerNav cartCount={cartCount}/>
+
+      {/* Size Picker Modal */}
+      {sizePicker && (
+        <SizePickerModal
+          product={sizePicker}
+          onClose={() => setSizePicker(null)}
+          onAdd={handleAddWithSize}
+        />
+      )}
     </div>
   );
 }

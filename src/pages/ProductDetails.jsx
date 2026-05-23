@@ -29,6 +29,7 @@ export default function ProductDetails() {
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState(null); // { label, price, costPrice }
   const [favs, setFavs] = useState(getFav());
 
   useEffect(() => { loadData(); }, [id]);
@@ -43,6 +44,10 @@ export default function ProductDetails() {
             .filter(x => x.id !== p.id && x.isAvailable !== false && x.category === p.category)
             .slice(0, 3)
         );
+        // Auto-select first size if product has sizes
+        if (p.hasSizes && p.sizes?.length > 0) {
+          setSelectedSize(p.sizes[0]);
+        }
       }
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -53,7 +58,9 @@ export default function ProductDetails() {
     setFavs(next); saveFav(next);
   };
 
-  const totalPrice = (product?.price || 0) * quantity;
+  const hasSizes = product?.hasSizes && product?.sizes?.length > 0;
+  const activePrice = hasSizes ? (selectedSize?.price || product?.sizes?.[0]?.price || 0) : (product?.price || 0);
+  const totalPrice = activePrice * quantity;
   const businessStatus = getStatusMessage();
 
   const addToCart = () => {
@@ -62,19 +69,27 @@ export default function ProductDetails() {
       toast.error(businessStatus.message);
       return;
     }
+    if (hasSizes && !selectedSize) {
+      toast.error('يرجى اختيار الحجم أولاً');
+      return;
+    }
     const cart = getCart();
-    const existing = cart.find(item => item.productId === product.id);
+    const sizeLabel = selectedSize?.label || '';
+    const cartId = hasSizes ? `${product.id}__${sizeLabel}` : product.id;
+    const itemName = hasSizes ? `${product.name} (${sizeLabel})` : product.name;
+    const itemPrice = hasSizes ? selectedSize.price : product.price;
+    const existing = cart.find(item => item.productId === cartId);
     if (existing) existing.quantity += quantity;
     else cart.push({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      costPrice: product.costPrice || 0,
+      productId: cartId,
+      name: itemName,
+      price: itemPrice,
+      costPrice: hasSizes ? (selectedSize.costPrice || 0) : (product.costPrice || 0),
       image: product.image || '',
       quantity,
     });
     saveCart(cart);
-    toast.success(`تمت إضافة ${product.name}`);
+    toast.success(`تمت إضافة ${itemName}`);
     navigate('/cart');
   };
 
@@ -146,9 +161,33 @@ export default function ProductDetails() {
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
             <p className="text-omega-text-dim text-[10px] mb-0.5">السعر</p>
-            <span className="gradient-text font-black text-2xl leading-tight">{formatCurrency(product.price)}</span>
+            <span className="gradient-text font-black text-2xl leading-tight">{formatCurrency(activePrice)}</span>
           </div>
         </div>
+
+        {/* Size Picker */}
+        {hasSizes && (
+          <div className="mb-4 animate-slide-up">
+            <p className="text-omega-text-muted text-sm font-bold mb-2 text-right">اختر الحجم</p>
+            <div className="flex flex-wrap gap-2 justify-end">
+              {product.sizes.map(sz => (
+                <button
+                  key={sz.label}
+                  type="button"
+                  onClick={() => setSelectedSize(sz)}
+                  className={`rounded-2xl border px-4 py-2.5 text-sm font-black transition-all ${
+                    selectedSize?.label === sz.label
+                      ? 'border-omega-orange bg-omega-orange/15 text-omega-orange shadow-[0_0_14px_-6px_rgba(255,107,0,0.6)]'
+                      : 'border-white/12 bg-white/[0.04] text-white'
+                  }`}
+                >
+                  <span className="block">{sz.label}</span>
+                  <span className="block text-[11px] mt-0.5 font-bold opacity-80">{formatCurrency(sz.price)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quantity */}
         <div className="flex items-center justify-between mb-4 mt-5 bg-white/[0.04] border border-white/10 rounded-xl p-3.5">
