@@ -36,6 +36,8 @@ const emptyForm = {
   description: '',
   image: '',
   isAvailable: true,
+  hasSizes: false,
+  sizes: [], // [{ label: 'XL', price: 200, costPrice: 100 }]
 };
 
 const LOCAL_IMAGES = [
@@ -197,14 +199,29 @@ export default function AdminProducts() {
       description: product.description || '',
       image: product.image || '',
       isAvailable: product.isAvailable !== false,
+      hasSizes: !!(product.sizes?.length),
+      sizes: product.sizes || [],
     });
     setShowForm(true);
   }
 
   async function handleSave(event) {
     event.preventDefault();
-    if (!form.name.trim() || form.price === '') {
-      toast.error('يرجى إدخال اسم المنتج والسعر');
+    // If hasSizes, price can be empty (price comes from sizes); otherwise require it
+    if (!form.name.trim()) {
+      toast.error('يرجى إدخال اسم المنتج');
+      return;
+    }
+    if (!form.hasSizes && form.price === '') {
+      toast.error('يرجى إدخال سعر المنتج');
+      return;
+    }
+    if (form.hasSizes && form.sizes.length === 0) {
+      toast.error('يرجى إضافة حجم واحد على الأقل');
+      return;
+    }
+    if (form.hasSizes && form.sizes.some(s => !s.label.trim() || s.price === '')) {
+      toast.error('يرجى إدخال اسم وسعر لكل حجم');
       return;
     }
 
@@ -213,13 +230,26 @@ export default function AdminProducts() {
       const payload = {
         name: form.name.trim(),
         category: form.category,
-        price: Number(form.price),
         description: form.description.trim(),
         image: form.image.trim(),
         isAvailable: form.isAvailable,
       };
 
-      if (form.costPrice !== '') payload.costPrice = Number(form.costPrice);
+      if (form.hasSizes) {
+        payload.hasSizes = true;
+        payload.sizes = form.sizes.map(s => ({
+          label: s.label.trim(),
+          price: Number(s.price),
+          costPrice: s.costPrice !== '' ? Number(s.costPrice) : 0,
+        }));
+        // Use the first size price as base price for display
+        payload.price = Number(form.sizes[0].price);
+      } else {
+        payload.hasSizes = false;
+        payload.sizes = [];
+        payload.price = Number(form.price);
+        if (form.costPrice !== '') payload.costPrice = Number(form.costPrice);
+      }
 
       if (editing) {
         await updateProduct(editing, payload);
@@ -478,16 +508,76 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">السعر</label>
-                  <input type="number" className={inputClass} value={form.price} onChange={event => setForm(current => ({ ...current, price: event.target.value }))} placeholder="0" />
+              {/* ── Toggle Sizes ── */}
+              <label className="admin-control flex cursor-pointer items-center justify-between rounded-2xl p-4">
+                <div className={`toggle ${form.hasSizes ? 'on' : ''}`} />
+                <input
+                  type="checkbox"
+                  checked={form.hasSizes}
+                  onChange={event => setForm(current => ({
+                    ...current,
+                    hasSizes: event.target.checked,
+                    sizes: event.target.checked && current.sizes.length === 0
+                      ? [{ label: 'XL', price: '', costPrice: '' }]
+                      : current.sizes,
+                  }))}
+                  className="hidden"
+                />
+                <span className="font-bold text-white">المنتج له أحجام مختلفة (XL، XXL…)</span>
+              </label>
+
+              {form.hasSizes ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setForm(c => ({ ...c, sizes: [...c.sizes, { label: '', price: '', costPrice: '' }] }))}
+                      className="flex items-center gap-1.5 rounded-xl border border-omega-orange/40 bg-omega-orange/10 px-3 py-2 text-sm font-black text-omega-orange"
+                    >
+                      <IoAddOutline size={18} /> إضافة حجم
+                    </button>
+                    <p className="text-sm font-bold text-omega-text-muted">الأحجام والأسعار</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {form.sizes.map((sz, idx) => (
+                      <div key={idx} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setForm(c => ({ ...c, sizes: c.sizes.filter((_, i) => i !== idx) }))}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-omega-red/30 bg-omega-red/10 text-omega-red"
+                        >
+                          <IoClose size={16} />
+                        </button>
+                        <input
+                          className={inputClass + ' py-2 text-sm'}
+                          placeholder="الحجم (XL)"
+                          value={sz.label}
+                          onChange={e => setForm(c => ({ ...c, sizes: c.sizes.map((s, i) => i === idx ? { ...s, label: e.target.value } : s) }))}
+                        />
+                        <input
+                          type="number"
+                          className={inputClass + ' py-2 text-sm'}
+                          placeholder="السعر"
+                          value={sz.price}
+                          onChange={e => setForm(c => ({ ...c, sizes: c.sizes.map((s, i) => i === idx ? { ...s, price: e.target.value } : s) }))}
+                        />
+                        <span className="text-xs text-omega-text-dim w-8 text-center">دج</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">التكلفة</label>
-                  <input type="number" className={inputClass} value={form.costPrice} onChange={event => setForm(current => ({ ...current, costPrice: event.target.value }))} placeholder="0" />
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">السعر</label>
+                    <input type="number" className={inputClass} value={form.price} onChange={event => setForm(current => ({ ...current, price: event.target.value }))} placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">التكلفة</label>
+                    <input type="number" className={inputClass} value={form.costPrice} onChange={event => setForm(current => ({ ...current, costPrice: event.target.value }))} placeholder="0" />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="mb-2 block text-right text-sm font-bold text-omega-text-muted">الوصف</label>

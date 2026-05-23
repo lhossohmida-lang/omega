@@ -713,20 +713,32 @@ function NewOrderModal({ products, onClose, onSubmit }) {
     return p.name?.toLowerCase().includes(searchProd.toLowerCase());
   });
 
-  const addItem = (id) => setCart(c => ({ ...c, [id]: (c[id] || 0) + 1 }));
-  const removeItem = (id) => setCart(c => {
+  // For sized products the cart key = `${productId}__${sizeLabel}`
+  // For normal products the key = productId
+  const addItem = (id, sizeLabel, sizePrice) => {
+    if (sizeLabel !== undefined) {
+      const key = `${id}__${sizeLabel}`;
+      setCart(c => ({ ...c, [key]: { qty: (c[key]?.qty || 0) + 1, productId: id, sizeLabel, sizePrice } }));
+    } else {
+      setCart(c => ({ ...c, [id]: { qty: (c[id]?.qty || 0) + 1, productId: id } }));
+    }
+  };
+  const removeItem = (key) => setCart(c => {
     const n = { ...c };
-    if (n[id] > 1) n[id] -= 1;
-    else delete n[id];
+    if (n[key]?.qty > 1) n[key] = { ...n[key], qty: n[key].qty - 1 };
+    else delete n[key];
     return n;
   });
 
-  const cartEntries = Object.entries(cart).map(([pid, qty]) => {
-    const p = products.find(x => x.id === pid);
-    return p ? { product: p, quantity: qty } : null;
+  const cartEntries = Object.entries(cart).map(([key, entry]) => {
+    const p = products.find(x => x.id === entry.productId);
+    if (!p) return null;
+    const price = entry.sizePrice !== undefined ? entry.sizePrice : (p.price || 0);
+    const label = entry.sizeLabel ? ` (${entry.sizeLabel})` : '';
+    return { key, product: p, quantity: entry.qty, price, label };
   }).filter(Boolean);
 
-  const totalPrice = cartEntries.reduce((s, { product, quantity }) => s + (product.price || 0) * quantity, 0);
+  const totalPrice = cartEntries.reduce((s, e) => s + e.price * e.quantity, 0);
   const itemsCount = cartEntries.reduce((s, e) => s + e.quantity, 0);
 
   const canGoNext = itemsCount > 0;
@@ -737,10 +749,10 @@ function NewOrderModal({ products, onClose, onSubmit }) {
       return;
     }
     setSubmitting(true);
-    const items = cartEntries.map(({ product, quantity }) => ({
+    const items = cartEntries.map(({ product, quantity, price, label }) => ({
       productId: product.id,
-      name: product.name,
-      price: product.price || 0,
+      name: product.name + label,
+      price,
       costPrice: product.costPrice || 0,
       image: product.image || '',
       category: product.category || '',
@@ -802,7 +814,58 @@ function NewOrderModal({ products, onClose, onSubmit }) {
                 <p className="text-omega-text-dim text-sm text-center py-6">لا توجد منتجات</p>
               ) : (
                 filteredProducts.map(p => {
-                  const qty = cart[p.id] || 0;
+                  const hasSizes = p.hasSizes && p.sizes?.length > 0;
+                  if (hasSizes) {
+                    // Show size tabs for each size
+                    return (
+                      <div key={p.id} className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5">
+                        <div className="flex items-center justify-end gap-2 mb-2">
+                          {p.image && <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />}
+                          <p className="text-white font-bold text-sm">{p.name}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 justify-end">
+                          {p.sizes.map(sz => {
+                            const key = `${p.id}__${sz.label}`;
+                            const qty = cart[key]?.qty || 0;
+                            return (
+                              <div
+                                key={sz.label}
+                                className={`flex items-center gap-1.5 rounded-xl border px-2 py-1.5 transition-all ${
+                                  qty > 0 ? 'border-omega-orange/50 bg-omega-orange/10' : 'border-white/10 bg-white/[0.03]'
+                                }`}
+                              >
+                                {qty > 0 && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItem(key)}
+                                      className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center"
+                                    >
+                                      <IoRemove size={14} />
+                                    </button>
+                                    <span className="text-white font-black text-xs">{qty}</span>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => addItem(p.id, sz.label, sz.price)}
+                                  className="w-6 h-6 rounded-lg bg-omega-orange text-white flex items-center justify-center"
+                                >
+                                  <IoAdd size={14} />
+                                </button>
+                                <div className="text-right">
+                                  <p className="text-white text-xs font-black">{sz.label}</p>
+                                  <p className="text-omega-orange text-[10px] font-bold">{formatCurrency(sz.price)}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  // Normal product (no sizes)
+                  const qty = cart[p.id]?.qty || 0;
                   return (
                     <div
                       key={p.id}
