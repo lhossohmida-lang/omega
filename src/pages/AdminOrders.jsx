@@ -697,24 +697,28 @@ function RoutingModal({ order, onClose, onConfirm }) {
 }
 
 /* ─── Product Row (used inside NewOrderModal — light theme) ──── */
-function ProductRow({ p, cart, addItem, removeItem }) {
+function ProductRow({ p, cart, addItem, removeItem, activeSize = 'all' }) {
   const hasSizes = p.hasSizes && p.sizes?.length > 0;
 
   if (hasSizes) {
+    const sizesToShow = activeSize === 'all'
+      ? p.sizes
+      : p.sizes.filter(sz => sz.label === activeSize);
+    if (sizesToShow.length === 0) return null;
     return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-2.5">
-        <div className="flex items-center justify-end gap-2 mb-2">
-          {p.image && <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />}
-          <p className="text-gray-900 font-bold text-sm">{p.name}</p>
+      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+        <div className="flex items-center justify-end gap-3 mb-3.5">
+          {p.image && <img src={p.image} alt={p.name} className="w-11 h-11 rounded-xl object-cover" />}
+          <p className="text-gray-900 font-bold text-base leading-snug">{p.name}</p>
         </div>
-        <div className="flex flex-wrap gap-1.5 justify-end">
-          {p.sizes.map(sz => {
+        <div className="flex flex-wrap gap-2 justify-end">
+          {sizesToShow.map(sz => {
             const key = `${p.id}__${sz.label}`;
             const qty = cart[key]?.qty || 0;
             return (
               <div
                 key={sz.label}
-                className={`flex items-center gap-1.5 rounded-xl border px-2 py-1.5 transition-all ${
+                className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 transition-all ${
                   qty > 0 ? 'border-omega-orange/50 bg-omega-orange/10' : 'border-gray-200 bg-white'
                 }`}
               >
@@ -723,23 +727,23 @@ function ProductRow({ p, cart, addItem, removeItem }) {
                     <button
                       type="button"
                       onClick={() => removeItem(key)}
-                      className="w-6 h-6 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
+                      className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
                     >
-                      <IoRemove size={14} />
+                      <IoRemove size={15} />
                     </button>
-                    <span className="text-gray-900 font-black text-xs">{qty}</span>
+                    <span className="text-gray-900 font-black text-sm min-w-[1ch] text-center">{qty}</span>
                   </>
                 )}
                 <button
                   type="button"
                   onClick={() => addItem(p.id, sz.label, sz.price)}
-                  className="w-6 h-6 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
+                  className="w-7 h-7 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
                 >
-                  <IoAdd size={14} />
+                  <IoAdd size={15} />
                 </button>
-                <div className="text-right">
-                  <p className="text-gray-900 text-xs font-black">{sz.label}</p>
-                  <p className="text-omega-orange text-[10px] font-bold">{formatCurrency(sz.price)}</p>
+                <div className="text-right leading-tight">
+                  <p className="text-gray-900 text-sm font-black">{sz.label}</p>
+                  <p className="text-omega-orange text-xs font-bold mt-0.5">{formatCurrency(sz.price)}</p>
                 </div>
               </div>
             );
@@ -752,38 +756,38 @@ function ProductRow({ p, cart, addItem, removeItem }) {
   const qty = cart[p.id]?.qty || 0;
   return (
     <div
-      className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition-all ${
+      className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition-all ${
         qty > 0 ? 'border-omega-orange/50 bg-omega-orange/[0.07]' : 'border-gray-200 bg-white'
       }`}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         {qty > 0 && (
           <>
             <button
               type="button"
               onClick={() => removeItem(p.id)}
-              className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
+              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
             >
-              <IoRemove size={16} />
+              <IoRemove size={17} />
             </button>
-            <span className="w-5 text-center text-gray-900 font-black text-sm">{qty}</span>
+            <span className="w-6 text-center text-gray-900 font-black text-base">{qty}</span>
           </>
         )}
         <button
           type="button"
           onClick={() => addItem(p.id)}
-          className="w-7 h-7 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
+          className="w-8 h-8 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
         >
-          <IoAdd size={16} />
+          <IoAdd size={17} />
         </button>
       </div>
-      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-        <div className="text-right min-w-0">
-          <p className="text-gray-900 font-bold text-sm truncate">{p.name}</p>
-          <p className="text-omega-orange text-xs font-bold">{formatCurrency(p.price)}</p>
+      <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
+        <div className="text-right min-w-0 leading-snug">
+          <p className="text-gray-900 font-bold text-base truncate">{p.name}</p>
+          <p className="text-omega-orange text-sm font-bold mt-1">{formatCurrency(p.price)}</p>
         </div>
         {p.image && (
-          <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
+          <img src={p.image} alt={p.name} className="w-12 h-12 rounded-xl object-cover" />
         )}
       </div>
     </div>
@@ -801,6 +805,7 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const [searchProd, setSearchProd] = useState('');
   const [activeCat, setActiveCat] = useState('all');
+  const [activeSize, setActiveSize] = useState('all');
 
   const CAT_META = {
     all:        { label: 'الكل',    emoji: '🍽️' },
@@ -821,7 +826,10 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   const filteredProducts = availableProducts.filter(p => {
     const matchCat = activeCat === 'all' || p.category === activeCat;
     const q = searchProd.trim().toLowerCase();
-    return matchCat && (!q || p.name?.toLowerCase().includes(q));
+    const matchQuery = !q || p.name?.toLowerCase().includes(q);
+    if (!matchCat || !matchQuery) return false;
+    if (activeSize === 'all') return true;
+    return p.hasSizes && p.sizes?.some(sz => sz.label === activeSize);
   });
 
   // For sized products the cart key = `${productId}__${sizeLabel}`
@@ -904,26 +912,46 @@ function NewOrderModal({ products, onClose, onSubmit }) {
 
         {step === 1 ? (
           <>
-            {/* بحث */}
-            <div className="px-5 mb-2 shrink-0">
-              <label className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5 focus-within:border-omega-orange/50 focus-within:bg-white transition-colors">
+            {/* بحث + فلترة الأحجام */}
+            <div className="px-5 mb-5 shrink-0 flex gap-3 items-stretch">
+              <label className="flex-1 flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5 focus-within:border-omega-orange/50 focus-within:bg-white transition-colors min-w-0">
                 <IoSearch className="text-gray-400 shrink-0" size={17} />
                 <input type="text" placeholder="ابحث عن منتج..."
                   value={searchProd}
                   onChange={e => { setSearchProd(e.target.value); setActiveCat('all'); }}
-                  className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right" />
+                  className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right min-w-0" />
               </label>
+              <div className="flex gap-1.5 shrink-0">
+                {[
+                  { id: 'all', label: 'الكل' },
+                  { id: 'L', label: 'L' },
+                  { id: 'XL', label: 'XL' },
+                  { id: 'XXL', label: 'XXL' },
+                ].map(sz => {
+                  const active = activeSize === sz.id;
+                  return (
+                    <button key={sz.id} type="button" onClick={() => setActiveSize(sz.id)}
+                      className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-black border transition-all ${
+                        active
+                          ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_10px_-4px_rgba(255,107,0,0.6)]'
+                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}>
+                      {sz.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* أزرار الفئات */}
             {!searchProd.trim() && (
-              <div className="flex gap-2 overflow-x-auto px-5 pb-3 shrink-0 scrollbar-hide">
+              <div className="flex gap-2.5 overflow-x-auto px-5 pb-5 shrink-0 scrollbar-hide">
                 {existingCats.map(cat => {
                   const m = CAT_META[cat];
                   const active = activeCat === cat;
                   return (
                     <button key={cat} type="button" onClick={() => setActiveCat(cat)}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black border transition-all ${
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black border transition-all ${
                         active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.6)]'
                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}` }>
                       <span>{m.emoji}</span>{m.label}
@@ -937,9 +965,9 @@ function NewOrderModal({ products, onClose, onSubmit }) {
             <div className="flex-1 overflow-y-auto px-5 min-h-0">
               {filteredProducts.length === 0
                 ? <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
-                : <div className="space-y-2 pb-2">
+                : <div className="space-y-3 pb-3 pt-1">
                     {filteredProducts.map(p => (
-                      <ProductRow key={p.id} p={p} cart={cart} addItem={addItem} removeItem={removeItem} />
+                      <ProductRow key={p.id} p={p} cart={cart} addItem={addItem} removeItem={removeItem} activeSize={activeSize} />
                     ))}
                   </div>
               }
