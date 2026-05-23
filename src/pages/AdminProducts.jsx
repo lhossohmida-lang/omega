@@ -37,6 +37,7 @@ const emptyForm = {
   image: '',
   isAvailable: true,
   hasSizes: false,
+  lPrice: '',
   xlPrice: '',
   xxlPrice: '',
 };
@@ -192,6 +193,7 @@ export default function AdminProducts() {
 
   function openEdit(product) {
     setEditing(product.id);
+    const lSize   = product.sizes?.find(s => s.label === 'L');
     const xlSize  = product.sizes?.find(s => s.label === 'XL');
     const xxlSize = product.sizes?.find(s => s.label === 'XXL');
     setForm({
@@ -203,6 +205,7 @@ export default function AdminProducts() {
       image: product.image || '',
       isAvailable: product.isAvailable !== false,
       hasSizes: !!(product.sizes?.length),
+      lPrice:   lSize   ? lSize.price   : '',
       xlPrice:  xlSize  ? xlSize.price  : '',
       xxlPrice: xxlSize ? xxlSize.price : '',
     });
@@ -219,8 +222,8 @@ export default function AdminProducts() {
       toast.error('يرجى إدخال سعر المنتج');
       return;
     }
-    if (form.hasSizes && (form.xlPrice === '' || form.xxlPrice === '')) {
-      toast.error('يرجى إدخال سعر XL وXXL');
+    if (form.hasSizes && (form.lPrice === '' || form.xlPrice === '' || form.xxlPrice === '')) {
+      toast.error('يرجى إدخال سعر L وXL وXXL');
       return;
     }
 
@@ -235,11 +238,12 @@ export default function AdminProducts() {
       };
 
       if (form.hasSizes) {
+        const l   = { label: 'L',   price: Number(form.lPrice),   costPrice: 0 };
         const xl  = { label: 'XL',  price: Number(form.xlPrice),  costPrice: 0 };
         const xxl = { label: 'XXL', price: Number(form.xxlPrice), costPrice: 0 };
         payload.hasSizes = true;
-        payload.sizes = [xl, xxl];
-        payload.price = xl.price; // base price = XL
+        payload.sizes = [l, xl, xxl];
+        payload.price = l.price; // base price = L
       } else {
         payload.hasSizes = false;
         payload.sizes = [];
@@ -516,30 +520,43 @@ export default function AdminProducts() {
                   }))}
                   className="hidden"
                 />
-                <span className="font-bold text-white">المنتج له حجمين: XL وXXL</span>
+                <span className="font-bold text-white">المنتج له أحجام: L / XL / XXL</span>
               </label>
 
               {form.hasSizes ? (
-                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-omega-orange/20 bg-omega-orange/[0.04] p-4">
-                  <div>
-                    <label className="mb-2 block text-right text-sm font-bold text-omega-orange">سعر XL</label>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={form.xlPrice}
-                      onChange={e => setForm(c => ({ ...c, xlPrice: e.target.value }))}
-                      placeholder="0 دج"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-right text-sm font-bold text-omega-orange">سعر XXL</label>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={form.xxlPrice}
-                      onChange={e => setForm(c => ({ ...c, xxlPrice: e.target.value }))}
-                      placeholder="0 دج"
-                    />
+                <div className="rounded-2xl border border-omega-orange/20 bg-omega-orange/[0.04] p-4">
+                  <p className="mb-3 text-right text-xs font-bold text-omega-orange/70">أدخل سعر كل حجم</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="mb-2 block text-center text-sm font-black text-white">L</label>
+                      <input
+                        type="number"
+                        className={inputClass + ' text-center'}
+                        value={form.lPrice}
+                        onChange={e => setForm(c => ({ ...c, lPrice: e.target.value }))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-center text-sm font-black text-white">XL</label>
+                      <input
+                        type="number"
+                        className={inputClass + ' text-center'}
+                        value={form.xlPrice}
+                        onChange={e => setForm(c => ({ ...c, xlPrice: e.target.value }))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-center text-sm font-black text-white">XXL</label>
+                      <input
+                        type="number"
+                        className={inputClass + ' text-center'}
+                        value={form.xxlPrice}
+                        onChange={e => setForm(c => ({ ...c, xxlPrice: e.target.value }))}
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
