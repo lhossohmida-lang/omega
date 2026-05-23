@@ -37,7 +37,8 @@ const emptyForm = {
   image: '',
   isAvailable: true,
   hasSizes: false,
-  sizes: [], // [{ label: 'XL', price: 200, costPrice: 100 }]
+  xlPrice: '',
+  xxlPrice: '',
 };
 
 const LOCAL_IMAGES = [
@@ -191,6 +192,8 @@ export default function AdminProducts() {
 
   function openEdit(product) {
     setEditing(product.id);
+    const xlSize  = product.sizes?.find(s => s.label === 'XL');
+    const xxlSize = product.sizes?.find(s => s.label === 'XXL');
     setForm({
       name: product.name || '',
       category: product.category || 'burger',
@@ -200,14 +203,14 @@ export default function AdminProducts() {
       image: product.image || '',
       isAvailable: product.isAvailable !== false,
       hasSizes: !!(product.sizes?.length),
-      sizes: product.sizes || [],
+      xlPrice:  xlSize  ? xlSize.price  : '',
+      xxlPrice: xxlSize ? xxlSize.price : '',
     });
     setShowForm(true);
   }
 
   async function handleSave(event) {
     event.preventDefault();
-    // If hasSizes, price can be empty (price comes from sizes); otherwise require it
     if (!form.name.trim()) {
       toast.error('يرجى إدخال اسم المنتج');
       return;
@@ -216,12 +219,8 @@ export default function AdminProducts() {
       toast.error('يرجى إدخال سعر المنتج');
       return;
     }
-    if (form.hasSizes && form.sizes.length === 0) {
-      toast.error('يرجى إضافة حجم واحد على الأقل');
-      return;
-    }
-    if (form.hasSizes && form.sizes.some(s => !s.label.trim() || s.price === '')) {
-      toast.error('يرجى إدخال اسم وسعر لكل حجم');
+    if (form.hasSizes && (form.xlPrice === '' || form.xxlPrice === '')) {
+      toast.error('يرجى إدخال سعر XL وXXL');
       return;
     }
 
@@ -236,14 +235,11 @@ export default function AdminProducts() {
       };
 
       if (form.hasSizes) {
+        const xl  = { label: 'XL',  price: Number(form.xlPrice),  costPrice: 0 };
+        const xxl = { label: 'XXL', price: Number(form.xxlPrice), costPrice: 0 };
         payload.hasSizes = true;
-        payload.sizes = form.sizes.map(s => ({
-          label: s.label.trim(),
-          price: Number(s.price),
-          costPrice: s.costPrice !== '' ? Number(s.costPrice) : 0,
-        }));
-        // Use the first size price as base price for display
-        payload.price = Number(form.sizes[0].price);
+        payload.sizes = [xl, xxl];
+        payload.price = xl.price; // base price = XL
       } else {
         payload.hasSizes = false;
         payload.sizes = [];
@@ -517,53 +513,33 @@ export default function AdminProducts() {
                   onChange={event => setForm(current => ({
                     ...current,
                     hasSizes: event.target.checked,
-                    sizes: event.target.checked && current.sizes.length === 0
-                      ? [{ label: 'XL', price: '', costPrice: '' }]
-                      : current.sizes,
                   }))}
                   className="hidden"
                 />
-                <span className="font-bold text-white">المنتج له أحجام مختلفة (XL، XXL…)</span>
+                <span className="font-bold text-white">المنتج له حجمين: XL وXXL</span>
               </label>
 
               {form.hasSizes ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setForm(c => ({ ...c, sizes: [...c.sizes, { label: '', price: '', costPrice: '' }] }))}
-                      className="flex items-center gap-1.5 rounded-xl border border-omega-orange/40 bg-omega-orange/10 px-3 py-2 text-sm font-black text-omega-orange"
-                    >
-                      <IoAddOutline size={18} /> إضافة حجم
-                    </button>
-                    <p className="text-sm font-bold text-omega-text-muted">الأحجام والأسعار</p>
+                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-omega-orange/20 bg-omega-orange/[0.04] p-4">
+                  <div>
+                    <label className="mb-2 block text-right text-sm font-bold text-omega-orange">سعر XL</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      value={form.xlPrice}
+                      onChange={e => setForm(c => ({ ...c, xlPrice: e.target.value }))}
+                      placeholder="0 دج"
+                    />
                   </div>
-                  <div className="space-y-2.5">
-                    {form.sizes.map((sz, idx) => (
-                      <div key={idx} className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setForm(c => ({ ...c, sizes: c.sizes.filter((_, i) => i !== idx) }))}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-omega-red/30 bg-omega-red/10 text-omega-red"
-                        >
-                          <IoClose size={16} />
-                        </button>
-                        <input
-                          className={inputClass + ' py-2 text-sm'}
-                          placeholder="الحجم (XL)"
-                          value={sz.label}
-                          onChange={e => setForm(c => ({ ...c, sizes: c.sizes.map((s, i) => i === idx ? { ...s, label: e.target.value } : s) }))}
-                        />
-                        <input
-                          type="number"
-                          className={inputClass + ' py-2 text-sm'}
-                          placeholder="السعر"
-                          value={sz.price}
-                          onChange={e => setForm(c => ({ ...c, sizes: c.sizes.map((s, i) => i === idx ? { ...s, price: e.target.value } : s) }))}
-                        />
-                        <span className="text-xs text-omega-text-dim w-8 text-center">دج</span>
-                      </div>
-                    ))}
+                  <div>
+                    <label className="mb-2 block text-right text-sm font-bold text-omega-orange">سعر XXL</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      value={form.xxlPrice}
+                      onChange={e => setForm(c => ({ ...c, xxlPrice: e.target.value }))}
+                      placeholder="0 دج"
+                    />
                   </div>
                 </div>
               ) : (

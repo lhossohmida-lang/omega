@@ -167,6 +167,7 @@ function SizePickerModal({ product, onClose, onAdd }) {
   );
 }
 
+function SectionRow({ title, icon, onSeeAll, children }) {
   return (
     <section className="ch-section">
       <div className="ch-section-head">
