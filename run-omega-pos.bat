@@ -24,6 +24,11 @@ echo 🔌 انتظر قليلاً حتى يكتمل التشغيل الفعلي 
 timeout /t 6 /nobreak > nul
 
 echo.
+echo 🛑 جاري إغلاق أي نوافذ أو عمليات خلفية لـ Google Chrome لتهيئة الطباعة الصامتة...
+taskkill /f /im chrome.exe >nul 2>&1
+timeout /t 1 /nobreak > nul
+
+echo.
 echo 🚀 جاري فتح واجهة المبيعات مع تفعيل الطباعة الصامتة التلقائية...
 echo.
 
