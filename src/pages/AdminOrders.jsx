@@ -10,6 +10,7 @@ import {
 } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
 import { useAuth } from '../hooks/useAuth';
+import { printOrderTicket } from '../utils/printer';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import { isToday, timeAgo } from '../utils/formatDate';
@@ -83,12 +84,35 @@ export default function AdminOrders() {
   const [resetting, setResetting] = useState(false);
   const [deletingReady, setDeletingReady] = useState(false);
   const [routingOrder, setRoutingOrder] = useState(null);
-  const [showNewOrder, setShowNewOrder] = useState(false);
+  const [panelType, setPanelType] = useState(null); // 'dine-in' | 'takeout' | 'delivery'
+  const [newOrderContext, setNewOrderContext] = useState(null); // { orderType, tableNumber?, driverNumber?, customerName?, customerPhone? }
+  const [driverPhoneStep, setDriverPhoneStep] = useState(null); // { driverNumber }
   const previousOrdersRef = useRef([]);
   const deletionTimers = useRef({});
+  const printedReadyOrdersRef = useRef(new Set());
+  const isFirstLoadRef = useRef(true);
 
   useEffect(() => {
     const unsub = subscribeToAllOrders((data) => {
+      // On first load, record existing ready orders to avoid reprint
+      if (isFirstLoadRef.current && data.length > 0) {
+        data.forEach((o) => {
+          if (o.workerReady) {
+            printedReadyOrdersRef.current.add(o.id);
+          }
+        });
+        isFirstLoadRef.current = false;
+      }
+
+      // Check for any newly ready order to print automatically
+      data.forEach((o) => {
+        if (o.workerReady && !printedReadyOrdersRef.current.has(o.id)) {
+          printedReadyOrdersRef.current.add(o.id);
+          printOrderTicket(o, { type: 'admin' });
+          toast.success(`تم طباعة تيكيت الإدارة للطلب #${o.id?.slice(-6)} تلقائياً! 🖨️`);
+        }
+      });
+
       setOrders(data);
       setLoading(false);
 
@@ -175,7 +199,8 @@ export default function AdminOrders() {
         customerId: userData?.uid || 'admin',
       });
       toast.success('تم إنشاء الطلب');
-      setShowNewOrder(false);
+      setNewOrderContext(null);
+      setPanelType(null);
       // إشعار المطبخ بطلب جديد
       localSync.emit(SYNC_EVENTS.ORDER_CREATED, { source: 'admin' });
     } catch (err) {
@@ -277,7 +302,7 @@ export default function AdminOrders() {
       <main className="admin-container">
         <AdminHeader title="الطلبات" subtitle="إدارة ومتابعة جميع طلبات المطعم" />
 
-        <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
+        <section className="mb-4">
           <label className="admin-control flex min-h-12 items-center gap-3 px-4">
             <IoSearch className="text-omega-text-dim" size={26} />
             <input
@@ -288,16 +313,36 @@ export default function AdminOrders() {
               className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-omega-text-dim"
             />
           </label>
+        </section>
 
+        <section className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
-            onClick={() => setShowNewOrder(true)}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red px-5 text-sm font-black text-white shadow-lg shadow-omega-orange/25 active:scale-95"
+            onClick={() => setPanelType('dine-in')}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red px-5 text-sm font-black text-white shadow-lg shadow-omega-orange/25 active:scale-95"
           >
-            <IoAdd size={22} />
-            طلب جديد
+            <IoRestaurantOutline size={22} />
+            طلبات داخل المطعم
           </button>
+          <button
+            type="button"
+            onClick={() => setPanelType('takeout')}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-700 px-5 text-sm font-black text-white shadow-lg shadow-emerald-500/25 active:scale-95"
+          >
+            <IoBagHandleOutline size={22} />
+            طلبات يأخذها معه
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanelType('delivery')}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-500 to-blue-700 px-5 text-sm font-black text-white shadow-lg shadow-blue-500/25 active:scale-95"
+          >
+            <IoCarOutline size={22} />
+            طلبات التوصيل
+          </button>
+        </section>
 
+        <section className="mb-4 grid gap-3 sm:grid-cols-3">
           <button className="admin-control flex min-h-12 items-center justify-center gap-2 px-5 text-sm font-black text-white">
             <IoFilterOutline className="text-omega-orange" size={25} />
             فلترة
@@ -441,8 +486,21 @@ export default function AdminOrders() {
                             onClick={() => setSelected(order)}
                             className="flex h-11 w-11 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
                             aria-label="عرض الطلب"
+                            title="عرض تفاصيل الطلب"
                           >
                             <IoEyeOutline size={22} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              printOrderTicket(order, { type: 'admin' });
+                              toast.success('تم إرسال تيكيت الإدارة للطباعة! 🖨️');
+                            }}
+                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
+                            aria-label="طباعة الطلب"
+                            title="طباعة تيكيت الطلب"
+                          >
+                            <IoReceiptOutline size={20} />
                           </button>
                           {ds === 'pending' ? (
                             <button
@@ -491,10 +549,38 @@ export default function AdminOrders() {
         />
       )}
 
-      {showNewOrder && (
+      {panelType && !newOrderContext && !driverPhoneStep && (
+        <OrderTypePanel
+          type={panelType}
+          orders={orders}
+          onClose={() => setPanelType(null)}
+          onPickTable={(tableNumber) => setNewOrderContext({ orderType: 'table', tableNumber })}
+          onPickTakeout={(takeoutNumber) => setNewOrderContext({ orderType: 'takeout', takeoutNumber })}
+          onPickDriver={(driverNumber) => setDriverPhoneStep({ driverNumber })}
+        />
+      )}
+
+      {driverPhoneStep && (
+        <DriverCustomerForm
+          driverNumber={driverPhoneStep.driverNumber}
+          onClose={() => setDriverPhoneStep(null)}
+          onSubmit={({ customerName, customerPhone }) => {
+            setNewOrderContext({
+              orderType: 'delivery',
+              driverNumber: driverPhoneStep.driverNumber,
+              customerName,
+              customerPhone,
+            });
+            setDriverPhoneStep(null);
+          }}
+        />
+      )}
+
+      {newOrderContext && (
         <NewOrderModal
           products={products}
-          onClose={() => setShowNewOrder(false)}
+          context={newOrderContext}
+          onClose={() => setNewOrderContext(null)}
           onSubmit={handleCreateAdminOrder}
         />
       )}
@@ -504,12 +590,26 @@ export default function AdminOrders() {
           <button className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setSelected(null)} aria-label="إغلاق" />
           <div className="admin-glass relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-[1.8rem] p-6">
             <div className="mb-5 flex items-start justify-between">
-              <button
-                onClick={() => setSelected(null)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-omega-text-muted"
-              >
-                <IoClose size={22} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-omega-text-muted transition-transform active:scale-95"
+                  aria-label="إغلاق"
+                >
+                  <IoClose size={22} />
+                </button>
+                <button
+                  onClick={() => {
+                    printOrderTicket(selected, { type: 'admin' });
+                    toast.success('تم إرسال تيكيت الإدارة للطباعة! 🖨️');
+                  }}
+                  className="flex h-11 items-center justify-center gap-1.5 rounded-2xl border border-omega-orange/30 bg-omega-orange/10 px-4 text-omega-orange transition-transform active:scale-95 text-sm font-black"
+                  title="طباعة تيكيت الطلب"
+                >
+                  <IoReceiptOutline size={18} />
+                  <span>طباعة تيكيت</span>
+                </button>
+              </div>
               <div className="text-right">
                 <h3 className="text-2xl font-black text-white">طلب #{selected.id?.slice(-6)}</h3>
                 <p className="mt-1 text-sm text-omega-text-muted">{timeAgo(selected.createdAt)}</p>
@@ -617,6 +717,234 @@ export default function AdminOrders() {
   );
 }
 
+/* ─── Order Type Panel: Tables / Takeout / Drivers ──────── */
+const TABLES_COUNT = 10;
+const DRIVERS_COUNT = 10;
+const TAKEOUT_SLOTS = 10;
+
+function OrderTypePanel({ type, orders, onClose, onPickTable, onPickTakeout, onPickDriver }) {
+  // Compute counts from active orders
+  const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
+  const tablesOccupied = new Set(
+    activeOrders
+      .filter(o => o.orderType === 'table' && o.tableNumber)
+      .map(o => Number(o.tableNumber))
+  );
+  const driversBusy = new Set(
+    activeOrders
+      .filter(o => o.orderType === 'delivery' && o.driverNumber)
+      .map(o => Number(o.driverNumber))
+  );
+  const takeoutSlots = new Set(
+    activeOrders
+      .filter(o => o.orderType === 'takeout' && o.takeoutNumber)
+      .map(o => Number(o.takeoutNumber))
+  );
+
+  const title = {
+    'dine-in': 'طلبات داخل المطعم',
+    'takeout': 'طلبات يأخذها معه',
+    'delivery': 'طلبات التوصيل',
+  }[type];
+
+  const subtitle = {
+    'dine-in': `${TABLES_COUNT - tablesOccupied.size} طاولة فارغة من ${TABLES_COUNT}`,
+    'takeout': `${TAKEOUT_SLOTS - takeoutSlots.size} زبون متاح من ${TAKEOUT_SLOTS}`,
+    'delivery': `${DRIVERS_COUNT - driversBusy.size} سائق متاح من ${DRIVERS_COUNT}`,
+  }[type];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+      <div className="w-full max-w-2xl rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl max-h-[92vh] flex flex-col">
+        {/* رأس */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0 border-b border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            <IoClose size={18} />
+          </button>
+          <div className="text-right">
+            <h2 className="text-gray-900 text-lg font-black">{title}</h2>
+            <p className="text-gray-500 text-xs mt-0.5">{subtitle}</p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {type === 'dine-in' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Array.from({ length: TABLES_COUNT }, (_, i) => i + 1).map(num => {
+                const occupied = tablesOccupied.has(num);
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => !occupied && onPickTable(num)}
+                    disabled={occupied}
+                    className={`relative aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      occupied
+                        ? 'bg-red-50 border-red-200 cursor-not-allowed opacity-70'
+                        : 'bg-white border-gray-200 hover:border-omega-orange hover:bg-omega-orange/5 active:scale-95'
+                    }`}
+                  >
+                    <IoRestaurantOutline size={32} className={occupied ? 'text-red-400' : 'text-omega-orange'} />
+                    <span className={`text-2xl font-black ${occupied ? 'text-red-500' : 'text-gray-900'}`}>
+                      {num}
+                    </span>
+                    <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      occupied ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {occupied ? 'مشغولة' : 'فارغة'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {type === 'takeout' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Array.from({ length: TAKEOUT_SLOTS }, (_, i) => i + 1).map(num => {
+                const occupied = takeoutSlots.has(num);
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => !occupied && onPickTakeout(num)}
+                    disabled={occupied}
+                    className={`relative aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      occupied
+                        ? 'bg-red-50 border-red-200 cursor-not-allowed opacity-70'
+                        : 'bg-white border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 active:scale-95'
+                    }`}
+                  >
+                    <IoBagHandleOutline size={32} className={occupied ? 'text-red-400' : 'text-emerald-500'} />
+                    <span className={`text-base font-black ${occupied ? 'text-red-500' : 'text-gray-900'}`}>
+                      زبون {num}
+                    </span>
+                    <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      occupied ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {occupied ? 'قيد التحضير' : 'متاح'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {type === 'delivery' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Array.from({ length: DRIVERS_COUNT }, (_, i) => i + 1).map(num => {
+                const busy = driversBusy.has(num);
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => !busy && onPickDriver(num)}
+                    disabled={busy}
+                    className={`relative aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      busy
+                        ? 'bg-red-50 border-red-200 cursor-not-allowed opacity-70'
+                        : 'bg-white border-gray-200 hover:border-blue-500 hover:bg-blue-50 active:scale-95'
+                    }`}
+                  >
+                    <IoCarOutline size={32} className={busy ? 'text-red-400' : 'text-blue-500'} />
+                    <span className={`text-base font-black ${busy ? 'text-red-500' : 'text-gray-900'}`}>
+                      سائق {num}
+                    </span>
+                    <span className={`absolute top-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                      busy ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {busy ? 'مشغول' : 'متاح'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Driver Customer Form (phone capture before new order) ── */
+function DriverCustomerForm({ driverNumber, onClose, onSubmit }) {
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!customerPhone.trim()) {
+      toast.error('أدخل رقم الهاتف');
+      return;
+    }
+    onSubmit({ customerName: customerName.trim(), customerPhone: customerPhone.trim() });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[65] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl p-5"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            <IoClose size={18} />
+          </button>
+          <div className="text-right">
+            <h2 className="text-gray-900 text-lg font-black">بيانات الزبون</h2>
+            <p className="text-blue-500 text-xs mt-0.5 font-bold">سائق {driverNumber}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-right text-sm font-bold text-gray-700 mb-1.5">
+              رقم الهاتف <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={e => setCustomerPhone(e.target.value)}
+              placeholder="0555 555 555"
+              dir="ltr"
+              autoFocus
+              className="w-full rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-gray-900 text-base outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50 focus:bg-white transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-right text-sm font-bold text-gray-700 mb-1.5">
+              اسم الزبون (اختياري)
+            </label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={e => setCustomerName(e.target.value)}
+              placeholder="اسم الزبون"
+              className="w-full rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-gray-900 text-base outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50 focus:bg-white transition-colors"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="mt-5 w-full rounded-2xl bg-gradient-to-l from-blue-500 to-blue-700 py-3.5 text-white font-black text-sm shadow-lg shadow-blue-500/25 active:scale-[0.98]"
+        >
+          متابعة إلى الطلب ←
+        </button>
+      </form>
+    </div>
+  );
+}
+
 /* ─── Destination Picker (Table vs Delivery only) ───────── */
 function DestinationPicker({ destination, setDestination, light = false }) {
   const activeCls = 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange';
@@ -688,65 +1016,115 @@ function RoutingModal({ order, onClose, onConfirm }) {
           type="button"
           onClick={handleConfirm}
           disabled={submitting}
-          className="mt-5 w-full rounded-xl bg-gradient-to-l from-omega-orange to-omega-red py-3 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-60 active:scale-[0.98]"
+          className="mt-5 w-full rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-5 text-white font-black text-lg shadow-lg shadow-omega-orange/30 disabled:opacity-60 active:scale-[0.98]"
         >
-          {submitting ? '...جاري التأكيد' : 'إرسال للمطبخ'}
+          {submitting ? '...جاري التأكيد' : 'تأكيد الطلب وإرساله للمطبخ ✓'}
         </button>
       </div>
     </div>
   );
 }
 
-/* ─── Product Row (used inside NewOrderModal — light theme) ──── */
-function ProductRow({ p, cart, addItem, removeItem, activeSize = 'all' }) {
+/* ─── Product Tile (grid layout) ─────────────────────────── */
+function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
   const hasSizes = p.hasSizes && p.sizes?.length > 0;
 
   if (hasSizes) {
-    const sizesToShow = activeSize === 'all'
-      ? p.sizes
-      : p.sizes.filter(sz => sz.label === activeSize);
+    const sizesToShow = (activeSize === 'all' ? p.sizes : p.sizes.filter(sz => sz.label === activeSize))
+      .filter(sz => sz.price && Number(sz.price) > 0);
     if (sizesToShow.length === 0) return null;
+    
+    // If only one size visible (when filter is L/XL/XXL), treat as single tile
+    if (sizesToShow.length === 1) {
+      const sz = sizesToShow[0];
+      const key = `${p.id}__${sz.label}`;
+      const qty = cart[key]?.qty || 0;
+      return (
+        <button
+          type="button"
+          onClick={() => addItem(p.id, sz.label, sz.price)}
+          className={`relative rounded-2xl border-2 p-2.5 text-right transition-all ${
+            qty > 0 ? 'border-omega-orange bg-omega-orange/[0.07]' : 'border-gray-200 bg-white hover:border-omega-orange/40'
+          }`}
+        >
+          <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
+            {p.image
+              ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+              : <span className="text-3xl">🍽️</span>}
+          </div>
+          <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
+          <p className="text-gray-500 text-[11px] font-black mt-0.5">{sz.label}</p>
+          <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(sz.price)}</p>
+          {qty > 0 && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 bg-omega-orange text-white rounded-full px-1.5 py-0.5">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); removeItem(key); }}
+                className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"
+              ><IoRemove size={13} /></button>
+              <span className="font-black text-xs min-w-[1ch] text-center">{qty}</span>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); addItem(p.id, sz.label, sz.price); }}
+                className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"
+              ><IoAdd size={13} /></button>
+            </div>
+          )}
+        </button>
+      );
+    }
+    
+    // Multiple sizes — show as a card with size chips
     return (
-      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-        <div className="flex items-center justify-end gap-3 mb-3.5">
-          {p.image && <img src={p.image} alt={p.name} className="w-11 h-11 rounded-xl object-cover" />}
-          <p className="text-gray-900 font-bold text-base leading-snug">{p.name}</p>
+      <div 
+        onClick={() => {
+          if (sizesToShow.length > 0) {
+            const firstSz = sizesToShow[0];
+            addItem(p.id, firstSz.label, firstSz.price);
+          }
+        }}
+        className="rounded-2xl border-2 border-gray-200 bg-white p-3 cursor-pointer hover:border-omega-orange/40 transition-all flex flex-col justify-between"
+      >
+        <div>
+          <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
+            {p.image
+              ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+              : <span className="text-3xl">🍽️</span>}
+          </div>
+          <p className="text-gray-900 font-bold text-sm truncate leading-snug text-right mb-3">{p.name}</p>
         </div>
-        <div className="flex flex-wrap gap-2 justify-end">
+        <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
           {sizesToShow.map(sz => {
             const key = `${p.id}__${sz.label}`;
             const qty = cart[key]?.qty || 0;
             return (
-              <div
+              <button
                 key={sz.label}
-                className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 transition-all ${
-                  qty > 0 ? 'border-omega-orange/50 bg-omega-orange/10' : 'border-gray-200 bg-white'
+                type="button"
+                onClick={(e) => { e.stopPropagation(); addItem(p.id, sz.label, sz.price); }}
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-all active:scale-[0.98] ${
+                  qty > 0 
+                    ? 'border-omega-orange bg-omega-orange/10 font-bold text-omega-orange' 
+                    : 'border-gray-200 bg-gray-50 hover:bg-white text-gray-700'
                 }`}
               >
-                {qty > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(key)}
-                      className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
-                    >
-                      <IoRemove size={15} />
-                    </button>
-                    <span className="text-gray-900 font-black text-sm min-w-[1ch] text-center">{qty}</span>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => addItem(p.id, sz.label, sz.price)}
-                  className="w-7 h-7 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
-                >
-                  <IoAdd size={15} />
-                </button>
-                <div className="text-right leading-tight">
-                  <p className="text-gray-900 text-sm font-black">{sz.label}</p>
-                  <p className="text-omega-orange text-xs font-bold mt-0.5">{formatCurrency(sz.price)}</p>
-                </div>
-              </div>
+                <span className="text-omega-orange text-sm font-black">{formatCurrency(sz.price)}</span>
+                <span className="flex items-center gap-1.5">
+                  {qty > 0 && (
+                    <>
+                      <span className="text-gray-700 font-black text-sm">{qty}×</span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); removeItem(key); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); removeItem(key); } }}
+                        className="w-5 h-5 rounded bg-gray-200 text-gray-700 flex items-center justify-center cursor-pointer transition-transform active:scale-90"
+                      ><IoRemove size={12} /></span>
+                    </>
+                  )}
+                  <span className="text-gray-900 text-xs font-black">{sz.label}</span>
+                </span>
+              </button>
             );
           })}
         </div>
@@ -756,55 +1134,46 @@ function ProductRow({ p, cart, addItem, removeItem, activeSize = 'all' }) {
 
   const qty = cart[p.id]?.qty || 0;
   return (
-    <div
-      className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition-all ${
-        qty > 0 ? 'border-omega-orange/50 bg-omega-orange/[0.07]' : 'border-gray-200 bg-white'
+    <button
+      type="button"
+      onClick={() => addItem(p.id)}
+      className={`relative rounded-2xl border-2 p-2.5 text-right transition-all ${
+        qty > 0 ? 'border-omega-orange bg-omega-orange/[0.07]' : 'border-gray-200 bg-white hover:border-omega-orange/40'
       }`}
     >
-      <div className="flex items-center gap-2">
-        {qty > 0 && (
-          <>
-            <button
-              type="button"
-              onClick={() => removeItem(p.id)}
-              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
-            >
-              <IoRemove size={17} />
-            </button>
-            <span className="w-6 text-center text-gray-900 font-black text-base">{qty}</span>
-          </>
-        )}
-        <button
-          type="button"
-          onClick={() => addItem(p.id)}
-          className="w-8 h-8 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
-        >
-          <IoAdd size={17} />
-        </button>
+      <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
+        {p.image
+          ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+          : <span className="text-3xl">🍽️</span>}
       </div>
-      <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
-        <div className="text-right min-w-0 leading-snug">
-          <p className="text-gray-900 font-bold text-base truncate">{p.name}</p>
-          <p className="text-omega-orange text-sm font-bold mt-1">{formatCurrency(p.price)}</p>
+      <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
+      <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(p.price)}</p>
+      {qty > 0 && (
+        <div className="absolute top-2 left-2 flex items-center gap-1 bg-omega-orange text-white rounded-full px-1.5 py-0.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); removeItem(p.id); }}
+            className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"
+          ><IoRemove size={13} /></button>
+          <span className="font-black text-xs min-w-[1ch] text-center">{qty}</span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); addItem(p.id); }}
+            className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"
+          ><IoAdd size={13} /></button>
         </div>
-        {p.image && (
-          <img src={p.image} alt={p.name} className="w-12 h-12 rounded-xl object-cover" />
-        )}
-      </div>
-    </div>
+      )}
+    </button>
   );
 }
 
 /* ─── New Walk-in Order Modal ───────────────────────────── */
-function NewOrderModal({ products, onClose, onSubmit }) {
-  const [step, setStep] = useState(1);
+function NewOrderModal({ products, context, onClose, onSubmit }) {
   const [cart, setCart] = useState({});
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(context?.customerName || '');
+  const [customerPhone, setCustomerPhone] = useState(context?.customerPhone || '');
   const [customerNote, setCustomerNote] = useState('');
-  const [destination, setDestination] = useState('table');
   const [submitting, setSubmitting] = useState(false);
-  const [searchProd, setSearchProd] = useState('');
   const [activeCat, setActiveCat] = useState('all');
   const [activeSize, setActiveSize] = useState('all');
 
@@ -814,9 +1183,9 @@ function NewOrderModal({ products, onClose, onSubmit }) {
     burger:     { label: 'برغر',    emoji: '🍔' },
     tacos:      { label: 'تاكوس',   emoji: '🌮' },
     drinks:     { label: 'مشروبات', emoji: '🥤' },
-    desserts:   { label: 'حلويات', emoji: '🍰' },
-    appetizers: { label: 'مقبلات', emoji: '🍟' },
-    sofli:      { label: 'سوفلي',  emoji: '🍮', iconUrl: '/sofli-icon.png' },
+    desserts:   { label: 'حلويات',  emoji: '🍰' },
+    appetizers: { label: 'مقبلات',  emoji: '🍟' },
+    sofli:      { label: 'سوفلي',   emoji: '🍮', iconUrl: '/sofli-icon.png' },
   };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
@@ -825,16 +1194,11 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   )];
 
   const filteredProducts = availableProducts.filter(p => {
-    const matchCat = activeCat === 'all' || p.category === activeCat;
-    const q = searchProd.trim().toLowerCase();
-    const matchQuery = !q || p.name?.toLowerCase().includes(q);
-    if (!matchCat || !matchQuery) return false;
+    if (activeCat !== 'all' && p.category !== activeCat) return false;
     if (activeSize === 'all') return true;
     return p.hasSizes && p.sizes?.some(sz => sz.label === activeSize);
   });
 
-  // For sized products the cart key = `${productId}__${sizeLabel}`
-  // For normal products the key = productId
   const addItem = (id, sizeLabel, sizePrice) => {
     if (sizeLabel !== undefined) {
       const key = `${id}__${sizeLabel}`;
@@ -861,11 +1225,23 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   const totalPrice = cartEntries.reduce((s, e) => s + e.price * e.quantity, 0);
   const itemsCount = cartEntries.reduce((s, e) => s + e.quantity, 0);
 
-  const canGoNext = itemsCount > 0;
+  // Header label based on context
+  const orderType = context?.orderType || 'table';
+  const headerInfo = (() => {
+    if (orderType === 'table') return { label: `طاولة ${context?.tableNumber || '—'}`, icon: IoRestaurantOutline, color: 'text-omega-orange', bg: 'bg-omega-orange/10' };
+    if (orderType === 'takeout') return { label: `يأخذها معه · زبون ${context?.takeoutNumber || '—'}`, icon: IoBagHandleOutline, color: 'text-emerald-600', bg: 'bg-emerald-50' };
+    if (orderType === 'delivery') return { label: `توصيل · سائق ${context?.driverNumber || '—'}`, icon: IoCarOutline, color: 'text-blue-600', bg: 'bg-blue-50' };
+    return { label: 'طلب جديد', icon: IoBagHandleOutline, color: 'text-gray-600', bg: 'bg-gray-50' };
+  })();
+  const HeaderIcon = headerInfo.icon;
 
   const handleSubmit = async () => {
     if (cartEntries.length === 0) {
       toast.error('أضف منتجات أولاً');
+      return;
+    }
+    if (orderType === 'delivery' && !customerPhone.trim()) {
+      toast.error('رقم هاتف الزبون مطلوب');
       return;
     }
     setSubmitting(true);
@@ -878,153 +1254,177 @@ function NewOrderModal({ products, onClose, onSubmit }) {
       category: product.category || '',
       quantity,
     }));
+    const defaultName = {
+      table: `طاولة ${context?.tableNumber || ''}`.trim(),
+      takeout: `زبون ${context?.takeoutNumber || ''}`.trim(),
+      delivery: 'زبون توصيل',
+    }[orderType] || 'زبون';
+
     const payload = {
       items,
       totalPrice,
-      customerName: customerName || 'زبون داخل المطعم',
-      customerPhone: customerPhone || '',
+      customerName: customerName.trim() || defaultName,
+      customerPhone: customerPhone.trim(),
       customerNote,
-      isDelivery: destination === 'delivery',
-      orderType: destination,
+      isDelivery: orderType === 'delivery',
+      orderType,
+      tableNumber: orderType === 'table' ? context?.tableNumber : null,
+      takeoutNumber: orderType === 'takeout' ? context?.takeoutNumber : null,
+      driverNumber: orderType === 'delivery' ? context?.driverNumber : null,
     };
     await onSubmit(payload);
     setSubmitting(false);
   };
 
+  const SIZES = [
+    { id: 'all', label: 'الكل' },
+    { id: 'L', label: 'L' },
+    { id: 'XL', label: 'XL' },
+    { id: 'XXL', label: 'XXL' },
+  ];
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-xl rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl max-h-[96vh] flex flex-col">
+      <div className="w-full max-w-4xl rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl h-[95vh] max-h-[95vh] flex flex-col">
 
         {/* رأس */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0 border-b border-gray-100">
           <button type="button" onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">
             <IoClose size={18} />
           </button>
-          <div className="text-right">
-            <h2 className="text-gray-900 text-lg font-black">طلب جديد</h2>
-            <p className="text-gray-500 text-[11px]">الخطوة {step} من 2</p>
+          <div className="flex items-center gap-2 text-right">
+            <div>
+              <h2 className="text-gray-900 text-lg font-black">طلب جديد</h2>
+              <p className={`text-xs font-black mt-0.5 ${headerInfo.color}`}>{headerInfo.label}</p>
+            </div>
+            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${headerInfo.bg} ${headerInfo.color}`}>
+              <HeaderIcon size={22} />
+            </div>
           </div>
         </div>
-        <div className="flex gap-1.5 px-5 mb-3 shrink-0">
-          <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-omega-orange' : 'bg-gray-200'}`} />
-          <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-omega-orange' : 'bg-gray-200'}`} />
+
+        {/* أزرار الأحجام — كبيرة وواضحة */}
+        <div className="px-5 pt-4 pb-4 shrink-0">
+          <p className="text-right text-gray-600 text-sm font-black mb-3">فلترة بالحجم</p>
+          <div className="grid grid-cols-4 gap-3">
+            {SIZES.map(sz => {
+              const active = activeSize === sz.id;
+              return (
+                <button
+                  key={sz.id}
+                  type="button"
+                  onClick={() => setActiveSize(sz.id)}
+                  className={`rounded-2xl border-2 py-5 text-2xl font-black transition-all ${
+                    active
+                      ? 'bg-omega-orange text-white border-omega-orange shadow-xl shadow-omega-orange/40 scale-[1.02]'
+                      : 'bg-gray-50 text-gray-800 border-gray-300 hover:bg-white hover:border-omega-orange/50'
+                  }`}
+                >
+                  {sz.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {step === 1 ? (
-          <>
-            {/* بحث + فلترة الأحجام */}
-            <div className="px-5 mb-5 shrink-0 flex gap-3 items-stretch">
-              <label className="flex-1 flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5 focus-within:border-omega-orange/50 focus-within:bg-white transition-colors min-w-0">
-                <IoSearch className="text-gray-400 shrink-0" size={17} />
-                <input type="text" placeholder="ابحث عن منتج..."
-                  value={searchProd}
-                  onChange={e => { setSearchProd(e.target.value); setActiveCat('all'); }}
-                  className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right min-w-0" />
-              </label>
-              <div className="flex gap-1.5 shrink-0">
-                {[
-                  { id: 'all', label: 'الكل' },
-                  { id: 'L', label: 'L' },
-                  { id: 'XL', label: 'XL' },
-                  { id: 'XXL', label: 'XXL' },
-                ].map(sz => {
-                  const active = activeSize === sz.id;
-                  return (
-                    <button key={sz.id} type="button" onClick={() => setActiveSize(sz.id)}
-                      className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-black border transition-all ${
-                        active
-                          ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_10px_-4px_rgba(255,107,0,0.6)]'
-                          : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                      }`}>
-                      {sz.label}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* الجسم: مستطيل مقسم على اثنين */}
+        <div className="flex-1 min-h-0 px-5 pb-3 overflow-hidden">
+          <div className="h-full rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden flex">
+            {/* اليمين (HTML أول = يمين في RTL): المنتجات */}
+            <div className="flex-1 min-w-0 overflow-y-auto p-3">
+              {filteredProducts.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {filteredProducts.map(p => (
+                    <ProductTile
+                      key={p.id}
+                      p={p}
+                      cart={cart}
+                      addItem={addItem}
+                      removeItem={removeItem}
+                      activeSize={activeSize}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* أزرار الفئات */}
-            {!searchProd.trim() && (
-              <div className="flex gap-2.5 overflow-x-auto px-5 pb-5 shrink-0 scrollbar-hide">
+            {/* اليسار (HTML ثاني = يسار في RTL): الفئات */}
+            <div className="w-28 sm:w-36 shrink-0 border-r border-gray-200 bg-white overflow-y-auto">
+              <div className="flex flex-col p-2 gap-1.5">
                 {existingCats.map(cat => {
                   const m = CAT_META[cat];
                   const active = activeCat === cat;
                   return (
-                    <button key={cat} type="button" onClick={() => setActiveCat(cat)}
-                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black border transition-all ${
-                        active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.6)]'
-                               : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}` }>
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setActiveCat(cat)}
+                      className={`flex flex-col items-center gap-1 rounded-xl px-1 py-3 text-xs font-black border-2 transition-all ${
+                        active
+                          ? 'bg-omega-orange text-white border-omega-orange shadow-md shadow-omega-orange/25'
+                          : 'bg-gray-50 text-gray-700 border-transparent hover:bg-white hover:border-gray-200'
+                      }`}
+                    >
                       <CategoryIcon
                         iconUrl={m.iconUrl}
                         emoji={m.emoji}
-                        className={m.iconUrl ? 'h-4 w-4 object-contain' : ''}
+                        className={m.iconUrl ? 'h-6 w-6 object-contain' : 'text-2xl'}
                       />
-                      {m.label}
+                      <span className="text-center leading-tight">{m.label}</span>
                     </button>
                   );
                 })}
               </div>
-            )}
-
-            {/* قائمة المنتجات */}
-            <div className="flex-1 overflow-y-auto px-5 min-h-0">
-              {filteredProducts.length === 0
-                ? <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
-                : <div className="space-y-3 pb-3 pt-1">
-                    {filteredProducts.map(p => (
-                      <ProductRow key={p.id} p={p} cart={cart} addItem={addItem} removeItem={removeItem} activeSize={activeSize} />
-                    ))}
-                  </div>
-              }
-            </div>
-            {/* زبون + زر التالي */}
-            <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
-                  placeholder="الهاتف (اختياري)" dir="ltr"
-                  className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50" />
-                <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
-                  placeholder="اسم الزبون (اختياري)"
-                  className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50" />
-              </div>
-              <textarea value={customerNote} onChange={e => setCustomerNote(e.target.value)}
-                placeholder="ملاحظة (اختياري)" rows={2}
-                className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right resize-none focus:border-omega-orange/50" />
-              {itemsCount > 0 && (
-                <div className="flex items-center justify-between rounded-2xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-2.5">
-                  <span className="text-omega-orange font-black text-xl">{formatCurrency(totalPrice)}</span>
-                  <span className="text-gray-700 text-sm font-bold">{itemsCount} صنف</span>
-                </div>
-              )}
-              <button type="button" onClick={() => setStep(2)} disabled={itemsCount === 0}
-                className="w-full rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-3.5 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-40 active:scale-[0.98] transition-transform">
-                التالي — اختيار نوع الطلب ←
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 overflow-y-auto px-5 pb-6 pt-3">
-            <div className="mb-5 rounded-2xl bg-omega-orange/10 border border-omega-orange/30 p-4 flex items-center justify-between">
-              <span className="text-omega-orange font-black text-2xl">{formatCurrency(totalPrice)}</span>
-              <div className="text-right">
-                <p className="text-gray-900 font-bold text-sm">{customerName || 'زبون داخل المطعم'}</p>
-                <p className="text-gray-500 text-xs mt-0.5">{itemsCount} صنف</p>
-              </div>
-            </div>
-            <DestinationPicker destination={destination} setDestination={setDestination} light />
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setStep(1)}
-                className="rounded-2xl bg-gray-100 border border-gray-200 py-3.5 text-gray-700 text-sm font-bold hover:bg-gray-200">
-                ← رجوع
-              </button>
-              <button type="button" onClick={handleSubmit} disabled={submitting}
-                className="rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-3.5 text-white font-black text-sm shadow-lg shadow-omega-orange/25 disabled:opacity-60 active:scale-[0.98]">
-                {submitting ? '...جاري الحفظ' : 'إنشاء الطلب ✓'}
-              </button>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* قاع: بيانات الزبون + الإجمالي + الإرسال */}
+        <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50 space-y-2">
+          {(orderType === 'delivery' || orderType === 'takeout') && (
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+                placeholder={orderType === 'delivery' ? 'الهاتف *' : 'الهاتف (اختياري)'}
+                dir="ltr"
+                className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50"
+              />
+              <input
+                type="text"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder="اسم الزبون (اختياري)"
+                className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50"
+              />
+            </div>
+          )}
+          <textarea
+            value={customerNote}
+            onChange={e => setCustomerNote(e.target.value)}
+            placeholder="ملاحظة (اختياري)"
+            rows={1}
+            className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right resize-none focus:border-omega-orange/50"
+          />
+          {itemsCount > 0 && (
+            <div className="flex items-center justify-between rounded-2xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-2.5">
+              <span className="text-omega-orange font-black text-xl">{formatCurrency(totalPrice)}</span>
+              <span className="text-gray-700 text-sm font-bold">{itemsCount} صنف</span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || itemsCount === 0}
+            className="w-full rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-5 text-white font-black text-xl shadow-lg shadow-omega-orange/30 disabled:opacity-40 active:scale-[0.98] transition-transform"
+          >
+            {submitting ? '...جاري إنشاء الطلب' : 'تأكيد الطلب وإنشائه ✓'}
+          </button>
+        </div>
       </div>
     </div>
   );

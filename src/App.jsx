@@ -37,6 +37,8 @@ import AdminReports from './pages/AdminReports';
 import AdminSpecialOffers from './pages/AdminSpecialOffers';
 import AdminAttendance from './pages/AdminAttendance';
 
+import AppKeyboard from './components/AppKeyboard';
+
 export default function App() {
   const { userData, loading } = useAuth();
   const location = useLocation();
@@ -66,7 +68,8 @@ export default function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Login (للإدارة والمطبخ فقط) */}
       <Route
         path="/login"
@@ -106,6 +109,8 @@ export default function App() {
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      </Routes>
+      <AppKeyboard />
+    </>
   );
 }

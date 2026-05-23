@@ -41,9 +41,11 @@ import {
   IoCalendarOutline,
   IoCashOutline,
   IoArrowForward,
-  IoArrowBack
+  IoArrowBack,
+  IoReceiptOutline
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
+import { printOrderTicket } from '../utils/printer';
 
 // أقسام المطبخ — كل قسم يجمع كل أصنافه من جميع الطلبات النشطة
 const CATEGORIES = [
@@ -82,6 +84,8 @@ export default function WorkerOrders() {
   const [soundOn, setSoundOn] = useState(true);
   const [clock, setClock] = useState(fmtClock());
   const previousCountRef = useRef(0);
+  const printedOrdersRef = useRef(new Set());
+  const isFirstLoadRef = useRef(true);
 
   // Attendance states — per-worker selection (no Firebase login required)
   const [workers, setWorkers] = useState([]);
@@ -145,6 +149,26 @@ export default function WorkerOrders() {
     const unsubOrders = subscribeToWorkerOrders((data) => {
       clearTimeout(timeout);
       const visible = data.filter((o) => !o.workerArchived);
+
+      // On first load, record existing ready orders to avoid reprint
+      if (isFirstLoadRef.current && visible.length > 0) {
+        visible.forEach((o) => {
+          if (o.workerReady) {
+            printedOrdersRef.current.add(o.id);
+          }
+        });
+        isFirstLoadRef.current = false;
+      }
+
+      // Check for any newly ready order to print automatically
+      visible.forEach((o) => {
+        if (o.workerReady && !printedOrdersRef.current.has(o.id)) {
+          printedOrdersRef.current.add(o.id);
+          printOrderTicket(o, { type: 'kitchen' });
+          toast.success(`تم طباعة تيكيت المطبخ للطلب #${o.id?.slice(-6)} تلقائياً! 🖨️`);
+        }
+      });
+
       setOrders(visible);
       setLoading(false);
  
@@ -921,16 +945,42 @@ function ItemRow({ row, categoryEmoji, categoryIconUrl, acting, onStart, onReady
               <IoCheckmarkCircle size={16} /> جاهز
             </span>
             {order.workerReady ? (
-              <button
-                type="button"
-                onClick={() => onArchive?.(order.id)}
-                disabled={acting === `archive-${order.id}`}
-                className="kitchen-row-btn kitchen-row-btn-archive"
-                title="حذف الطلب من الواجهة"
-                aria-label="حذف"
-              >
-                <IoTrashOutline size={14} />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    printOrderTicket(order, { type: 'kitchen' });
+                    toast.success('تم إعادة إرسال تيكيت المطبخ للطباعة! 🖨️');
+                  }}
+                  className="kitchen-row-btn kitchen-row-btn-print"
+                  style={{
+                    backgroundColor: 'rgba(255,107,0,0.15)',
+                    color: '#ff6b00',
+                    border: '1px solid rgba(255,107,0,0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                  title="إعادة طباعة التيكيت"
+                  aria-label="طباعة"
+                >
+                  <IoReceiptOutline size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onArchive?.(order.id)}
+                  disabled={acting === `archive-${order.id}`}
+                  className="kitchen-row-btn kitchen-row-btn-archive"
+                  title="حذف الطلب من الواجهة"
+                  aria-label="حذف"
+                >
+                  <IoTrashOutline size={14} />
+                </button>
+              </>
             ) : null}
           </>
         )}

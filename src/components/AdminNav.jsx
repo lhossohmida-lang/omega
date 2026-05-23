@@ -24,9 +24,9 @@ import {
 const bottomTabs = [
   { to: '/admin', icon: IoHomeOutline, label: 'الرئيسية', end: true },
   { to: '/admin/orders', icon: IoBagHandleOutline, label: 'الطلبات' },
-  { to: '/admin/products', icon: IoCubeOutline, label: 'المنتجات' },
+  { to: '/admin/inventory', icon: IoArchiveOutline, label: 'المخزون' },
   { to: '/admin/attendance', icon: IoTimeOutline, label: 'الدوام' },
-  { to: '/admin/reports', icon: IoBarChartOutline, label: 'التقارير' },
+  { to: '/admin/ai', icon: IoSparklesOutline, label: 'الذكاء الاصطناعي' },
 ];
 
 const menuLinks = [
