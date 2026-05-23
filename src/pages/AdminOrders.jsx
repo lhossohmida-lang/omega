@@ -617,16 +617,18 @@ export default function AdminOrders() {
 }
 
 /* ─── Destination Picker (Table vs Delivery only) ───────── */
-function DestinationPicker({ destination, setDestination }) {
+function DestinationPicker({ destination, setDestination, light = false }) {
+  const activeCls = 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange';
+  const inactiveCls = light
+    ? 'bg-gray-50 border-gray-200 text-gray-600 hover:text-gray-900'
+    : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white';
   return (
     <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
         onClick={() => setDestination('table')}
         className={`rounded-xl p-4 text-sm font-black border transition-all ${
-          destination === 'table'
-            ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
-            : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
+          destination === 'table' ? activeCls : inactiveCls
         }`}
       >
         <IoRestaurantOutline className="mx-auto mb-1.5" size={24} />
@@ -636,9 +638,7 @@ function DestinationPicker({ destination, setDestination }) {
         type="button"
         onClick={() => setDestination('delivery')}
         className={`rounded-xl p-4 text-sm font-black border transition-all ${
-          destination === 'delivery'
-            ? 'bg-omega-orange/15 border-omega-orange/50 text-omega-orange'
-            : 'bg-white/[0.03] border-white/10 text-omega-text-muted hover:text-white'
+          destination === 'delivery' ? activeCls : inactiveCls
         }`}
       >
         <IoCarOutline className="mx-auto mb-1.5" size={24} />
@@ -696,6 +696,100 @@ function RoutingModal({ order, onClose, onConfirm }) {
   );
 }
 
+/* ─── Product Row (used inside NewOrderModal — light theme) ──── */
+function ProductRow({ p, cart, addItem, removeItem }) {
+  const hasSizes = p.hasSizes && p.sizes?.length > 0;
+
+  if (hasSizes) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-2.5">
+        <div className="flex items-center justify-end gap-2 mb-2">
+          {p.image && <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />}
+          <p className="text-gray-900 font-bold text-sm">{p.name}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5 justify-end">
+          {p.sizes.map(sz => {
+            const key = `${p.id}__${sz.label}`;
+            const qty = cart[key]?.qty || 0;
+            return (
+              <div
+                key={sz.label}
+                className={`flex items-center gap-1.5 rounded-xl border px-2 py-1.5 transition-all ${
+                  qty > 0 ? 'border-omega-orange/50 bg-omega-orange/10' : 'border-gray-200 bg-white'
+                }`}
+              >
+                {qty > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(key)}
+                      className="w-6 h-6 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
+                    >
+                      <IoRemove size={14} />
+                    </button>
+                    <span className="text-gray-900 font-black text-xs">{qty}</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => addItem(p.id, sz.label, sz.price)}
+                  className="w-6 h-6 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
+                >
+                  <IoAdd size={14} />
+                </button>
+                <div className="text-right">
+                  <p className="text-gray-900 text-xs font-black">{sz.label}</p>
+                  <p className="text-omega-orange text-[10px] font-bold">{formatCurrency(sz.price)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const qty = cart[p.id]?.qty || 0;
+  return (
+    <div
+      className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition-all ${
+        qty > 0 ? 'border-omega-orange/50 bg-omega-orange/[0.07]' : 'border-gray-200 bg-white'
+      }`}
+    >
+      <div className="flex items-center gap-1.5">
+        {qty > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => removeItem(p.id)}
+              className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center hover:bg-gray-200"
+            >
+              <IoRemove size={16} />
+            </button>
+            <span className="w-5 text-center text-gray-900 font-black text-sm">{qty}</span>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => addItem(p.id)}
+          className="w-7 h-7 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
+        >
+          <IoAdd size={16} />
+        </button>
+      </div>
+      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+        <div className="text-right min-w-0">
+          <p className="text-gray-900 font-bold text-sm truncate">{p.name}</p>
+          <p className="text-omega-orange text-xs font-bold">{formatCurrency(p.price)}</p>
+        </div>
+        {p.image && (
+          <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── New Walk-in Order Modal ───────────────────────────── */
 function NewOrderModal({ products, onClose, onSubmit }) {
   const [step, setStep] = useState(1);
@@ -716,6 +810,7 @@ function NewOrderModal({ products, onClose, onSubmit }) {
     drinks:     { label: 'مشروبات', emoji: '🥤' },
     desserts:   { label: 'حلويات', emoji: '🍰' },
     appetizers: { label: 'مقبلات', emoji: '🍟' },
+    sofli:      { label: 'سوفلي',  emoji: '🍮' },
   };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
@@ -788,35 +883,35 @@ function NewOrderModal({ products, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-xl rounded-t-[1.8rem] sm:rounded-3xl bg-[#111] border border-white/10 shadow-2xl max-h-[96vh] flex flex-col">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+      <div className="w-full max-w-xl rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl max-h-[96vh] flex flex-col">
 
         {/* رأس */}
         <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
           <button type="button" onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white">
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">
             <IoClose size={18} />
           </button>
           <div className="text-right">
-            <h2 className="text-white text-lg font-black">طلب جديد</h2>
-            <p className="text-omega-text-dim text-[11px]">الخطوة {step} من 2</p>
+            <h2 className="text-gray-900 text-lg font-black">طلب جديد</h2>
+            <p className="text-gray-500 text-[11px]">الخطوة {step} من 2</p>
           </div>
         </div>
         <div className="flex gap-1.5 px-5 mb-3 shrink-0">
-          <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-omega-orange' : 'bg-white/10'}`} />
-          <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-omega-orange' : 'bg-white/10'}`} />
+          <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-omega-orange' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-omega-orange' : 'bg-gray-200'}`} />
         </div>
 
         {step === 1 ? (
           <>
             {/* بحث */}
             <div className="px-5 mb-2 shrink-0">
-              <label className="flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-3 py-2.5">
-                <IoSearch className="text-omega-text-dim shrink-0" size={17} />
+              <label className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5 focus-within:border-omega-orange/50 focus-within:bg-white transition-colors">
+                <IoSearch className="text-gray-400 shrink-0" size={17} />
                 <input type="text" placeholder="ابحث عن منتج..."
                   value={searchProd}
                   onChange={e => { setSearchProd(e.target.value); setActiveCat('all'); }}
-                  className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
+                  className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right" />
               </label>
             </div>
 
@@ -829,8 +924,8 @@ function NewOrderModal({ products, onClose, onSubmit }) {
                   return (
                     <button key={cat} type="button" onClick={() => setActiveCat(cat)}
                       className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black border transition-all ${
-                        active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.8)]'
-                               : 'bg-white/5 text-omega-text-muted border-white/10'}` }>
+                        active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.6)]'
+                               : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}` }>
                       <span>{m.emoji}</span>{m.label}
                     </button>
                   );
@@ -841,7 +936,7 @@ function NewOrderModal({ products, onClose, onSubmit }) {
             {/* قائمة المنتجات */}
             <div className="flex-1 overflow-y-auto px-5 min-h-0">
               {filteredProducts.length === 0
-                ? <p className="text-omega-text-dim text-sm text-center py-10">لا توجد منتجات</p>
+                ? <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
                 : <div className="space-y-2 pb-2">
                     {filteredProducts.map(p => (
                       <ProductRow key={p.id} p={p} cart={cart} addItem={addItem} removeItem={removeItem} />
@@ -849,122 +944,23 @@ function NewOrderModal({ products, onClose, onSubmit }) {
                   </div>
               }
             </div>
-              {filteredProducts.length === 0 ? (
-                <p className="text-omega-text-dim text-sm text-center py-6">لا توجد منتجات</p>
-              ) : (
-                filteredProducts.map(p => {
-                  const hasSizes = p.hasSizes && p.sizes?.length > 0;
-                  if (hasSizes) {
-                    // Show size tabs for each size
-                    return (
-                      <div key={p.id} className="rounded-xl border border-white/8 bg-white/[0.02] p-2.5">
-                        <div className="flex items-center justify-end gap-2 mb-2">
-                          {p.image && <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />}
-                          <p className="text-white font-bold text-sm">{p.name}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 justify-end">
-                          {p.sizes.map(sz => {
-                            const key = `${p.id}__${sz.label}`;
-                            const qty = cart[key]?.qty || 0;
-                            return (
-                              <div
-                                key={sz.label}
-                                className={`flex items-center gap-1.5 rounded-xl border px-2 py-1.5 transition-all ${
-                                  qty > 0 ? 'border-omega-orange/50 bg-omega-orange/10' : 'border-white/10 bg-white/[0.03]'
-                                }`}
-                              >
-                                {qty > 0 && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeItem(key)}
-                                      className="w-6 h-6 rounded-lg bg-white/10 text-white flex items-center justify-center"
-                                    >
-                                      <IoRemove size={14} />
-                                    </button>
-                                    <span className="text-white font-black text-xs">{qty}</span>
-                                  </>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => addItem(p.id, sz.label, sz.price)}
-                                  className="w-6 h-6 rounded-lg bg-omega-orange text-white flex items-center justify-center"
-                                >
-                                  <IoAdd size={14} />
-                                </button>
-                                <div className="text-right">
-                                  <p className="text-white text-xs font-black">{sz.label}</p>
-                                  <p className="text-omega-orange text-[10px] font-bold">{formatCurrency(sz.price)}</p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  }
-                  // Normal product (no sizes)
-                  const qty = cart[p.id]?.qty || 0;
-                  return (
-                    <div
-                      key={p.id}
-                      className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 ${
-                        qty > 0 ? 'border-omega-orange/40 bg-omega-orange/[0.06]' : 'border-white/8 bg-white/[0.02]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        {qty > 0 && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => removeItem(p.id)}
-                              className="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center hover:bg-white/15"
-                            >
-                              <IoRemove size={16} />
-                            </button>
-                            <span className="w-5 text-center text-white font-black text-sm">{qty}</span>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => addItem(p.id)}
-                          className="w-7 h-7 rounded-lg bg-omega-orange text-white flex items-center justify-center hover:bg-omega-orange/90"
-                        >
-                          <IoAdd size={16} />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                        <div className="text-right min-w-0">
-                          <p className="text-white font-bold text-sm truncate">{p.name}</p>
-                          <p className="text-omega-orange text-xs font-bold">{formatCurrency(p.price)}</p>
-                        </div>
-                        {p.image && (
-                          <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
             {/* زبون + زر التالي */}
-            <div className="px-5 pt-3 pb-5 shrink-0 border-t border-white/8 space-y-2">
+            <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50 space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
                   placeholder="الهاتف (اختياري)" dir="ltr"
-                  className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
+                  className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50" />
                 <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
                   placeholder="اسم الزبون (اختياري)"
-                  className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-white text-sm outline-none placeholder:text-omega-text-dim text-right" />
+                  className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50" />
               </div>
               <textarea value={customerNote} onChange={e => setCustomerNote(e.target.value)}
                 placeholder="ملاحظة (اختياري)" rows={2}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-white text-sm outline-none placeholder:text-omega-text-dim text-right resize-none" />
+                className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right resize-none focus:border-omega-orange/50" />
               {itemsCount > 0 && (
-                <div className="flex items-center justify-between rounded-2xl bg-omega-orange/12 border border-omega-orange/30 px-4 py-2.5">
+                <div className="flex items-center justify-between rounded-2xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-2.5">
                   <span className="text-omega-orange font-black text-xl">{formatCurrency(totalPrice)}</span>
-                  <span className="text-white text-sm font-bold">{itemsCount} صنف</span>
+                  <span className="text-gray-700 text-sm font-bold">{itemsCount} صنف</span>
                 </div>
               )}
               <button type="button" onClick={() => setStep(2)} disabled={itemsCount === 0}
@@ -975,17 +971,17 @@ function NewOrderModal({ products, onClose, onSubmit }) {
           </>
         ) : (
           <div className="flex-1 overflow-y-auto px-5 pb-6 pt-3">
-            <div className="mb-5 rounded-2xl bg-omega-orange/[0.08] border border-omega-orange/25 p-4 flex items-center justify-between">
+            <div className="mb-5 rounded-2xl bg-omega-orange/10 border border-omega-orange/30 p-4 flex items-center justify-between">
               <span className="text-omega-orange font-black text-2xl">{formatCurrency(totalPrice)}</span>
               <div className="text-right">
-                <p className="text-white font-bold text-sm">{customerName || 'زبون داخل المطعم'}</p>
-                <p className="text-omega-text-dim text-xs mt-0.5">{itemsCount} صنف</p>
+                <p className="text-gray-900 font-bold text-sm">{customerName || 'زبون داخل المطعم'}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{itemsCount} صنف</p>
               </div>
             </div>
-            <DestinationPicker destination={destination} setDestination={setDestination} />
+            <DestinationPicker destination={destination} setDestination={setDestination} light />
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setStep(1)}
-                className="rounded-2xl bg-white/5 border border-white/10 py-3.5 text-white text-sm font-bold">
+                className="rounded-2xl bg-gray-100 border border-gray-200 py-3.5 text-gray-700 text-sm font-bold hover:bg-gray-200">
                 ← رجوع
               </button>
               <button type="button" onClick={handleSubmit} disabled={submitting}

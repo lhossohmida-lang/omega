@@ -53,6 +53,7 @@ const CATEGORIES = [
   { id: 'appetizers', label: 'مقبلات',  emoji: '🍟', tone: 'pink'   },
   { id: 'drinks',     label: 'مشروبات', emoji: '🥤', tone: 'blue'   },
   { id: 'desserts',   label: 'حلويات',  emoji: '🍰', tone: 'red'    },
+  { id: 'sofli',      label: 'سوفلي',   emoji: '🍮', tone: 'yellow' },
 ];
 
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));

@@ -29,6 +29,7 @@ function fallbackImg(cat) {
     drinks: '/drink-cola.png',
     appetizers: '/fried-chicken.png',
     desserts: '/dessert.png',
+    sofli: '/dessert.png',
   }[cat] || '/burger-classic.png';
 }
 

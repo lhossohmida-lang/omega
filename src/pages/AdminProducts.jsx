@@ -26,6 +26,7 @@ const categories = {
   desserts: { label: 'حلويات', emoji: '🍰', color: '#ec4899' },
   tacos: { label: 'تاكوس', emoji: '🌮', color: '#22c55e' },
   appetizers: { label: 'مقبلات', emoji: '🍟', color: '#a855f7' },
+  sofli: { label: 'سوفلي', emoji: '🍮', color: '#eab308' },
 };
 
 const emptyForm = {

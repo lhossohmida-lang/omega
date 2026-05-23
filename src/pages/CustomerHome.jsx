@@ -43,6 +43,7 @@ function fallbackImg(cat) {
     drinks: '/drink-cola.png',
     appetizers: '/fried-chicken.png',
     desserts: '/dessert.png',
+    sofli: '/dessert.png',
   }[cat] || '/burger-classic.png';
 }
 
@@ -74,6 +75,7 @@ const CATS = [
   { id: 'drinks',     label: 'مشروبات',    emoji: '🥤' },
   { id: 'appetizers', label: 'مقبلات',     emoji: '🍟' },
   { id: 'desserts',   label: 'حلويات',     emoji: '🍰' },
+  { id: 'sofli',      label: 'سوفلي',      emoji: '🍮' },
 ];
 
 /* ─── sub-components ───────────────────────── */
