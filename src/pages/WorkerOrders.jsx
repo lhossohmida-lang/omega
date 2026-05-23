@@ -19,6 +19,7 @@ import { playLoudAlarm } from '../utils/soundUtils';
 import { timeAgo } from '../utils/formatDate';
 import WorkerSidebar from '../components/WorkerSidebar';
 import InstallAppButton from '../components/InstallAppButton';
+import CategoryIcon from '../components/CategoryIcon';
 import {
   IoNotificationsOutline,
   IoRestaurant,
@@ -796,9 +797,12 @@ function CategoryCard({ category, rows, counts, acting, onStart, onReady, onRese
           {counts.ready > 0 && <span className="kitchen-category-badge ready">{counts.ready} جاهز</span>}
         </div>
         <h2 className="kitchen-category-title">
-          {category.iconUrl
-            ? <img src={category.iconUrl} alt="" className="kitchen-category-emoji" style={{ width: '1.2em', height: '1.2em', objectFit: 'contain' }} />
-            : <span className="kitchen-category-emoji" aria-hidden="true">{category.emoji}</span>}
+          <CategoryIcon
+            iconUrl={category.iconUrl}
+            emoji={category.emoji}
+            className="kitchen-category-emoji"
+            style={category.iconUrl ? { width: '1.2em', height: '1.2em', objectFit: 'contain' } : undefined}
+          />
           {category.label}
         </h2>
       </header>
@@ -834,9 +838,7 @@ function ItemRow({ row, categoryEmoji, categoryIconUrl, acting, onStart, onReady
         <div className="kitchen-row-thumb">
           {item.image
             ? <img src={item.image} alt={item.name} />
-            : categoryIconUrl
-              ? <img src={categoryIconUrl} alt="" />
-              : <span aria-hidden="true">{categoryEmoji}</span>}
+            : <CategoryIcon iconUrl={categoryIconUrl} emoji={categoryEmoji} />}
         </div>
         <div className="kitchen-row-info">
           <div className="kitchen-row-line1">

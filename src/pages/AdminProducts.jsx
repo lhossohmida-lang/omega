@@ -3,6 +3,7 @@ import { addProduct, deleteProduct, getAllProducts, updateProduct, uploadProduct
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
+import CategoryIcon from '../components/CategoryIcon';
 import { auth } from '../firebase';
 import {
   IoAdd,
@@ -73,12 +74,12 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06]">
-          {categoryInfo.iconUrl ? (
-            <img src={categoryInfo.iconUrl} alt="" className="h-24 w-24 object-contain" />
-          ) : (
-            <span className="text-8xl">{categoryInfo.emoji || '🍽️'}</span>
-          )}
+        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06] p-4">
+          <CategoryIcon
+            iconUrl={categoryInfo.iconUrl}
+            emoji={categoryInfo.emoji || '🍽️'}
+            className={categoryInfo.iconUrl ? 'h-full w-full object-contain' : 'text-8xl'}
+          />
         </div>
       )}
 
@@ -407,9 +408,11 @@ export default function AdminProducts() {
                 className="admin-control flex min-w-0 items-center justify-center gap-1 rounded-full px-1.5 py-2.5 text-xs font-black transition-all sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
                 style={active ? { borderColor: item.color, color: item.color, boxShadow: `0 0 26px -16px ${item.color}` } : { color: '#e6e6e6' }}
               >
-                {item.iconUrl
-                  ? <img src={item.iconUrl} alt="" className="h-4 w-4 object-contain" />
-                  : item.emoji && <span className="text-base">{item.emoji}</span>}
+                <CategoryIcon
+                  iconUrl={item.iconUrl}
+                  emoji={item.emoji}
+                  className={item.iconUrl ? 'h-4 w-4 object-contain' : 'text-base'}
+                />
                 <span className="truncate">{item.label}</span>
               </button>
             );
@@ -509,9 +512,11 @@ export default function AdminProducts() {
                         borderColor: form.category === key ? `${item.color}66` : 'rgba(255,255,255,0.08)',
                       }}
                     >
-                      {item.iconUrl
-                        ? <img src={item.iconUrl} alt="" className="inline-block h-4 w-4 object-contain align-middle ml-1" />
-                        : item.emoji}
+                      <CategoryIcon
+                        iconUrl={item.iconUrl}
+                        emoji={item.emoji}
+                        className={item.iconUrl ? 'inline-block h-4 w-4 object-contain align-middle ml-1' : ''}
+                      />
                       {' '}{item.label}
                     </button>
                   ))}

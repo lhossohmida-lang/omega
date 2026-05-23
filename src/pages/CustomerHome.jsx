@@ -8,6 +8,7 @@ import { getTrackedOrderIds } from '../utils/guestStorage';
 import CustomerNav from '../components/CustomerNav';
 import TransparentImg from '../components/TransparentImg';
 import InstallAppButton from '../components/InstallAppButton';
+import CategoryIcon from '../components/CategoryIcon';
 import {
   IoAdd,
   IoBagHandleOutline,
@@ -589,9 +590,12 @@ export default function CustomerHome() {
               className={`ch-cat-btn${activeCat === cat.id ? ' active' : ''}`}
               onClick={() => setActiveCat(cat.id)}
             >
-              {cat.iconUrl
-                ? <img src={cat.iconUrl} alt="" className="ch-cat-emoji" style={{ width: '1.6em', height: '1.6em', objectFit: 'contain' }} />
-                : <span className="ch-cat-emoji">{cat.emoji}</span>}
+              <CategoryIcon
+                iconUrl={cat.iconUrl}
+                emoji={cat.emoji}
+                className="ch-cat-emoji"
+                style={cat.iconUrl ? { width: '1.6em', height: '1.6em', objectFit: 'contain' } : undefined}
+              />
             </button>
           ))}
         </div>
@@ -647,9 +651,16 @@ export default function CustomerHome() {
                   {(() => {
                     const c = CATS.find(c => c.id === activeCat);
                     if (!c) return null;
-                    return c.iconUrl
-                      ? <><img src={c.iconUrl} alt="" style={{ width: '1.2em', height: '1.2em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginInlineEnd: '0.25em' }} />{c.label}</>
-                      : <>{c.emoji} {c.label}</>;
+                    return (
+                      <>
+                        <CategoryIcon
+                          iconUrl={c.iconUrl}
+                          emoji={c.emoji}
+                          style={c.iconUrl ? { width: '1.2em', height: '1.2em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginInlineEnd: '0.25em' } : undefined}
+                        />
+                        {' '}{c.label}
+                      </>
+                    );
                   })()}
                 </h2>
               </div>
