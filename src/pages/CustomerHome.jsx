@@ -43,7 +43,7 @@ function fallbackImg(cat) {
     drinks: '/drink-cola.png',
     appetizers: '/fried-chicken.png',
     desserts: '/dessert.png',
-    sofli: '/dessert.png',
+    sofli: '/sofli.png',
   }[cat] || '/burger-classic.png';
 }
 
@@ -75,7 +75,7 @@ const CATS = [
   { id: 'drinks',     label: 'مشروبات',    emoji: '🥤' },
   { id: 'appetizers', label: 'مقبلات',     emoji: '🍟' },
   { id: 'desserts',   label: 'حلويات',     emoji: '🍰' },
-  { id: 'sofli',      label: 'سوفلي',      emoji: '🍮' },
+  { id: 'sofli',      label: 'سوفلي',      emoji: '🍮', iconUrl: '/sofli-icon.png' },
 ];
 
 /* ─── sub-components ───────────────────────── */
@@ -589,7 +589,9 @@ export default function CustomerHome() {
               className={`ch-cat-btn${activeCat === cat.id ? ' active' : ''}`}
               onClick={() => setActiveCat(cat.id)}
             >
-              <span className="ch-cat-emoji">{cat.emoji}</span>
+              {cat.iconUrl
+                ? <img src={cat.iconUrl} alt="" className="ch-cat-emoji" style={{ width: '1.6em', height: '1.6em', objectFit: 'contain' }} />
+                : <span className="ch-cat-emoji">{cat.emoji}</span>}
             </button>
           ))}
         </div>
@@ -642,7 +644,13 @@ export default function CustomerHome() {
                   الرجوع
                 </button>
                 <h2 className="ch-section-title">
-                  {CATS.find(c => c.id === activeCat)?.emoji} {CATS.find(c => c.id === activeCat)?.label}
+                  {(() => {
+                    const c = CATS.find(c => c.id === activeCat);
+                    if (!c) return null;
+                    return c.iconUrl
+                      ? <><img src={c.iconUrl} alt="" style={{ width: '1.2em', height: '1.2em', objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', marginInlineEnd: '0.25em' }} />{c.label}</>
+                      : <>{c.emoji} {c.label}</>;
+                  })()}
                 </h2>
               </div>
               {filtered.length === 0 ? (

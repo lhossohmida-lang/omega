@@ -815,7 +815,7 @@ function NewOrderModal({ products, onClose, onSubmit }) {
     drinks:     { label: 'مشروبات', emoji: '🥤' },
     desserts:   { label: 'حلويات', emoji: '🍰' },
     appetizers: { label: 'مقبلات', emoji: '🍟' },
-    sofli:      { label: 'سوفلي',  emoji: '🍮' },
+    sofli:      { label: 'سوفلي',  emoji: '🍮', iconUrl: '/sofli-icon.png' },
   };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
@@ -954,7 +954,10 @@ function NewOrderModal({ products, onClose, onSubmit }) {
                       className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black border transition-all ${
                         active ? 'bg-omega-orange text-white border-omega-orange shadow-[0_0_12px_-4px_rgba(255,107,0,0.6)]'
                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}` }>
-                      <span>{m.emoji}</span>{m.label}
+                      {m.iconUrl
+                        ? <img src={m.iconUrl} alt="" className="h-4 w-4 object-contain" />
+                        : <span>{m.emoji}</span>}
+                      {m.label}
                     </button>
                   );
                 })}

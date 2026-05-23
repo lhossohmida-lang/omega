@@ -26,7 +26,7 @@ const categories = {
   desserts: { label: 'حلويات', emoji: '🍰', color: '#ec4899' },
   tacos: { label: 'تاكوس', emoji: '🌮', color: '#22c55e' },
   appetizers: { label: 'مقبلات', emoji: '🍟', color: '#a855f7' },
-  sofli: { label: 'سوفلي', emoji: '🍮', color: '#eab308' },
+  sofli: { label: 'سوفلي', emoji: '🍮', iconUrl: '/sofli-icon.png', color: '#eab308' },
 };
 
 const emptyForm = {
@@ -73,8 +73,12 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06] text-8xl">
-          {categoryInfo.emoji || '🍽️'}
+        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06]">
+          {categoryInfo.iconUrl ? (
+            <img src={categoryInfo.iconUrl} alt="" className="h-24 w-24 object-contain" />
+          ) : (
+            <span className="text-8xl">{categoryInfo.emoji || '🍽️'}</span>
+          )}
         </div>
       )}
 
@@ -403,7 +407,9 @@ export default function AdminProducts() {
                 className="admin-control flex min-w-0 items-center justify-center gap-1 rounded-full px-1.5 py-2.5 text-xs font-black transition-all sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
                 style={active ? { borderColor: item.color, color: item.color, boxShadow: `0 0 26px -16px ${item.color}` } : { color: '#e6e6e6' }}
               >
-                {item.emoji && <span className="text-base">{item.emoji}</span>}
+                {item.iconUrl
+                  ? <img src={item.iconUrl} alt="" className="h-4 w-4 object-contain" />
+                  : item.emoji && <span className="text-base">{item.emoji}</span>}
                 <span className="truncate">{item.label}</span>
               </button>
             );
@@ -503,7 +509,10 @@ export default function AdminProducts() {
                         borderColor: form.category === key ? `${item.color}66` : 'rgba(255,255,255,0.08)',
                       }}
                     >
-                      {item.emoji} {item.label}
+                      {item.iconUrl
+                        ? <img src={item.iconUrl} alt="" className="inline-block h-4 w-4 object-contain align-middle ml-1" />
+                        : item.emoji}
+                      {' '}{item.label}
                     </button>
                   ))}
                 </div>

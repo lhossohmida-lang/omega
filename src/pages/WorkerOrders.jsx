@@ -53,7 +53,7 @@ const CATEGORIES = [
   { id: 'appetizers', label: 'مقبلات',  emoji: '🍟', tone: 'pink'   },
   { id: 'drinks',     label: 'مشروبات', emoji: '🥤', tone: 'blue'   },
   { id: 'desserts',   label: 'حلويات',  emoji: '🍰', tone: 'red'    },
-  { id: 'sofli',      label: 'سوفلي',   emoji: '🍮', tone: 'yellow' },
+  { id: 'sofli',      label: 'سوفلي',   emoji: '🍮', iconUrl: '/sofli-icon.png', tone: 'yellow' },
 ];
 
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
@@ -796,7 +796,9 @@ function CategoryCard({ category, rows, counts, acting, onStart, onReady, onRese
           {counts.ready > 0 && <span className="kitchen-category-badge ready">{counts.ready} جاهز</span>}
         </div>
         <h2 className="kitchen-category-title">
-          <span className="kitchen-category-emoji" aria-hidden="true">{category.emoji}</span>
+          {category.iconUrl
+            ? <img src={category.iconUrl} alt="" className="kitchen-category-emoji" style={{ width: '1.2em', height: '1.2em', objectFit: 'contain' }} />
+            : <span className="kitchen-category-emoji" aria-hidden="true">{category.emoji}</span>}
           {category.label}
         </h2>
       </header>
@@ -807,6 +809,7 @@ function CategoryCard({ category, rows, counts, acting, onStart, onReady, onRese
             key={row.key}
             row={row}
             categoryEmoji={category.emoji}
+            categoryIconUrl={category.iconUrl}
             acting={acting}
             onStart={onStart}
             onReady={onReady}
@@ -819,7 +822,7 @@ function CategoryCard({ category, rows, counts, acting, onStart, onReady, onRese
   );
 }
 
-function ItemRow({ row, categoryEmoji, acting, onStart, onReady, onReset, onArchive }) {
+function ItemRow({ row, categoryEmoji, categoryIconUrl, acting, onStart, onReady, onReset, onArchive }) {
   const { order, item, index, itemStatus } = row;
   const isDelivery = !!order.isDelivery;
   const rowKey = `${order.id}-${index}`;
@@ -831,7 +834,9 @@ function ItemRow({ row, categoryEmoji, acting, onStart, onReady, onReset, onArch
         <div className="kitchen-row-thumb">
           {item.image
             ? <img src={item.image} alt={item.name} />
-            : <span aria-hidden="true">{categoryEmoji}</span>}
+            : categoryIconUrl
+              ? <img src={categoryIconUrl} alt="" />
+              : <span aria-hidden="true">{categoryEmoji}</span>}
         </div>
         <div className="kitchen-row-info">
           <div className="kitchen-row-line1">
