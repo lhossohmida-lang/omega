@@ -230,13 +230,38 @@ function printViaIframe(html) {
 
 /* ────────────────────────────────────────────
    طباعة صامتة عبر الخادم المحلي
-   يُرجع true إذا نجحت، false عند الفشل أو غياب الخادم
    ──────────────────────────────────────────── */
+let serverHealthCache = null;
+let serverHealthCheckedAt = 0;
+
+export async function checkPrintServer() {
+  // كاش 30 ثانية لتفادي طلبات متكررة
+  const now = Date.now();
+  if (serverHealthCache !== null && (now - serverHealthCheckedAt) < 30000) {
+    return serverHealthCache;
+  }
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch('/api/print/health', { signal: controller.signal });
+    clearTimeout(t);
+    if (!res.ok) {
+      serverHealthCache = { ok: false, reason: `HTTP ${res.status}` };
+    } else {
+      const data = await res.json();
+      serverHealthCache = { ok: !!data.ready, reason: data.message || '' };
+    }
+  } catch (err) {
+    serverHealthCache = { ok: false, reason: 'الخادم المحلي غير متاح (npm run local)' };
+  }
+  serverHealthCheckedAt = now;
+  return serverHealthCache;
+}
+
 async function printViaServer(html, options = {}) {
   try {
-    // مهلة قصيرة لتفادي الانتظار الطويل إذا كان الخادم غير متاح
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch('/api/print', {
       method: 'POST',
@@ -249,33 +274,43 @@ async function printViaServer(html, options = {}) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      console.warn('Print server error:', data.error || res.statusText);
-      return false;
+      console.warn('🖨️ خطأ من خادم الطباعة:', data.error || res.statusText);
+      return { ok: false, reason: data.error || `HTTP ${res.status}` };
     }
 
     const data = await res.json();
-    return data.success === true;
+    if (data.success === true) {
+      return { ok: true };
+    }
+    return { ok: false, reason: data.error || 'فشل غير معروف' };
   } catch (err) {
-    // الخادم المحلي غير متاح
-    console.warn('Print server unreachable, falling back to browser print:', err.message);
-    return false;
+    console.warn('🖨️ خادم الطباعة غير متاح:', err.message);
+    return { ok: false, reason: err.message };
   }
 }
 
 /* ────────────────────────────────────────────
    نقطة الدخول الموحدة
-   تجرّب الخادم المحلي أولاً (صامت)، ثم iframe احتياطياً
    ──────────────────────────────────────────── */
-export async function printOrderTicket(order, { type = 'admin', item = null, printer = null } = {}) {
+export async function printOrderTicket(order, { type = 'admin', item = null, printer = null, allowBrowserFallback = true } = {}) {
   const html = type === 'kitchen' ? buildKitchenHtml(order, item) : buildAdminHtml(order);
 
   // محاولة الطباعة الصامتة عبر الخادم المحلي
-  const ok = await printViaServer(html, printer ? { printer } : {});
-  if (ok) return { method: 'server' };
+  const result = await printViaServer(html, printer ? { printer } : {});
+  if (result.ok) {
+    return { method: 'server' };
+  }
 
-  // فشل الخادم → fallback إلى المتصفح (مع مربع الحوار)
+  // فشل الخادم
+  console.warn(`🖨️ الطباعة الصامتة فشلت — السبب: ${result.reason}`);
+
+  if (!allowBrowserFallback) {
+    throw new Error(`فشلت الطباعة الصامتة: ${result.reason}`);
+  }
+
+  // fallback إلى المتصفح (قد يظهر مربع حوار إذا لم يكن --kiosk-printing مفعّلاً)
   printViaIframe(html);
-  return { method: 'browser' };
+  return { method: 'browser', reason: result.reason };
 }
 
 // طباعة سريعة لتيكيت مطبخ صنف واحد
