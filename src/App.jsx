@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -38,6 +38,30 @@ import AdminSpecialOffers from './pages/AdminSpecialOffers';
 import AdminAttendance from './pages/AdminAttendance';
 
 import AppKeyboard from './components/AppKeyboard';
+import IntroSplash, { shouldShowIntro } from './components/IntroSplash';
+
+// تحديد نوع الواجهة من المسار الحالي
+function getScopeFromPath(pathname) {
+  if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/worker') || pathname === '/staff') return 'worker';
+  if (pathname === '/login') return null; // لا سبلاش في تسجيل الدخول
+  return 'customer';
+}
+
+function RouteIntro() {
+  const location = useLocation();
+  const [active, setActive] = useState(null);
+
+  useEffect(() => {
+    const scope = getScopeFromPath(location.pathname);
+    if (scope && shouldShowIntro(scope)) {
+      setActive(scope);
+    }
+  }, [location.pathname]);
+
+  if (!active) return null;
+  return <IntroSplash scope={active} onDone={() => setActive(null)} />;
+}
 
 export default function App() {
   const { userData, loading } = useAuth();
@@ -111,6 +135,7 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <AppKeyboard />
+      <RouteIntro />
     </>
   );
 }
