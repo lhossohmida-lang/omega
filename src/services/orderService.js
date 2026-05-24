@@ -15,6 +15,7 @@ const ORDER_NUMBER_DOC = 'orderNumber';
 const ORDER_NUMBER_MAX = 100;
 
 // عدّاد متسلسل للطلبات: 1 → 100 ثم يعود إلى 1
+// يستخدم Firestore transaction لضمان عدم التكرار حتى مع عدة طلبات متزامنة
 export async function getNextOrderNumber() {
   const counterRef = doc(db, COUNTERS_COL, ORDER_NUMBER_DOC);
   try {
@@ -27,9 +28,26 @@ export async function getNextOrderNumber() {
       return next;
     });
   } catch (err) {
-    console.error('getNextOrderNumber error:', err);
-    // fallback: random number 1-100 إذا فشلت المعاملة
-    return Math.floor(Math.random() * ORDER_NUMBER_MAX) + 1;
+    console.error('⚠️ فشلت معاملة العدّاد — سأحاول حساب الرقم من آخر طلب:', err.message);
+    // Fallback: ابحث عن آخر طلب وحدّد الرقم التالي
+    try {
+      const q = query(
+        collection(db, ORDERS_COL),
+        orderBy('createdAt', 'desc'),
+      );
+      const snap = await getDocs(q);
+      let lastNumber = 0;
+      for (const d of snap.docs) {
+        const n = Number(d.data().orderNumber);
+        if (Number.isFinite(n) && n > 0) { lastNumber = n; break; }
+      }
+      let next = lastNumber + 1;
+      if (next > ORDER_NUMBER_MAX) next = 1;
+      return next;
+    } catch (err2) {
+      console.error('⚠️ فشل fallback أيضاً — سيُعطى الرقم 1:', err2.message);
+      return 1;
+    }
   }
 }
 
