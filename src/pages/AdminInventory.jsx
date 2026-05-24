@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getAllProducts } from '../services/productService';
+import { useNavigate } from 'react-router-dom';
 import {
-  getInventoryMovements, addInventoryMovement,
   getAllIngredients, addIngredient, updateIngredient, deleteIngredient,
   getIngredientPurchases, addIngredientPurchase, deleteIngredientPurchase,
 } from '../services/inventoryService';
@@ -11,8 +10,7 @@ import { timeAgo } from '../utils/formatDate';
 import AdminNav from '../components/AdminNav';
 import AdminHeader from '../components/AdminHeader';
 import {
-  IoCube, IoAdd, IoRemove, IoClose, IoSwapVertical,
-  IoTrendingUp, IoTrendingDown, IoWarning, IoCheckmarkCircle,
+  IoCube, IoAdd, IoClose,
   IoLeaf, IoCreate, IoTrash, IoPricetag, IoSearch, IoCart, IoCalendar
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
@@ -21,17 +19,10 @@ const UNITS = ['كيلو', 'غرام', 'لتر', 'مل', 'حبة', 'علبة', '
 
 export default function AdminInventory() {
   const { userData } = useAuth();
-  const [tab, setTab] = useState('products');
-  const [products, setProducts] = useState([]);
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('ingredients');
   const [ingredients, setIngredients] = useState([]);
-  const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Product movement modal
-  const [showModal, setShowModal] = useState(null);
-  const [quantity, setQuantity] = useState('');
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
 
   // Ingredient state
   const [ingForm, setIngForm] = useState(null); // create/edit ingredient slot
@@ -40,43 +31,16 @@ export default function AdminInventory() {
   const [purchases, setPurchases] = useState([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState({ quantity: '', totalPrice: '', note: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [p, m, ing] = await Promise.all([
-        getAllProducts(),
-        getInventoryMovements(),
-        getAllIngredients(),
-      ]);
-      setProducts(p);
-      setMovements(m);
+      const ing = await getAllIngredients();
       setIngredients(ing);
     } catch (err) { console.error(err); }
     setLoading(false);
-  };
-
-  // ---- Product movements ----
-  const handleMovement = async () => {
-    if (!quantity) { toast.error('أدخل الكمية'); return; }
-    setSaving(true);
-    try {
-      await addInventoryMovement({
-        productId: showModal.product.id,
-        productName: showModal.product.name,
-        type: showModal.type,
-        quantity: Number(quantity),
-        note,
-        createdBy: userData.uid,
-      });
-      toast.success('تم تحديث المخزون');
-      setShowModal(null);
-      setQuantity('');
-      setNote('');
-      loadData();
-    } catch (err) { toast.error('خطأ'); console.error(err); }
-    setSaving(false);
   };
 
   // ---- Ingredient slot ----
@@ -171,13 +135,6 @@ export default function AdminInventory() {
     } catch (err) { toast.error('خطأ'); }
   };
 
-  const typeConfig = {
-    add: { label: 'إضافة', color: 'text-emerald-400', bg: 'bg-emerald-500/12 border-emerald-500/25', icon: IoTrendingUp },
-    remove: { label: 'إنقاص', color: 'text-omega-red', bg: 'bg-omega-red/12 border-omega-red/25', icon: IoTrendingDown },
-    sale: { label: 'بيع', color: 'text-omega-orange', bg: 'bg-omega-orange/12 border-omega-orange/25', icon: IoTrendingDown },
-    correction: { label: 'تصحيح', color: 'text-omega-info', bg: 'bg-blue-500/12 border-blue-500/25', icon: IoSwapVertical },
-  };
-
   const totalIngredientsSpent = ingredients.reduce((s, i) => s + (i.totalSpent || 0), 0);
   const totalPurchases = ingredients.reduce((s, i) => s + (i.purchaseCount || 0), 0);
 
@@ -192,287 +149,146 @@ export default function AdminInventory() {
           <AdminHeader
             title="المخزون"
             accent="إدارة"
-            subtitle={tab === 'products'
-              ? `${products.length} منتج`
-              : `${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`
-            }
+            subtitle={`${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`}
           />
 
           {/* Action button row (only on ingredients) */}
-          {tab === 'ingredients' && (
-            <div className="mb-4 flex justify-end">
-              <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
-                <IoAdd size={18} /> <span>خانة جديدة</span>
-              </button>
-            </div>
-          )}
+          <div className="mb-4 flex justify-end">
+            <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
+              <IoAdd size={18} /> <span>خانة جديدة</span>
+            </button>
+          </div>
 
           {/* Tabs */}
           <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-md">
             <button
-              onClick={() => setTab('products')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                tab === 'products'
-                  ? 'bg-gradient-to-l from-omega-orange to-omega-orange-dark text-white shadow-lg shadow-omega-orange/30'
-                  : 'text-omega-text-muted hover:text-white'
-              }`}
+              onClick={() => navigate('/admin/products')}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all text-omega-text-muted hover:text-white"
             >
               <IoCube size={16} /> المنتجات
             </button>
             <button
               onClick={() => setTab('ingredients')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                tab === 'ingredients'
-                  ? 'bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30'
-                  : 'text-omega-text-muted hover:text-white'
-              }`}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30"
             >
               <IoLeaf size={16} /> المواد الخام
             </button>
           </div>
 
-          {/* ============ PRODUCTS TAB ============ */}
-          {tab === 'products' && (
-            <>
-              {loading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-20" />)}</div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                  <div className="lg:col-span-2">
-                    <h3 className="section-title"><IoCube className="text-omega-orange" size={18} /> المنتجات</h3>
-                    <div className="space-y-2 stagger">
-                      {products.map((p) => (
-                        <div key={p.id} className="card-premium p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-white text-sm font-bold truncate">{p.name}</h4>
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <span className={`badge ${
-                                  p.stock === 0 ? 'bg-omega-red/12 text-omega-red border-omega-red/25' :
-                                  p.stock <= 5 ? 'bg-yellow-500/12 text-yellow-400 border-yellow-500/25' :
-                                  'bg-emerald-500/12 text-emerald-400 border-emerald-500/25'
-                                }`}>{p.stock || 0} وحدة</span>
-                                <span className="text-omega-text-dim text-[10px]">{formatCurrency(p.price)}</span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1.5">
-                              <button onClick={() => setShowModal({ product: p, type: 'add' })}
-                                className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all">
-                                <IoAdd size={16} />
-                              </button>
-                              <button onClick={() => setShowModal({ product: p, type: 'remove' })}
-                                className="p-2 rounded-xl bg-omega-red/10 text-omega-red hover:bg-omega-red/20 transition-all">
-                                <IoRemove size={16} />
-                              </button>
-                              <button onClick={() => setShowModal({ product: p, type: 'correction' })}
-                                className="p-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all">
-                                <IoSwapVertical size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="section-title"><IoSwapVertical className="text-omega-info" size={18} /> آخر الحركات</h3>
-                    <div className="space-y-2 max-h-[600px] overflow-y-auto no-scrollbar">
-                      {movements.length === 0 ? (
-                        <div className="card-premium p-8 text-center">
-                          <IoSwapVertical className="text-omega-text-dim mx-auto mb-2" size={32} />
-                          <p className="text-omega-text-muted text-sm">لا توجد حركات</p>
-                        </div>
-                      ) : movements.map((m) => {
-                        const t = typeConfig[m.type] || typeConfig.correction;
-                        return (
-                          <div key={m.id} className="card-premium p-3">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <span className="text-white text-xs font-bold truncate flex-1">{m.productName}</span>
-                              <span className={`badge ${t.bg} ${t.color}`}>{t.label}</span>
-                            </div>
-                            {m.note && <p className="text-omega-text-dim text-[10px] mb-1">{m.note}</p>}
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-omega-text-dim text-[10px]">{timeAgo(m.createdAt)}</span>
-                              <span className={`text-sm font-black ${m.quantity > 0 ? 'text-emerald-400' : 'text-omega-red'}`}>
-                                {m.quantity > 0 ? '+' : ''}{m.quantity}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
           {/* ============ INGREDIENTS TAB ============ */}
-          {tab === 'ingredients' && (
-            <>
-              {!loading && ingredients.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-5 stagger">
-                  <div className="stat-card bg-gradient-to-br from-emerald-500 to-teal-700">
-                    <div className="relative z-10">
-                      <IoLeaf className="text-white/80 mb-2" size={20} />
-                      <p className="text-white/85 text-[11px]">عدد الخانات</p>
-                      <p className="text-white font-black text-xl">{ingredients.length}</p>
-                    </div>
-                  </div>
-                  <div className="stat-card bg-gradient-to-br from-omega-orange to-omega-red">
-                    <div className="relative z-10">
-                      <IoPricetag className="text-white/80 mb-2" size={20} />
-                      <p className="text-white/85 text-[11px]">إجمالي الإنفاق</p>
-                      <p className="text-white font-black text-base lg:text-xl">{formatCurrency(totalIngredientsSpent)}</p>
-                    </div>
-                  </div>
-                  <div className="stat-card bg-gradient-to-br from-blue-500 to-indigo-700">
-                    <div className="relative z-10">
-                      <IoCart className="text-white/80 mb-2" size={20} />
-                      <p className="text-white/85 text-[11px]">عمليات الشراء</p>
-                      <p className="text-white font-black text-xl">{totalPurchases}</p>
-                    </div>
+          <>
+            {!loading && ingredients.length > 0 && (
+              <div className="grid grid-cols-3 gap-3 mb-5 stagger">
+                <div className="stat-card bg-gradient-to-br from-emerald-500 to-teal-700">
+                  <div className="relative z-10">
+                    <IoLeaf className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">عدد الخانات</p>
+                    <p className="text-white font-black text-xl">{ingredients.length}</p>
                   </div>
                 </div>
-              )}
+                <div className="stat-card bg-gradient-to-br from-omega-orange to-omega-red">
+                  <div className="relative z-10">
+                    <IoPricetag className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">إجمالي الإنفاق</p>
+                    <p className="text-white font-black text-base lg:text-xl">{formatCurrency(totalIngredientsSpent)}</p>
+                  </div>
+                </div>
+                <div className="stat-card bg-gradient-to-br from-blue-500 to-indigo-700">
+                  <div className="relative z-10">
+                    <IoCart className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">عمليات الشراء</p>
+                    <p className="text-white font-black text-xl">{totalPurchases}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-              {ingredients.length > 0 && (
-                <div className="relative mb-5">
-                  <IoSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-omega-text-dim" size={18} />
-                  <input
-                    type="text"
-                    placeholder="ابحث عن مكوّن..."
-                    value={ingSearch}
-                    onChange={e => setIngSearch(e.target.value)}
-                    className="input-modern pr-11"
-                  />
-                </div>
-              )}
+            {ingredients.length > 0 && (
+              <div className="relative mb-5">
+                <IoSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-omega-text-dim" size={18} />
+                <input
+                  type="text"
+                  placeholder="ابحث عن مكوّن..."
+                  value={ingSearch}
+                  onChange={e => setIngSearch(e.target.value)}
+                  className="input-modern pr-11"
+                />
+              </div>
+            )}
 
-              {loading ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-28" />)}</div>
-              ) : ingredients.length === 0 ? (
-                <div className="card-premium p-12 text-center">
-                  <div className="text-6xl mb-4">🌾</div>
-                  <p className="text-white font-bold mb-1">لا توجد خانات بعد</p>
-                  <p className="text-omega-text-muted text-sm mb-5">
-                    أنشئ خانة لكل مكوّن (دقيق، خبز، أوراق تاكوس...) ثم سجّل كل عملية شراء بكميتها وسعرها.
-                  </p>
-                  <button onClick={openNewIngredient} className="btn-primary inline-flex items-center gap-2 text-sm">
-                    <IoAdd size={18} /> إنشاء أول خانة
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 stagger">
-                  {filteredIngredients.map(ing => {
-                    const avgPrice = ing.totalStock > 0 && ing.totalSpent > 0
-                      ? ing.totalSpent / ing.totalStock : 0;
-                    return (
-                      <div key={ing.id} className="card-premium p-4 group cursor-pointer" onClick={() => openIngredientDetail(ing)}>
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                              <IoLeaf className="text-emerald-400" size={20} />
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-white text-sm font-bold truncate">{ing.name}</h4>
-                              <p className="text-omega-text-dim text-[10px]">{ing.unit} • {ing.purchaseCount || 0} عملية شراء</p>
-                            </div>
+            {loading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-28" />)}</div>
+            ) : ingredients.length === 0 ? (
+              <div className="card-premium p-12 text-center">
+                <div className="text-6xl mb-4">🌾</div>
+                <p className="text-white font-bold mb-1">لا توجد خانات بعد</p>
+                <p className="text-omega-text-muted text-sm mb-5">
+                  أنشئ خانة لكل مكوّن (دقيق، خبز، أوراق تاكوس...) ثم سجّل كل عملية شراء بكميتها وسعرها.
+                </p>
+                <button onClick={openNewIngredient} className="btn-primary inline-flex items-center gap-2 text-sm">
+                  <IoAdd size={18} /> إنشاء أول خانة
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 stagger">
+                {filteredIngredients.map(ing => {
+                  const avgPrice = ing.totalStock > 0 && ing.totalSpent > 0
+                    ? ing.totalSpent / ing.totalStock : 0;
+                  return (
+                    <div key={ing.id} className="card-premium p-4 group cursor-pointer" onClick={() => openIngredientDetail(ing)}>
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <IoLeaf className="text-emerald-400" size={20} />
                           </div>
-                          <div className="flex gap-1 opacity-70 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => openEditIngredient(ing)}
-                              className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-orange hover:bg-omega-orange/10 transition-all">
-                              <IoCreate size={15} />
-                            </button>
-                            <button onClick={() => handleDeleteIngredient(ing.id, ing.name)}
-                              className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all">
-                              <IoTrash size={15} />
-                            </button>
+                          <div className="min-w-0">
+                            <h4 className="text-white text-sm font-bold truncate">{ing.name}</h4>
+                            <p className="text-omega-text-dim text-[10px]">{ing.unit} • {ing.purchaseCount || 0} عملية شراء</p>
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-2.5 text-center">
-                            <p className="text-omega-text-dim text-[9px] mb-0.5">الكمية</p>
-                            <p className="text-emerald-400 font-black text-sm">{(ing.totalStock || 0).toLocaleString('ar')}</p>
-                            <p className="text-omega-text-dim text-[9px]">{ing.unit}</p>
-                          </div>
-                          <div className="bg-omega-orange/5 border border-omega-orange/15 rounded-xl p-2.5 text-center">
-                            <p className="text-omega-text-dim text-[9px] mb-0.5">المنفق</p>
-                            <p className="text-omega-orange font-black text-xs leading-tight pt-0.5">{formatCurrency(ing.totalSpent || 0)}</p>
-                          </div>
-                          <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-2.5 text-center">
-                            <p className="text-omega-text-dim text-[9px] mb-0.5">متوسط السعر</p>
-                            <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(avgPrice)}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
-                          <span className="text-omega-text-dim text-[10px]">
-                            {ing.lastPurchaseAt ? `آخر شراء: ${timeAgo(ing.lastPurchaseAt)}` : 'لم يُسجّل شراء بعد'}
-                          </span>
-                          <span className="text-omega-orange text-[11px] font-bold flex items-center gap-1">
-                            <IoCart size={11} /> سجّل شراء
-                          </span>
+                        <div className="flex gap-1 opacity-70 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openEditIngredient(ing)}
+                            className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-orange hover:bg-omega-orange/10 transition-all">
+                            <IoCreate size={15} />
+                          </button>
+                          <button onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                            className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all">
+                            <IoTrash size={15} />
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-      </main>
 
-      {/* Product Movement Modal */}
-      {showModal && (() => {
-        const t = typeConfig[showModal.type];
-        const Icon = t.icon;
-        return (
-          <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setShowModal(null)} />
-            <div className="relative card-premium rounded-t-3xl lg:rounded-3xl w-full max-w-sm p-6 animate-slide-up">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className={`w-11 h-11 rounded-xl ${t.bg} flex items-center justify-center ${t.color}`}>
-                    <Icon size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-black">{t.label}</h3>
-                    <p className="text-omega-text-muted text-xs">{showModal.product.name}</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowModal(null)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-omega-text-muted hover:text-white flex items-center justify-center transition-colors">
-                  <IoClose size={20} />
-                </button>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">الكمية</p>
+                          <p className="text-emerald-400 font-black text-sm">{(ing.totalStock || 0).toLocaleString('ar')}</p>
+                          <p className="text-omega-text-dim text-[9px]">{ing.unit}</p>
+                        </div>
+                        <div className="bg-omega-orange/5 border border-omega-orange/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">المنفق</p>
+                          <p className="text-omega-orange font-black text-xs leading-tight pt-0.5">{formatCurrency(ing.totalSpent || 0)}</p>
+                        </div>
+                        <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">متوسط السعر</p>
+                          <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(avgPrice)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-omega-text-dim text-[10px]">
+                          {ing.lastPurchaseAt ? `آخر شراء: ${timeAgo(ing.lastPurchaseAt)}` : 'لم يُسجّل شراء بعد'}
+                        </span>
+                        <span className="text-omega-orange text-[11px] font-bold flex items-center gap-1">
+                          <IoCart size={11} /> سجّل شراء
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="space-y-3">
-                <div className="bg-white/3 border border-white/5 rounded-2xl p-4 text-center">
-                  <p className="text-omega-text-muted text-xs mb-1">المخزون الحالي</p>
-                  <p className="text-white font-black text-3xl">{showModal.product.stock || 0}</p>
-                </div>
-                <div>
-                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">
-                    {showModal.type === 'correction' ? 'الكمية الجديدة' : 'الكمية'}
-                  </label>
-                  <input type="number" placeholder="0" value={quantity}
-                    onChange={e => setQuantity(e.target.value)} autoFocus
-                    className="input-modern text-center font-bold text-lg" />
-                </div>
-                <div>
-                  <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">ملاحظة (اختياري)</label>
-                  <input type="text" placeholder="سبب الحركة..." value={note} onChange={e => setNote(e.target.value)}
-                    className="input-modern" />
-                </div>
-                <button onClick={handleMovement} disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>تأكيد</span>}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+            )}
+          </>
+      </main>
 
       {/* Ingredient slot form Modal (create/edit) */}
       {ingForm && (

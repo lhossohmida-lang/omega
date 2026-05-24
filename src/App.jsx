@@ -62,7 +62,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-omega-dark flex items-center justify-center">
-        <img src="/logo.png" alt="OMEGA" className="w-32 h-32 rounded-full object-cover" />
+        <img src="/logo.png?v=2" alt="OMEGA" className="w-32 h-32 rounded-full object-cover" />
       </div>
     );
   }

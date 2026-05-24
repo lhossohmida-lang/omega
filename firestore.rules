@@ -100,5 +100,12 @@ service cloud.firestore {
     match /work_schedule_plans/{docId} {
       allow read, write: if isSignedIn() && myRole() == 'admin';
     }
+
+    // ===== العدّادات المتسلسلة (orderNumber 1-100 دوّار) =====
+    // مطلوب من معاملات إنشاء الطلبات — يجب أن يكون متاحاً للزبون الضيف أيضاً
+    // لأن الطلبات يمكن إنشاؤها بدون تسجيل دخول.
+    match /counters/{counterId} {
+      allow read, write: if true;
+    }
   }
 }

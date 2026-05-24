@@ -431,7 +431,11 @@ export default function AdminOrders() {
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <span className="h-2.5 w-2.5 rounded-full bg-omega-orange" />
-                            <p className="text-xl font-black text-omega-orange">#{order.id?.slice(-4)}</p>
+                            <p className="text-xl font-black text-omega-orange">
+                              {order.orderNumber != null
+                                ? `رقم ${String(order.orderNumber).padStart(3, '0')}`
+                                : `#${order.id?.slice(-4)}`}
+                            </p>
                           </div>
                           <span
                             className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold"
@@ -611,7 +615,9 @@ export default function AdminOrders() {
                 </button>
               </div>
               <div className="text-right">
-                <h3 className="text-2xl font-black text-white">طلب #{selected.id?.slice(-6)}</h3>
+                <h3 className="text-2xl font-black text-white">
+                  طلب رقم {selected.orderNumber != null ? String(selected.orderNumber).padStart(3, '0') : `#${selected.id?.slice(-6)}`}
+                </h3>
                 <p className="mt-1 text-sm text-omega-text-muted">{timeAgo(selected.createdAt)}</p>
               </div>
             </div>
@@ -1000,7 +1006,9 @@ function RoutingModal({ order, onClose, onConfirm }) {
             <IoClose size={18} />
           </button>
           <div className="text-right">
-            <h2 className="text-white text-lg font-black">تأكيد الطلب #{order.id?.slice(-4)}</h2>
+            <h2 className="text-white text-lg font-black">
+              تأكيد الطلب {order.orderNumber != null ? `رقم ${String(order.orderNumber).padStart(3, '0')}` : `#${order.id?.slice(-4)}`}
+            </h2>
             <p className="text-omega-text-muted text-xs mt-0.5">
               {order.customerName} • {formatCurrency(order.totalPrice)}
             </p>
@@ -1023,6 +1031,19 @@ function RoutingModal({ order, onClose, onConfirm }) {
       </div>
     </div>
   );
+}
+
+/* ─── Fallback Images for Categories ──────────────────────── */
+function fallbackImg(cat) {
+  return {
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/dessert.png',
+    sofli: '/sofli.png',
+  }[cat] || '/burger-classic.png';
 }
 
 /* ─── Product Tile (grid layout) ─────────────────────────── */
@@ -1048,9 +1069,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
           }`}
         >
           <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-            {p.image
-              ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-              : <span className="text-3xl">🍽️</span>}
+            <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
           </div>
           <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
           <p className="text-gray-500 text-[11px] font-black mt-0.5">{sz.label}</p>
@@ -1087,9 +1106,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
       >
         <div>
           <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-            {p.image
-              ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-              : <span className="text-3xl">🍽️</span>}
+            <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
           </div>
           <p className="text-gray-900 font-bold text-sm truncate leading-snug text-right mb-3">{p.name}</p>
         </div>
@@ -1142,9 +1159,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
       }`}
     >
       <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-        {p.image
-          ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-          : <span className="text-3xl">🍽️</span>}
+        <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
       </div>
       <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
       <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(p.price)}</p>
@@ -1185,7 +1200,7 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
     drinks:     { label: 'مشروبات', emoji: '🥤' },
     desserts:   { label: 'حلويات',  emoji: '🍰' },
     appetizers: { label: 'مقبلات',  emoji: '🍟' },
-    sofli:      { label: 'سوفلي',   emoji: '🍮', iconUrl: '/sofli-icon.png' },
+    sofli:      { label: 'سوفلي',   emoji: '🥟', iconUrl: '/sofli-icon.png' },
   };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);

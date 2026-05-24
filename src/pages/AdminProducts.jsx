@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { addProduct, deleteProduct, getAllProducts, updateProduct, uploadProductImage } from '../services/productService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import AdminHeader from '../components/AdminHeader';
@@ -15,6 +16,8 @@ import {
   IoSearch,
   IoTimeOutline,
   IoTrashOutline,
+  IoCube,
+  IoLeaf,
 } from 'react-icons/io5';
 import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
@@ -27,7 +30,7 @@ const categories = {
   desserts: { label: 'حلويات', emoji: '🍰', color: '#ec4899' },
   tacos: { label: 'تاكوس', emoji: '🌮', color: '#22c55e' },
   appetizers: { label: 'مقبلات', emoji: '🍟', color: '#a855f7' },
-  sofli: { label: 'سوفلي', emoji: '🍮', iconUrl: '/sofli-icon.png', color: '#eab308' },
+  sofli: { label: 'سوفلي', emoji: '🥟', iconUrl: '/sofli-icon.png', color: '#eab308' },
 };
 
 const emptyForm = {
@@ -161,6 +164,7 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
 }
 
 export default function AdminProducts() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -365,6 +369,22 @@ export default function AdminProducts() {
 
       <main className="admin-container">
         <AdminHeader title="المنتجات" subtitle="إدارة قائمة طعام OMEGA" />
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-md">
+          <button
+            onClick={() => {}}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-l from-omega-orange to-omega-orange-dark text-white shadow-lg shadow-omega-orange/30"
+          >
+            <IoCube size={16} /> المنتجات
+          </button>
+          <button
+            onClick={() => navigate('/admin/inventory')}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all text-omega-text-muted hover:text-white"
+          >
+            <IoLeaf size={16} /> المواد الخام
+          </button>
+        </div>
 
         <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
           <label className="admin-control flex min-h-12 items-center gap-3 px-4">

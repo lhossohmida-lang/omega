@@ -3,7 +3,7 @@ chcp 65001 > nul
 title OMEGA POS Launcher
 echo.
 echo.
-echo        ██████╗ ███╗   ███╗███████╗ ██████╗  █████╗ 
+echo        ██████╗ ███╗   ███╗███████╗ ██████╗  █████╗
 echo       ██╔═══██╗████╗ ████║██╔════╝██╔════╝ ██╔══██╗
 echo       ██║   ██║██╔████╔██║█████╗  ██║  ███╗███████║
 echo       ██║   ██║██║╚██╔╝██║██╔══╝  ██║   ██║██╔══██║
@@ -26,23 +26,41 @@ timeout /t 6 /nobreak > nul
 echo.
 echo 🛑 جاري إغلاق أي نوافذ أو عمليات خلفية لـ Google Chrome لتهيئة الطباعة الصامتة...
 taskkill /f /im chrome.exe >nul 2>&1
-timeout /t 1 /nobreak > nul
+timeout /t 2 /nobreak > nul
 
 echo.
 echo 🚀 جاري فتح واجهة المبيعات مع تفعيل الطباعة الصامتة التلقائية...
 echo.
 
-:: البحث عن مسار متصفح كروم وتشغيله مع وضعية الطباعة الصامتة
-if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-    start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing "http://localhost:5173"
-) else if exist "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" (
-    start "" "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --kiosk-printing "http://localhost:5173"
-) else (
+:: تحديد مسار Chrome
+set "CHROME_PATH="
+if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" set "CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe"
+if exist "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" set "CHROME_PATH=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+if "%CHROME_PATH%"=="" (
     echo ⚠️ لم نتمكن من العثور على Google Chrome في المسار القياسي لويندوز.
     echo 🌐 جاري الفتح بالمتصفح الافتراضي للنظام...
     start http://localhost:5173
+    goto :done
 )
 
+:: بروفايل منفصل خاص بـ POS — يضمن أن الرايات تعمل دائماً
+set "POS_PROFILE=%LOCALAPPDATA%\OmegaPOS\ChromeProfile"
+if not exist "%POS_PROFILE%" mkdir "%POS_PROFILE%"
+
+:: تشغيل Chrome في وضع التطبيق + الطباعة الصامتة
+start "" "%CHROME_PATH%" ^
+  --kiosk-printing ^
+  --no-first-run ^
+  --no-default-browser-check ^
+  --disable-features=Translate,PrintPreview ^
+  --disable-print-preview ^
+  --disable-pdf-tagging ^
+  --user-data-dir="%POS_PROFILE%" ^
+  --start-maximized ^
+  --app="http://localhost:5173"
+
+:done
 echo.
 echo ════════════════════════════════════════════════════════════════
 echo ✅ تم تشغيل النظام بنجاح!
@@ -50,6 +68,9 @@ echo 🖨️ الطباعة التلقائية الصامتة (دون الحاج
 echo.
 echo 🔔 للتوضيح: عند طلب أي طباعة الآن، ستذهب مباشرة للطابعة الافتراضية
 echo    لجهازك ولن تظهر صفحة المعاينة البيضاء مجدداً.
+echo.
+echo ⚠️ هام: يجب فتح التطبيق من خلال هذا الملف فقط (ليس من Chrome العادي)
+echo    لكي تعمل الطباعة الصامتة.
 echo.
 echo ⚠️ الرجاء عدم إغلاق هذه النافذة السوداء أثناء العمل لأنها تشغل السيرفر.
 echo ════════════════════════════════════════════════════════════════

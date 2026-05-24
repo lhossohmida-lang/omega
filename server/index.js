@@ -8,12 +8,13 @@ import { WebSocketServer } from 'ws';
 import { networkInterfaces } from 'os';
 import chatHandler from '../api/admin-ai/chat.js';
 import executeHandler from '../api/admin-ai/execute-action.js';
+import { printHtmlHandler, listPrintersHandler, printHealthHandler } from './print.js';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' })); // HTML tickets قد تكون كبيرة قليلاً
 
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -29,6 +30,11 @@ function wrap(handler) {
 
 app.post('/api/admin-ai/chat', aiLimiter, wrap(chatHandler));
 app.post('/api/admin-ai/execute-action', wrap(executeHandler));
+
+// ─── خدمة الطباعة الصامتة ───
+app.post('/api/print', wrap(printHtmlHandler));
+app.get('/api/printers', wrap(listPrintersHandler));
+app.get('/api/print/health', wrap(printHealthHandler));
 
 // ─── WebSocket للمزامنة المحلية ───
 const httpServer = createServer(app);

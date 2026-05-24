@@ -17,10 +17,22 @@ function getFav() { try { return JSON.parse(localStorage.getItem('tarken_fav') |
 function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
 const categoryLabel = (cat) =>
-  cat === 'burger' ? 'برغر' : cat === 'pizza' ? 'بيتزا' : cat === 'tacos' ? 'تاكوس' : 'مشروبات';
+  cat === 'burger' ? 'برغر' : cat === 'pizza' ? 'بيتزا' : cat === 'tacos' ? 'تاكوس' : cat === 'sofli' ? 'سوفلي' : 'مشروبات';
 
 const categoryEmoji = (cat) =>
-  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : '🥤';
+  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : cat === 'sofli' ? '🥟' : '🥤';
+
+function fallbackImg(cat) {
+  return {
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/dessert.png',
+    sofli: '/sofli.png',
+  }[cat] || '/burger-classic.png';
+}
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -139,13 +151,9 @@ export default function ProductDetails() {
         </div>
 
         {/* Hero image */}
-        <div className="relative h-64 flex items-center justify-center mb-4 animate-fade-in">
-          {product.image ? (
-            <img src={product.image} alt={product.name}
-              className="relative h-full max-w-full object-contain drop-shadow-2xl animate-float" />
-          ) : (
-            <div className="relative text-9xl drop-shadow-2xl animate-float">{categoryEmoji(product.category)}</div>
-          )}
+        <div className="relative h-64 flex items-center justify-center mb-4 animate-fade-in animate-float">
+          <img src={product.image || fallbackImg(product.category)} alt={product.name}
+            className="relative h-full max-w-full object-contain drop-shadow-2xl" />
           <div className="absolute bottom-2 left-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-sm text-white text-xs font-bold">
             {categoryLabel(product.category)}
           </div>
@@ -228,11 +236,8 @@ export default function ProductDetails() {
                   onClick={() => navigate(`/product/${r.id}`)}
                   className="rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10 hover:border-omega-orange/30 transition-all text-right group"
                 >
-                  <div className="h-20 bg-omega-gray/40 overflow-hidden flex items-center justify-center text-3xl">
-                    {r.image
-                      ? <img src={r.image} alt={r.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                      : categoryEmoji(r.category)
-                    }
+                  <div className="h-20 bg-omega-gray/40 overflow-hidden flex items-center justify-center">
+                    <img src={r.image || fallbackImg(r.category)} alt={r.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="p-2">
                     <p className="text-white text-[10px] font-bold truncate">{r.name}</p>

@@ -2,7 +2,7 @@ import { db } from '../firebase';
 import {
   collection, doc, addDoc, updateDoc, getDoc, getDocs,
   query, where, orderBy, serverTimestamp,
-  onSnapshot, writeBatch, deleteDoc,
+  onSnapshot, writeBatch, deleteDoc, runTransaction,
 } from 'firebase/firestore';
 import { isOpen, getStatusMessage } from '../utils/businessHours';
 
@@ -10,6 +10,28 @@ const ORDERS_COL = 'orders';
 const PRODUCTS_COL = 'products';
 const OFFERS_COL = 'special_offers';
 const INVENTORY_COL = 'inventory_movements';
+const COUNTERS_COL = 'counters';
+const ORDER_NUMBER_DOC = 'orderNumber';
+const ORDER_NUMBER_MAX = 100;
+
+// عدّاد متسلسل للطلبات: 1 → 100 ثم يعود إلى 1
+export async function getNextOrderNumber() {
+  const counterRef = doc(db, COUNTERS_COL, ORDER_NUMBER_DOC);
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(counterRef);
+      const current = snap.exists() ? Number(snap.data().value || 0) : 0;
+      let next = current + 1;
+      if (next > ORDER_NUMBER_MAX) next = 1;
+      transaction.set(counterRef, { value: next, updatedAt: serverTimestamp() });
+      return next;
+    });
+  } catch (err) {
+    console.error('getNextOrderNumber error:', err);
+    // fallback: random number 1-100 إذا فشلت المعاملة
+    return Math.floor(Math.random() * ORDER_NUMBER_MAX) + 1;
+  }
+}
 
 function toNumber(value, fallback = 0) {
   const n = Number(value);
@@ -204,6 +226,7 @@ export async function createOrder(orderData) {
   const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
 
   const isDelivery = orderData.orderType === 'delivery';
+  const orderNumber = await getNextOrderNumber();
 
   const order = {
     ...orderData,
@@ -213,6 +236,7 @@ export async function createOrder(orderData) {
     isDelivery,
     totalCost,
     profit: totalPrice - totalCost,
+    orderNumber,
     status: 'pending',
     paymentMethod: 'cash',
     itemStatuses: {},
@@ -333,6 +357,7 @@ export async function createAdminOrder(orderData) {
   const deliveryFee = toNumber(orderData.deliveryFee, 0);
   const totalPrice = lineTotal(items) + deliveryFee;
   const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
+  const orderNumber = await getNextOrderNumber();
 
   const order = {
     ...orderData,
@@ -341,6 +366,7 @@ export async function createAdminOrder(orderData) {
     totalPrice,
     totalCost,
     profit: totalPrice - totalCost,
+    orderNumber,
     status: 'preparing',
     paymentMethod: orderData.paymentMethod || 'cash',
     createdBy: 'admin',

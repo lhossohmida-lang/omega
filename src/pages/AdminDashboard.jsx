@@ -280,7 +280,7 @@ export default function AdminDashboard() {
 
         <section className="omega-welcome-card">
           <div className="omega-welcome-art">
-            <img src="/logo.png" alt="" />
+            <img src="/logo.png?v=2" alt="" />
           </div>
           <div className="omega-welcome-copy">
             <p>مرحباً</p>

@@ -4797,9 +4797,14 @@ article[class*="rounded-2xl"].admin-glass {
   flex-wrap: wrap;
 }
 .kitchen-row-name {
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.9rem;
+  color: #000;
+  background: #fff;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 1rem;
+  display: inline-block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .kitchen-row-qty {
   color: #ff8c33;

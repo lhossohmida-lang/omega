@@ -76,7 +76,7 @@ const CATS = [
   { id: 'drinks',     label: 'مشروبات',    emoji: '🥤' },
   { id: 'appetizers', label: 'مقبلات',     emoji: '🍟' },
   { id: 'desserts',   label: 'حلويات',     emoji: '🍰' },
-  { id: 'sofli',      label: 'سوفلي',      emoji: '🍮', iconUrl: '/sofli-icon.png' },
+  { id: 'sofli',      label: 'سوفلي',      emoji: '🥟', iconUrl: '/sofli-icon.png' },
 ];
 
 /* ─── sub-components ───────────────────────── */
@@ -515,7 +515,7 @@ export default function CustomerHome() {
           {ordersCount > 0 && <span className="ch-notif-dot">{ordersCount > 9 ? '9+' : ordersCount}</span>}
         </button>
         <div className="ch-header-logo">
-          <img src="/logo.png" alt="OMEGA" className="ch-header-logo-img"/>
+          <img src="/logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
         </div>
         <button type="button" className="ch-cart-btn" onClick={() => navigate('/cart')} aria-label="السلة">
           <IoBagHandleOutline size={24}/>

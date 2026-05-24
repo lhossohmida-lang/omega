@@ -56,7 +56,7 @@ const CATEGORIES = [
   { id: 'appetizers', label: 'مقبلات',  emoji: '🍟', tone: 'pink'   },
   { id: 'drinks',     label: 'مشروبات', emoji: '🥤', tone: 'blue'   },
   { id: 'desserts',   label: 'حلويات',  emoji: '🍰', tone: 'red'    },
-  { id: 'sofli',      label: 'سوفلي',   emoji: '🍮', iconUrl: '/sofli-icon.png', tone: 'yellow' },
+  { id: 'sofli',      label: 'سوفلي',   emoji: '🥟', iconUrl: '/sofli-icon.png', tone: 'yellow' },
 ];
 
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
@@ -868,6 +868,31 @@ function ItemRow({ row, categoryEmoji, categoryIconUrl, acting, onStart, onReady
           <div className="kitchen-row-line1">
             <strong className="kitchen-row-name">{item.name}</strong>
             <span className="kitchen-row-qty">×{item.quantity}</span>
+            <button
+              type="button"
+              onClick={() => {
+                printOrderTicket(order, { type: 'kitchen', item });
+                toast.success(`طبع: ${item.name}`);
+              }}
+              title="طباعة هذا الصنف"
+              aria-label="طباعة"
+              style={{
+                marginInlineStart: '0.5rem',
+                background: 'rgba(255,107,0,0.15)',
+                color: '#ff6b00',
+                border: '1px solid rgba(255,107,0,0.4)',
+                borderRadius: '8px',
+                padding: '4px 8px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              🖨️
+            </button>
           </div>
           <div className="kitchen-row-line2">
             <span className={`kitchen-type-chip ${isDelivery ? 'delivery' : 'table'}`}>
@@ -875,7 +900,11 @@ function ItemRow({ row, categoryEmoji, categoryIconUrl, acting, onStart, onReady
                 ? (<><IoCarOutline size={12} /> توصيل</>)
                 : (<><IoRestaurantOutline size={12} /> طاولة</>)}
             </span>
-            <span className="kitchen-row-order">#{order.id?.slice(-6).toUpperCase()}</span>
+            <span className="kitchen-row-order">
+              {order.orderNumber != null
+                ? `طلب ${String(order.orderNumber).padStart(3, '0')}`
+                : `#${order.id?.slice(-6).toUpperCase()}`}
+            </span>
             <span className="kitchen-row-time">
               <IoTimeOutline size={11} /> {timeAgo(order.createdAt)}
             </span>
