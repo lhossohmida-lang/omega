@@ -4,6 +4,7 @@ import { getAllProducts } from '../services/productService';
 import { formatCurrency } from '../utils/formatCurrency';
 import CustomerNav from '../components/CustomerNav';
 import TransparentImg from '../components/TransparentImg';
+import TapTransition from '../components/TapTransition';
 import {
   IoAdd,
   IoHeart,
@@ -67,6 +68,7 @@ export default function Favorites() {
   const [loading, setLoading]     = useState(true);
   const [favorites, setFavorites] = useState(getFav);
   const [cart, setCart]           = useState(getCart);
+  const [tapTarget, setTapTarget] = useState(null);
   const navigate                  = useNavigate();
 
   useEffect(() => {
@@ -96,6 +98,10 @@ export default function Favorites() {
   const toggleFav = (id) => {
     const next = favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id];
     setFavorites(next); saveFav(next);
+  };
+  const openWithTapTransition = (path) => {
+    if (tapTarget) return;
+    setTapTarget(path);
   };
 
   const cartCount = cart.reduce((s, it) => s + it.quantity, 0);
@@ -136,7 +142,7 @@ export default function Favorites() {
                   fav={favorites.includes(p.id)}
                   onFav={() => toggleFav(p.id)}
                   onAdd={() => handleAdd(p)}
-                  onOpen={() => navigate(`/product/${p.id}`)}
+                  onOpen={() => openWithTapTransition(`/product/${p.id}`)}
                 />
               ))}
             </div>
@@ -144,7 +150,15 @@ export default function Favorites() {
         </section>
       )}
 
-      <CustomerNav cartCount={cartCount}/>
+      <CustomerNav cartCount={cartCount} onNavigate={openWithTapTransition}/>
+      <TapTransition
+        active={!!tapTarget}
+        onDone={() => {
+          const nextPath = tapTarget;
+          setTapTarget(null);
+          if (nextPath) navigate(nextPath);
+        }}
+      />
     </div>
   );
 }

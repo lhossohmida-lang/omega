@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
+import IntroSplash from './components/IntroSplash';
 import {
   getLaunchTargetFromSearch,
   getSavedLaunchPath,
@@ -38,7 +39,7 @@ import AdminSpecialOffers from './pages/AdminSpecialOffers';
 import AdminAttendance from './pages/AdminAttendance';
 
 import AppKeyboard from './components/AppKeyboard';
-import IntroSplash, { shouldShowIntro } from './components/IntroSplash';
+import { TapTransitionProvider } from './components/TapTransition';
 
 // تحديد نوع الواجهة من المسار الحالي
 function getScopeFromPath(pathname) {
@@ -48,25 +49,14 @@ function getScopeFromPath(pathname) {
   return 'customer';
 }
 
-function RouteIntro() {
-  const location = useLocation();
-  const [active, setActive] = useState(null);
-
-  useEffect(() => {
-    const scope = getScopeFromPath(location.pathname);
-    if (scope && shouldShowIntro(scope)) {
-      setActive(scope);
-    }
-  }, [location.pathname]);
-
-  if (!active) return null;
-  return <IntroSplash scope={active} onDone={() => setActive(null)} />;
-}
+// TapTransition يتولى الانتقال (1-2 ثانية) عند كل ضغطة nav
+// IntroSplash يعرض الفيديو الافتتاحي (4 ثواني) عند أول فتح للتطبيق
 
 export default function App() {
   const { userData, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     const launchTarget = getLaunchTargetFromSearch(location.search);
@@ -83,6 +73,11 @@ export default function App() {
     }
   }, [location.pathname, location.search, navigate]);
 
+  // عرض الإنترو (4 ثواني) عند كل فتح للتطبيق قبل أي شيء
+  if (!introDone) {
+    return <IntroSplash onDone={() => setIntroDone(true)} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-omega-dark flex items-center justify-center">
@@ -92,7 +87,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <TapTransitionProvider>
       <Routes>
       {/* Login (للإدارة والمطبخ فقط) */}
       <Route
@@ -135,7 +130,6 @@ export default function App() {
       <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <AppKeyboard />
-      <RouteIntro />
-    </>
+    </TapTransitionProvider>
   );
 }

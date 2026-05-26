@@ -20,6 +20,7 @@ import {
   IoGridOutline,
   IoReloadOutline,
   IoRestaurantOutline,
+  IoRocketOutline,
   IoSettingsOutline,
   IoSparklesOutline,
   IoStarOutline,
@@ -177,6 +178,7 @@ export default function AdminDashboard() {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const { userData } = useAuth();
 
   const loadData = async () => {
@@ -215,6 +217,24 @@ export default function AdminDashboard() {
       toast.error('تعذرت إعادة تعيين البيانات');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleLaunchServer = async () => {
+    setLaunching(true);
+    const toastId = toast.loading('⏳ جاري تشغيل السيرفر المحلي وفتح الواجهة...');
+    try {
+      const res = await fetch('http://localhost:3001/api/launch-pos', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(data.message || '✅ تم تشغيل السيرفر بنجاح!', { id: toastId, duration: 5000 });
+      } else {
+        toast.error(data.message || '❌ فشل تشغيل السيرفر', { id: toastId });
+      }
+    } catch {
+      toast.error('❌ تعذّر الاتصال بالسيرفر المحلي. تأكد أن السيرفر يعمل على المنفذ 3001.', { id: toastId });
+    } finally {
+      setLaunching(false);
     }
   };
 
@@ -290,6 +310,15 @@ export default function AdminDashboard() {
             </h1>
             <strong>إليك ملخص أداء مطعم OMEGA اليوم</strong>
           </div>
+          <button
+            type="button"
+            onClick={handleLaunchServer}
+            disabled={launching}
+            className="omega-launch-button"
+          >
+            <IoRocketOutline size={22} />
+            {launching ? 'جاري التشغيل...' : 'تشغيل السيرفر المحلي'}
+          </button>
           <button
             type="button"
             onClick={handleResetData}

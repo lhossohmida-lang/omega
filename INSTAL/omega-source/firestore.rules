@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return isSignedIn() && (myRole() == 'admin' || myRole() == 'worker');
+    }
+
+    // ===== المستخدمون =====
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if resource.data.role == 'worker';
+    }
+
+    // ===== الطلبات =====
+    match /orders/{orderId} {
+      // إنشاء وقراءة الطلب بمعرفه: متاح للجميع (الزبون بدون تسجيل دخول)
+      allow create: if true;
+      allow get: if true;
+
+      // قائمة الطلبات (الاستعلامات): للإدارة والمطبخ فقط
+      allow list: if isStaff();
+
+      // التحديث: الإدارة تتحكم كاملاً
+      allow update: if isSignedIn() && myRole() == 'admin';
+
+      // المطبخ يستطيع تعديل حقول العامل وحالة الأصناف فقط
+      allow update: if isSignedIn() && myRole() == 'worker'
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly([
+                           'workerReady', 'workerReadyAt',
+                           'workerStarted', 'workerStartedAt',
+                           'workerArchived', 'workerArchivedAt',
+                           'itemStatuses'
+                         ]);
+
+      allow delete: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== المنتجات =====
+    match /products/{productId} {
+      // قراءة عامة لكي يستعرض الزبون المنيو بدون تسجيل دخول
+      allow read: if true;
+      allow create, delete: if isSignedIn() && myRole() == 'admin';
+      // تحديث: الإدارة كاملاً، وأي طرف على حقل soldCount/updatedAt فقط
+      // (يسمح بتحديث عدّاد المبيعات من قبل الزبائن الضيوف)
+      allow update: if (isSignedIn() && myRole() == 'admin') ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['soldCount', 'updatedAt']);
+    }
+
+    // ===== العروض الخاصة =====
+    match /special_offers/{offerId} {
+      // قراءة عامة لكي تظهر العروض في واجهة الزبائن بدون تسجيل دخول
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== المخزون والمكوّنات =====
+    match /inventory_movements/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ingredients/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ingredient_purchases/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== سجلات الذكاء الاصطناعي =====
+    match /ai_logs/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    match /ai_settings/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== سجلات الحضور والورديات =====
+    match /attendance/{docId} {
+      allow read, write: if true;
+    }
+
+    // ===== سحوبات الرواتب =====
+    match /wage_withdrawals/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== جدول تخطيط ورديات الموظفين =====
+    match /work_schedule_plans/{docId} {
+      allow read, write: if isSignedIn() && myRole() == 'admin';
+    }
+
+    // ===== العدّادات المتسلسلة (orderNumber 1-100 دوّار) =====
+    // مطلوب من معاملات إنشاء الطلبات — يجب أن يكون متاحاً للزبون الضيف أيضاً
+    // لأن الطلبات يمكن إنشاؤها بدون تسجيل دخول.
+    match /counters/{counterId} {
+      allow read, write: if true;
+    }
+  }
+}

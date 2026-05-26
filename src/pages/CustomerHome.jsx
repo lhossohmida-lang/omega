@@ -9,6 +9,7 @@ import CustomerNav from '../components/CustomerNav';
 import TransparentImg from '../components/TransparentImg';
 import InstallAppButton from '../components/InstallAppButton';
 import CategoryIcon from '../components/CategoryIcon';
+import TapTransition from '../components/TapTransition';
 import {
   IoAdd,
   IoBagHandleOutline,
@@ -353,6 +354,7 @@ export default function CustomerHome() {
   const [ordersCount, setOrdersCount] = useState(0);
   const [heroIdx, setHeroIdx]       = useState(0);
   const [sizePicker, setSizePicker] = useState(null); // product to pick size for
+  const [tapTarget, setTapTarget]   = useState(null);
   const navigate                    = useNavigate();
   const businessStatus              = getStatusMessage();
   const searchRef                   = useRef(null);
@@ -488,6 +490,14 @@ export default function CustomerHome() {
     const next = favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id];
     setFavorites(next); saveFav(next);
   };
+  const openWithTapTransition = (path) => {
+    if (tapTarget) return;
+    setTapTarget({ type: 'path', value: path });
+  };
+  const changeCategoryWithTapTransition = (categoryId) => {
+    if (tapTarget || categoryId === activeCat) return;
+    setTapTarget({ type: 'category', value: categoryId });
+  };
 
   const cartCount = cart.reduce((s, it) => s + it.quantity, 0);
 
@@ -510,14 +520,14 @@ export default function CustomerHome() {
     <div className="ch-shell">
       {/* ── HEADER ── */}
       <header className="ch-header">
-        <button type="button" className="ch-notif-btn" onClick={() => navigate('/my-orders')} aria-label="الإشعارات">
+        <button type="button" className="ch-notif-btn" onClick={() => openWithTapTransition('/my-orders')} aria-label="الإشعارات">
           <IoNotificationsOutline size={24}/>
           {ordersCount > 0 && <span className="ch-notif-dot">{ordersCount > 9 ? '9+' : ordersCount}</span>}
         </button>
         <div className="ch-header-logo">
           <img src="/logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
         </div>
-        <button type="button" className="ch-cart-btn" onClick={() => navigate('/cart')} aria-label="السلة">
+        <button type="button" className="ch-cart-btn" onClick={() => openWithTapTransition('/cart')} aria-label="السلة">
           <IoBagHandleOutline size={24}/>
           {cartCount > 0 && <span className="ch-cart-badge">{cartCount}</span>}
         </button>
@@ -555,7 +565,7 @@ export default function CustomerHome() {
           <InstallAppButton target="customer" className="ch-install-btn" compact />
           <button
             type="button"
-            onClick={() => navigate('/login')}
+            onClick={() => openWithTapTransition('/login')}
             className="ch-staff-login-btn"
             aria-label="دخول طاقم العمل"
           >
@@ -588,7 +598,7 @@ export default function CustomerHome() {
               key={cat.id}
               type="button"
               className={`ch-cat-btn${activeCat === cat.id ? ' active' : ''}`}
-              onClick={() => setActiveCat(cat.id)}
+              onClick={() => changeCategoryWithTapTransition(cat.id)}
             >
               <CategoryIcon
                 iconUrl={cat.iconUrl}
@@ -633,7 +643,7 @@ export default function CustomerHome() {
                       fav={favorites.includes(p.id)}
                       onFav={() => toggleFav(p.id)}
                       onAdd={() => handleAdd(p)}
-                      onOpen={() => navigate(`/product/${p.id}`)}
+                      onOpen={() => openWithTapTransition(`/product/${p.id}`)}
                     />
                   ))}
                 </div>
@@ -643,7 +653,7 @@ export default function CustomerHome() {
             /* ── FILTERED BY CATEGORY ── */
             <section className="ch-section">
               <div className="ch-section-head">
-                <button type="button" className="ch-see-all" onClick={() => setActiveCat('all')}>
+                <button type="button" className="ch-see-all" onClick={() => changeCategoryWithTapTransition('all')}>
                   <IoChevronBackOutline size={14}/>
                   الرجوع
                 </button>
@@ -679,7 +689,7 @@ export default function CustomerHome() {
                       fav={favorites.includes(p.id)}
                       onFav={() => toggleFav(p.id)}
                       onAdd={() => handleAdd(p)}
-                      onOpen={() => navigate(`/product/${p.id}`)}
+                      onOpen={() => openWithTapTransition(`/product/${p.id}`)}
                     />
                   ))}
                 </div>
@@ -736,7 +746,7 @@ export default function CustomerHome() {
               {offers.length > 0 && (
                 <OffersCarousel
                   offers={offers}
-                  onOpen={(offer) => navigate(`/offer/${offer.id}`)}
+                  onOpen={(offer) => openWithTapTransition(`/offer/${offer.id}`)}
                   onAdd={handleAddOffer}
                 />
               )}
@@ -772,7 +782,7 @@ export default function CustomerHome() {
         </>
       )}
 
-      <CustomerNav cartCount={cartCount}/>
+      <CustomerNav cartCount={cartCount} onNavigate={openWithTapTransition}/>
 
       {/* Size Picker Modal */}
       {sizePicker && (
@@ -782,6 +792,19 @@ export default function CustomerHome() {
           onAdd={handleAddWithSize}
         />
       )}
+      <TapTransition
+        active={!!tapTarget}
+        onDone={() => {
+          const nextTarget = tapTarget;
+          setTapTarget(null);
+          if (!nextTarget) return;
+          if (nextTarget.type === 'category') {
+            setActiveCat(nextTarget.value);
+            return;
+          }
+          navigate(nextTarget.value);
+        }}
+      />
     </div>
   );
 }

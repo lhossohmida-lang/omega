@@ -15,7 +15,8 @@ import { writeFile, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
-import { print, getPrinters, getDefaultPrinter } from 'pdf-to-printer';
+import pdfToPrinter from 'pdf-to-printer';
+const { print, getPrinters, getDefaultPrinter } = pdfToPrinter;
 
 const EDGE_PATHS = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -175,10 +176,8 @@ export async function printHtmlHandler(req, res) {
 export async function listPrintersHandler(req, res) {
   try {
     const printers = await getPrinters();
-    let defaultPrinter = null;
-    try {
-      defaultPrinter = await getDefaultPrinter();
-    } catch { /* ignore */ }
+    // استخرج الطابعة الافتراضية من القائمة (الأولى أو المُعلَّمة isDefault)
+    const defaultPrinter = printers.find((p) => p.isDefault) || printers[0] || null;
     res.json({ printers, default: defaultPrinter });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,0 +1,465 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  getAllIngredients, addIngredient, updateIngredient, deleteIngredient,
+  getIngredientPurchases, addIngredientPurchase, deleteIngredientPurchase,
+} from '../services/inventoryService';
+import { useAuth } from '../hooks/useAuth';
+import { formatCurrency } from '../utils/formatCurrency';
+import { timeAgo } from '../utils/formatDate';
+import AdminNav from '../components/AdminNav';
+import AdminHeader from '../components/AdminHeader';
+import {
+  IoCube, IoAdd, IoClose,
+  IoLeaf, IoCreate, IoTrash, IoPricetag, IoSearch, IoCart, IoCalendar
+} from 'react-icons/io5';
+import toast from 'react-hot-toast';
+
+const UNITS = ['كيلو', 'غرام', 'لتر', 'مل', 'حبة', 'علبة', 'كيس', 'وحدة'];
+
+export default function AdminInventory() {
+  const { userData } = useAuth();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('ingredients');
+  const [ingredients, setIngredients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Ingredient state
+  const [ingForm, setIngForm] = useState(null); // create/edit ingredient slot
+  const [ingSearch, setIngSearch] = useState('');
+  const [selectedIng, setSelectedIng] = useState(null); // detail panel
+  const [purchases, setPurchases] = useState([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
+  const [purchaseForm, setPurchaseForm] = useState({ quantity: '', totalPrice: '', note: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    try {
+      const ing = await getAllIngredients();
+      setIngredients(ing);
+    } catch (err) { console.error(err); }
+    setLoading(false);
+  };
+
+  // ---- Ingredient slot ----
+  const openNewIngredient = () => setIngForm({ name: '', unit: 'كيلو' });
+  const openEditIngredient = (ing) => setIngForm({ id: ing.id, name: ing.name, unit: ing.unit });
+
+  const handleSaveIngredient = async (e) => {
+    e.preventDefault();
+    if (!ingForm.name?.trim()) { toast.error('أدخل اسم المكوّن'); return; }
+    setSaving(true);
+    try {
+      if (ingForm.id) {
+        await updateIngredient(ingForm.id, { name: ingForm.name.trim(), unit: ingForm.unit });
+        toast.success('تم التعديل');
+      } else {
+        await addIngredient({ name: ingForm.name.trim(), unit: ingForm.unit });
+        toast.success('تم إنشاء الخانة');
+      }
+      setIngForm(null);
+      loadData();
+    } catch (err) { toast.error('خطأ'); console.error(err); }
+    setSaving(false);
+  };
+
+  const handleDeleteIngredient = async (id, name) => {
+    if (!confirm(`هل تريد حذف "${name}" وجميع مشترياته؟`)) return;
+    try {
+      await deleteIngredient(id);
+      toast.success('تم الحذف');
+      loadData();
+      if (selectedIng?.id === id) setSelectedIng(null);
+    } catch (err) { toast.error('خطأ'); }
+  };
+
+  // ---- Purchases ----
+  const openIngredientDetail = async (ing) => {
+    setSelectedIng(ing);
+    setPurchaseForm({ quantity: '', totalPrice: '', note: '' });
+    setLoadingPurchases(true);
+    try {
+      const list = await getIngredientPurchases(ing.id);
+      setPurchases(list);
+    } catch (err) { console.error(err); }
+    setLoadingPurchases(false);
+  };
+
+  const handleAddPurchase = async (e) => {
+    e.preventDefault();
+    if (!purchaseForm.quantity || !purchaseForm.totalPrice) {
+      toast.error('أدخل الكمية والسعر الكلي');
+      return;
+    }
+    const qty = Number(purchaseForm.quantity);
+    const total = Number(purchaseForm.totalPrice);
+    if (qty <= 0) { toast.error('الكمية غير صحيحة'); return; }
+    setSaving(true);
+    try {
+      await addIngredientPurchase({
+        ingredientId: selectedIng.id,
+        quantity: qty,
+        unitPrice: total / qty, // محسوب تلقائياً
+        note: purchaseForm.note,
+      });
+      toast.success('تمت إضافة عملية الشراء');
+      setPurchaseForm({ quantity: '', totalPrice: '', note: '' });
+      // Refresh
+      const [list, allIngs] = await Promise.all([
+        getIngredientPurchases(selectedIng.id),
+        getAllIngredients(),
+      ]);
+      setPurchases(list);
+      setIngredients(allIngs);
+      const updated = allIngs.find(i => i.id === selectedIng.id);
+      if (updated) setSelectedIng(updated);
+    } catch (err) { toast.error('خطأ'); console.error(err); }
+    setSaving(false);
+  };
+
+  const handleDeletePurchase = async (purchaseId) => {
+    if (!confirm('حذف عملية الشراء هذه؟')) return;
+    try {
+      await deleteIngredientPurchase(purchaseId, selectedIng.id);
+      toast.success('تم الحذف');
+      const [list, allIngs] = await Promise.all([
+        getIngredientPurchases(selectedIng.id),
+        getAllIngredients(),
+      ]);
+      setPurchases(list);
+      setIngredients(allIngs);
+      const updated = allIngs.find(i => i.id === selectedIng.id);
+      if (updated) setSelectedIng(updated);
+    } catch (err) { toast.error('خطأ'); }
+  };
+
+  const totalIngredientsSpent = ingredients.reduce((s, i) => s + (i.totalSpent || 0), 0);
+  const totalPurchases = ingredients.reduce((s, i) => s + (i.purchaseCount || 0), 0);
+
+  const filteredIngredients = ingredients.filter(i =>
+    !ingSearch || i.name?.toLowerCase().includes(ingSearch.toLowerCase())
+  );
+
+  return (
+    <div className="admin-page">
+      <AdminNav />
+      <main className="admin-container">
+          <AdminHeader
+            title="المخزون"
+            accent="إدارة"
+            subtitle={`${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`}
+          />
+
+          {/* Action button row (only on ingredients) */}
+          <div className="mb-4 flex justify-end">
+            <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
+              <IoAdd size={18} /> <span>خانة جديدة</span>
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-md">
+            <button
+              onClick={() => navigate('/admin/products')}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all text-omega-text-muted hover:text-white"
+            >
+              <IoCube size={16} /> المنتجات
+            </button>
+            <button
+              onClick={() => setTab('ingredients')}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30"
+            >
+              <IoLeaf size={16} /> المواد الخام
+            </button>
+          </div>
+
+          {/* ============ INGREDIENTS TAB ============ */}
+          <>
+            {!loading && ingredients.length > 0 && (
+              <div className="grid grid-cols-3 gap-3 mb-5 stagger">
+                <div className="stat-card bg-gradient-to-br from-emerald-500 to-teal-700">
+                  <div className="relative z-10">
+                    <IoLeaf className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">عدد الخانات</p>
+                    <p className="text-white font-black text-xl">{ingredients.length}</p>
+                  </div>
+                </div>
+                <div className="stat-card bg-gradient-to-br from-omega-orange to-omega-red">
+                  <div className="relative z-10">
+                    <IoPricetag className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">إجمالي الإنفاق</p>
+                    <p className="text-white font-black text-base lg:text-xl">{formatCurrency(totalIngredientsSpent)}</p>
+                  </div>
+                </div>
+                <div className="stat-card bg-gradient-to-br from-blue-500 to-indigo-700">
+                  <div className="relative z-10">
+                    <IoCart className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">عمليات الشراء</p>
+                    <p className="text-white font-black text-xl">{totalPurchases}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {ingredients.length > 0 && (
+              <div className="relative mb-5">
+                <IoSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-omega-text-dim" size={18} />
+                <input
+                  type="text"
+                  placeholder="ابحث عن مكوّن..."
+                  value={ingSearch}
+                  onChange={e => setIngSearch(e.target.value)}
+                  className="input-modern pr-11"
+                />
+              </div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[1,2,3,4].map(i => <div key={i} className="skeleton h-28" />)}</div>
+            ) : ingredients.length === 0 ? (
+              <div className="card-premium p-12 text-center">
+                <div className="text-6xl mb-4">🌾</div>
+                <p className="text-white font-bold mb-1">لا توجد خانات بعد</p>
+                <p className="text-omega-text-muted text-sm mb-5">
+                  أنشئ خانة لكل مكوّن (دقيق، خبز، أوراق تاكوس...) ثم سجّل كل عملية شراء بكميتها وسعرها.
+                </p>
+                <button onClick={openNewIngredient} className="btn-primary inline-flex items-center gap-2 text-sm">
+                  <IoAdd size={18} /> إنشاء أول خانة
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 stagger">
+                {filteredIngredients.map(ing => {
+                  const avgPrice = ing.totalStock > 0 && ing.totalSpent > 0
+                    ? ing.totalSpent / ing.totalStock : 0;
+                  return (
+                    <div key={ing.id} className="card-premium p-4 group cursor-pointer" onClick={() => openIngredientDetail(ing)}>
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <IoLeaf className="text-emerald-400" size={20} />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-white text-sm font-bold truncate">{ing.name}</h4>
+                            <p className="text-omega-text-dim text-[10px]">{ing.unit} • {ing.purchaseCount || 0} عملية شراء</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-70 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openEditIngredient(ing)}
+                            className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-orange hover:bg-omega-orange/10 transition-all">
+                            <IoCreate size={15} />
+                          </button>
+                          <button onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                            className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all">
+                            <IoTrash size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">الكمية</p>
+                          <p className="text-emerald-400 font-black text-sm">{(ing.totalStock || 0).toLocaleString('ar')}</p>
+                          <p className="text-omega-text-dim text-[9px]">{ing.unit}</p>
+                        </div>
+                        <div className="bg-omega-orange/5 border border-omega-orange/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">المنفق</p>
+                          <p className="text-omega-orange font-black text-xs leading-tight pt-0.5">{formatCurrency(ing.totalSpent || 0)}</p>
+                        </div>
+                        <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-2.5 text-center">
+                          <p className="text-omega-text-dim text-[9px] mb-0.5">متوسط السعر</p>
+                          <p className="text-blue-400 font-black text-xs leading-tight pt-0.5">{formatCurrency(avgPrice)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-omega-text-dim text-[10px]">
+                          {ing.lastPurchaseAt ? `آخر شراء: ${timeAgo(ing.lastPurchaseAt)}` : 'لم يُسجّل شراء بعد'}
+                        </span>
+                        <span className="text-omega-orange text-[11px] font-bold flex items-center gap-1">
+                          <IoCart size={11} /> سجّل شراء
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+      </main>
+
+      {/* Ingredient slot form Modal (create/edit) */}
+      {ingForm && (
+        <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setIngForm(null)} />
+          <div className="relative card-premium rounded-t-3xl lg:rounded-3xl w-full max-w-md p-6 animate-slide-up">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                  <IoLeaf size={20} />
+                </div>
+                <h3 className="text-white font-black text-lg">
+                  {ingForm.id ? 'تعديل الخانة' : 'خانة مكوّن جديدة'}
+                </h3>
+              </div>
+              <button onClick={() => setIngForm(null)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-omega-text-muted hover:text-white flex items-center justify-center transition-colors">
+                <IoClose size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveIngredient} className="space-y-3">
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">اسم المكوّن *</label>
+                <input type="text" placeholder="مثلاً: دقيق، خبز برجر، أوراق تاكوس..."
+                  value={ingForm.name} autoFocus
+                  onChange={e => setIngForm({ ...ingForm, name: e.target.value })}
+                  className="input-modern" />
+              </div>
+
+              <div>
+                <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">وحدة القياس</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {UNITS.map(u => (
+                    <button type="button" key={u} onClick={() => setIngForm({ ...ingForm, unit: u })}
+                      className={`py-2 rounded-xl border text-xs font-bold transition-all
+                        ${ingForm.unit === u
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-white'
+                          : 'bg-white/3 border-white/8 text-omega-text-muted hover:text-white'}`}>
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-omega-text-dim text-[11px] leading-relaxed pt-1">
+                💡 بعد إنشاء الخانة، انقر عليها لتسجيل كل عملية شراء بكميتها وسعرها.
+              </p>
+
+              <button type="submit" disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
+                {saving
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <span>{ingForm.id ? 'حفظ' : 'إنشاء الخانة'}</span>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ingredient detail / purchases panel */}
+      {selectedIng && (
+        <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedIng(null)} />
+          <div className="relative card-premium rounded-t-3xl lg:rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto no-scrollbar p-6 animate-slide-up">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                  <IoLeaf size={20} />
+                </div>
+                <div>
+                  <h3 className="text-white font-black text-lg">{selectedIng.name}</h3>
+                  <p className="text-omega-text-muted text-xs">{selectedIng.unit}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedIng(null)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-omega-text-muted hover:text-white flex items-center justify-center transition-colors">
+                <IoClose size={20} />
+              </button>
+            </div>
+
+            {/* Summary */}
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3 text-center">
+                <p className="text-omega-text-dim text-[10px] mb-0.5">الكمية</p>
+                <p className="text-emerald-400 font-black text-base">{selectedIng.totalStock || 0}</p>
+                <p className="text-omega-text-dim text-[9px]">{selectedIng.unit}</p>
+              </div>
+              <div className="bg-omega-orange/5 border border-omega-orange/15 rounded-xl p-3 text-center">
+                <p className="text-omega-text-dim text-[10px] mb-0.5">المنفق</p>
+                <p className="text-omega-orange font-black text-xs leading-tight pt-0.5">{formatCurrency(selectedIng.totalSpent || 0)}</p>
+              </div>
+              <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl p-3 text-center">
+                <p className="text-omega-text-dim text-[10px] mb-0.5">العمليات</p>
+                <p className="text-blue-400 font-black text-base">{selectedIng.purchaseCount || 0}</p>
+              </div>
+            </div>
+
+            {/* Add purchase form */}
+            <form onSubmit={handleAddPurchase} className="bg-white/3 border border-white/8 rounded-2xl p-4 mb-4">
+              <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                <IoCart className="text-omega-orange" size={16} /> تسجيل عملية شراء
+              </h4>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="text-omega-text-muted text-[10px] block mb-1 mr-1">الكمية ({selectedIng.unit})</label>
+                  <input type="number" step="0.01" placeholder="0" value={purchaseForm.quantity}
+                    onChange={e => setPurchaseForm({ ...purchaseForm, quantity: e.target.value })}
+                    className="input-modern text-center font-bold" />
+                </div>
+                <div>
+                  <label className="text-omega-text-muted text-[10px] block mb-1 mr-1">السعر الكلي</label>
+                  <input type="number" step="0.01" placeholder="0" value={purchaseForm.totalPrice}
+                    onChange={e => setPurchaseForm({ ...purchaseForm, totalPrice: e.target.value })}
+                    className="input-modern text-center font-bold" />
+                </div>
+              </div>
+              <input type="text" placeholder="ملاحظة (اختياري)" value={purchaseForm.note}
+                onChange={e => setPurchaseForm({ ...purchaseForm, note: e.target.value })}
+                className="input-modern mb-2" />
+
+              {purchaseForm.quantity && purchaseForm.totalPrice && Number(purchaseForm.quantity) > 0 && (
+                <div className="bg-omega-orange/10 border border-omega-orange/25 rounded-xl p-2.5 mb-2 text-center">
+                  <p className="text-omega-text-muted text-[10px]">سعر الوحدة (محسوب)</p>
+                  <p className="gradient-text font-black text-base">
+                    {formatCurrency(Number(purchaseForm.totalPrice) / Number(purchaseForm.quantity))} / {selectedIng.unit}
+                  </p>
+                </div>
+              )}
+
+              <button type="submit" disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">
+                {saving
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <><IoAdd size={16} /> <span>إضافة عملية شراء</span></>}
+              </button>
+            </form>
+
+            {/* Purchase history */}
+            <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+              <IoCalendar className="text-omega-info" size={16} /> سجل المشتريات
+            </h4>
+            {loadingPurchases ? (
+              <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="skeleton h-16" />)}</div>
+            ) : purchases.length === 0 ? (
+              <div className="bg-white/3 border border-white/5 rounded-2xl p-6 text-center">
+                <p className="text-omega-text-muted text-sm">لا توجد مشتريات بعد</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {purchases.map(p => (
+                  <div key={p.id} className="bg-white/3 border border-white/5 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-emerald-400 font-black text-sm">+{p.quantity}</span>
+                        <span className="text-omega-text-dim text-[10px]">{selectedIng.unit}</span>
+                        <span className="text-omega-text-dim text-[10px]">×</span>
+                        <span className="text-omega-text text-xs">{formatCurrency(p.unitPrice)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-omega-orange font-bold text-xs">{formatCurrency(p.totalCost)}</span>
+                        <span className="text-omega-text-dim text-[10px]">• {timeAgo(p.createdAt)}</span>
+                      </div>
+                      {p.note && <p className="text-omega-text-dim text-[10px] mt-1">📝 {p.note}</p>}
+                    </div>
+                    <button onClick={() => handleDeletePurchase(p.id)}
+                      className="p-1.5 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all flex-shrink-0">
+                      <IoTrash size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -107,14 +107,16 @@ export default function MyOrders() {
           ))}
         </section>
 
-        <label className="omega-search-box mb-4">
-          <IoSearch size={22} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="ابحث برقم الطلب"
-          />
-        </label>
+        <div className="ch-search-row" style={{ paddingTop: 0, paddingBottom: '1rem' }}>
+          <label className="ch-search-box">
+            <IoSearch size={20} className="ch-search-icon" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="ابحث برقم الطلب"
+            />
+          </label>
+        </div>
 
         {loading ? (
           <div className="space-y-3">

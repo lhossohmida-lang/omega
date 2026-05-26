@@ -5,6 +5,7 @@ import { OmegaMark } from './AdminHeader';
 import InstallAppButton from './InstallAppButton';
 import LocalNetworkSettings from './LocalNetworkSettings';
 import localSync from '../services/localSync';
+import { useTapNav } from './TapTransition';
 import {
   IoArchiveOutline,
   IoBagHandleOutline,
@@ -42,11 +43,11 @@ const menuLinks = [
 
 export default function AdminNav() {
   const [open, setOpen] = useState(false);
-  const [clickingTo, setClickingTo] = useState(null);
   const [showNetSettings, setShowNetSettings] = useState(false);
   const [wifiConnected, setWifiConnected] = useState(localSync.isConnected);
   const { logout, userData } = useAuth();
   const navigate = useNavigate();
+  const { go } = useTapNav();
 
   useEffect(() => {
     const u1 = localSync.on('_connected', () => setWifiConnected(true));
@@ -56,13 +57,8 @@ export default function AdminNav() {
 
   const handleNavClick = (e, to) => {
     e.preventDefault();
-    if (clickingTo) return;
-    setClickingTo(to);
-    setTimeout(() => {
-      setOpen(false);
-      navigate(to);
-      setClickingTo(null);
-    }, 240);
+    setOpen(false);
+    go(to);
   };
 
   return (
@@ -132,26 +128,23 @@ export default function AdminNav() {
         </div>
 
         <nav className="omega-side-links">
-          {menuLinks.map(({ to, icon: Icon, label, end, badge }) => {
-            const isClicking = clickingTo === to;
-            return (
-              <NavLink
-                key={`${label}-${to}`}
-                to={to}
-                end={end}
-                onClick={(e) => handleNavClick(e, to)}
-                className={({ isActive }) =>
-                  `omega-side-link${isActive ? ' active' : ''}${isClicking ? ' clicking' : ''}`
-                }
-              >
-                <div>
-                  {badge ? <span className="omega-side-badge">{badge}</span> : null}
-                  <span>{label}</span>
-                </div>
-                <Icon size={25} />
-              </NavLink>
-            );
-          })}
+          {menuLinks.map(({ to, icon: Icon, label, end, badge }) => (
+            <NavLink
+              key={`${label}-${to}`}
+              to={to}
+              end={end}
+              onClick={(e) => handleNavClick(e, to)}
+              className={({ isActive }) =>
+                `omega-side-link${isActive ? ' active' : ''}`
+              }
+            >
+              <div>
+                {badge ? <span className="omega-side-badge">{badge}</span> : null}
+                <span>{label}</span>
+              </div>
+              <Icon size={25} />
+            </NavLink>
+          ))}
         </nav>
 
         <div className="omega-side-footer">

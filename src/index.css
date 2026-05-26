@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 /* ============================
    OMEGA Restaurant - Light Theme
@@ -727,9 +727,9 @@ article[class*="rounded-2xl"].admin-glass {
   position: relative;
   display: grid;
   min-height: clamp(10rem, 27vw, 14.6rem);
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
-  gap: clamp(1rem, 4vw, 2rem);
+  gap: clamp(0.75rem, 3vw, 1.5rem);
   overflow: hidden;
   margin-bottom: 1.5rem;
   padding: clamp(1.25rem, 4vw, 2.3rem);
@@ -832,6 +832,56 @@ article[class*="rounded-2xl"].admin-glass {
   background: linear-gradient(135deg, var(--omega-red-ui), var(--omega-deep-red));
   color: #fff;
   box-shadow: 0 12px 22px rgba(201, 20, 37, 0.22);
+}
+
+/* ─── زر تشغيل السيرفر المحلي ─── */
+.omega-launch-button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 4.1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0 1.25rem;
+  border: 2px solid #16a34a;
+  border-radius: 1.1rem;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #15803d;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  font-weight: 900;
+  box-shadow: 0 12px 26px rgba(22, 163, 74, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.omega-launch-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  box-shadow: 0 16px 30px rgba(22, 163, 74, 0.32);
+  transform: translateY(-1px);
+}
+
+.omega-launch-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.omega-launch-button svg {
+  width: 3.1rem;
+  height: 3.1rem;
+  margin-inline-start: -0.75rem;
+  padding: 0.72rem;
+  border-radius: 0.95rem;
+  background: linear-gradient(135deg, #22c55e, #15803d);
+  color: #fff;
+  box-shadow: 0 12px 22px rgba(22, 163, 74, 0.25);
+  flex-shrink: 0;
+}
+
+.omega-launch-button:hover:not(:disabled) svg {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: none;
 }
 
 .omega-stats-grid {
@@ -1536,22 +1586,35 @@ article[class*="rounded-2xl"].admin-glass {
   }
 
   .omega-welcome-card {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     padding: 1rem;
+    gap: 0.75rem;
   }
 
   .omega-welcome-art {
     display: none;
   }
 
-  .omega-reset-button {
+  .omega-welcome-copy {
     grid-column: 1 / -1;
-    width: fit-content;
-    min-height: 3.4rem;
-    justify-self: end;
-    padding-inline: 0.9rem;
   }
 
+  .omega-launch-button,
+  .omega-reset-button {
+    grid-column: span 1;
+    min-height: 3.4rem;
+    padding-inline: 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .omega-launch-button,
+  .omega-reset-button {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .omega-launch-button svg,
   .omega-reset-button svg {
     width: 2.6rem;
     height: 2.6rem;
@@ -5714,9 +5777,50 @@ article[class*="rounded-2xl"].admin-glass {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* تحسينات الجودة البصرية */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform;
+  filter: contrast(1.04) saturate(1.08);
 }
 @media (max-width: 768px) {
   .omega-intro-video {
+    object-fit: contain;
+  }
+}
+
+.omega-tap-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 180ms ease-out;
+}
+
+.omega-tap-transition.fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.omega-tap-transition-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.04) saturate(1.08);
+}
+
+@media (max-width: 768px) {
+  .omega-tap-transition-video {
     object-fit: contain;
   }
 }

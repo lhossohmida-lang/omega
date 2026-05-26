@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useTapNav } from './TapTransition';
 import {
   IoHomeSharp,
   IoHomeOutline,
@@ -21,6 +22,15 @@ const LINKS = [
 ];
 
 export default function CustomerNav({ cartCount = 0 }) {
+  const location = useLocation();
+  const { go }   = useTapNav();
+
+  const handleClick = (event, to) => {
+    if (location.pathname === to) return;
+    event.preventDefault();
+    go(to);
+  };
+
   return (
     <nav className="ch-bottom-nav" aria-label="التنقل الرئيسي">
       <div className="ch-bottom-inner">
@@ -33,6 +43,7 @@ export default function CustomerNav({ cartCount = 0 }) {
               `ch-nav-link${isActive ? ' active' : ''}${isCart ? ' cart-link' : ''}`
             }
             aria-label={label}
+            onClick={(event) => handleClick(event, to)}
           >
             {({ isActive }) => (
               <>

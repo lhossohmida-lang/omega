@@ -9,6 +9,7 @@ import {
   deleteReadyOrders,
 } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
+import { getActiveSpecialOffers } from '../services/offerService';
 import { useAuth } from '../hooks/useAuth';
 import { printOrderTicket } from '../utils/printer';
 import { playLoudAlarm } from '../utils/soundUtils';
@@ -77,6 +78,7 @@ export default function AdminOrders() {
   const { userData } = useAuth();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -171,8 +173,10 @@ export default function AdminOrders() {
     (async () => {
       try {
         setProducts(await getAllProducts());
+        const activeOffers = await getActiveSpecialOffers();
+        setOffers(activeOffers);
       } catch (err) {
-        console.error('load products error:', err);
+        console.error('load products/offers error:', err);
       }
     })();
   }, []);
@@ -303,16 +307,17 @@ export default function AdminOrders() {
         <AdminHeader title="الطلبات" subtitle="إدارة ومتابعة جميع طلبات المطعم" />
 
         <section className="mb-4">
-          <label className="admin-control flex min-h-12 items-center gap-3 px-4">
-            <IoSearch className="text-omega-text-dim" size={26} />
-            <input
-              type="text"
-              value={search}
-              onChange={event => setSearch(event.target.value)}
-              placeholder="ابحث برقم الطلب أو اسم العميل أو الهاتف"
-              className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-omega-text-dim"
-            />
-          </label>
+          <div className="ch-search-row" style={{ paddingTop: 0 }}>
+            <label className="ch-search-box">
+              <IoSearch size={20} className="ch-search-icon" />
+              <input
+                type="text"
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="ابحث برقم الطلب أو اسم العميل أو الهاتف"
+              />
+            </label>
+          </div>
         </section>
 
         <section className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -583,6 +588,7 @@ export default function AdminOrders() {
       {newOrderContext && (
         <NewOrderModal
           products={products}
+          offers={offers}
           context={newOrderContext}
           onClose={() => setNewOrderContext(null)}
           onSubmit={handleCreateAdminOrder}
@@ -1183,8 +1189,9 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
 }
 
 /* ─── New Walk-in Order Modal ───────────────────────────── */
-function NewOrderModal({ products, context, onClose, onSubmit }) {
+function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
   const [cart, setCart] = useState({});
+  const [offerCart, setOfferCart] = useState({});  // { [offerId]: qty }
   const [customerName, setCustomerName] = useState(context?.customerName || '');
   const [customerPhone, setCustomerPhone] = useState(context?.customerPhone || '');
   const [customerNote, setCustomerNote] = useState('');
@@ -1194,6 +1201,7 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
 
   const CAT_META = {
     all:        { label: 'الكل',    emoji: '🍽️' },
+    offers:     { label: 'box',    emoji: '🏷️' },
     pizza:      { label: 'بيتزا',   emoji: '🍕' },
     burger:     { label: 'برغر',    emoji: '🍔' },
     tacos:      { label: 'تاكوس',   emoji: '🌮' },
@@ -1204,15 +1212,30 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
   };
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
-  const existingCats = ['all', ...Object.keys(CAT_META).filter(k =>
-    k !== 'all' && availableProducts.some(p => p.category === k)
-  )];
+  const existingCats = ['all',
+    ...(offers.length > 0 ? ['offers'] : []),
+    ...Object.keys(CAT_META).filter(k =>
+      k !== 'all' && k !== 'offers' && availableProducts.some(p => p.category === k)
+    )
+  ];
 
   const filteredProducts = availableProducts.filter(p => {
     if (activeCat !== 'all' && p.category !== activeCat) return false;
     if (activeSize === 'all') return true;
     return p.hasSizes && p.sizes?.some(sz => sz.label === activeSize);
   });
+
+  const addOffer = (offerId) => {
+    setOfferCart(c => ({ ...c, [offerId]: (c[offerId] || 0) + 1 }));
+  };
+  const removeOffer = (offerId) => {
+    setOfferCart(c => {
+      const n = { ...c };
+      if (n[offerId] > 1) n[offerId] -= 1;
+      else delete n[offerId];
+      return n;
+    });
+  };
 
   const addItem = (id, sizeLabel, sizePrice) => {
     if (sizeLabel !== undefined) {
@@ -1234,11 +1257,23 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
     if (!p) return null;
     const price = entry.sizePrice !== undefined ? entry.sizePrice : (p.price || 0);
     const label = entry.sizeLabel ? ` (${entry.sizeLabel})` : '';
-    return { key, product: p, quantity: entry.qty, price, label };
+    return { key, product: p, quantity: entry.qty, price, label, type: 'product' };
   }).filter(Boolean);
 
-  const totalPrice = cartEntries.reduce((s, e) => s + e.price * e.quantity, 0);
-  const itemsCount = cartEntries.reduce((s, e) => s + e.quantity, 0);
+  const offerCartEntries = Object.entries(offerCart).map(([offerId, qty]) => {
+    const offer = offers.find(o => o.id === offerId);
+    if (!offer) return null;
+    return { key: `offer_${offerId}`, offer, quantity: qty, price: Number(offer.offerPrice || 0), type: 'offer' };
+  }).filter(Boolean);
+
+  const totalPrice = [
+    ...cartEntries.map(e => e.price * e.quantity),
+    ...offerCartEntries.map(e => e.price * e.quantity),
+  ].reduce((s, v) => s + v, 0);
+  const itemsCount = [
+    ...cartEntries.map(e => e.quantity),
+    ...offerCartEntries.map(e => e.quantity),
+  ].reduce((s, v) => s + v, 0);
 
   // Header label based on context
   const orderType = context?.orderType || 'table';
@@ -1260,15 +1295,34 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
       return;
     }
     setSubmitting(true);
-    const items = cartEntries.map(({ product, quantity, price, label }) => ({
-      productId: product.id,
-      name: product.name + label,
-      price,
-      costPrice: product.costPrice || 0,
-      image: product.image || '',
-      category: product.category || '',
-      quantity,
-    }));
+    const items = [
+      ...cartEntries.map(({ product, quantity, price, label }) => ({
+        productId: product.id,
+        name: product.name + label,
+        price,
+        costPrice: product.costPrice || 0,
+        image: product.image || '',
+        category: product.category || '',
+        quantity,
+      })),
+      ...offerCartEntries.map(({ offer, quantity, price }) => ({
+        productId: `offer_${offer.id}`,
+        offerId: offer.id,
+        name: offer.title,
+        type: 'offer',
+        price,
+        costPrice: 0,
+        image: offer.image || offer.items?.find(i => i.image)?.image || '',
+        category: 'offers',
+        quantity,
+        components: (offer.items || []).map(item => ({
+          productId: item.productId,
+          name: item.productName || item.name,
+          quantity: Number(item.quantity || 1),
+          price: Number(item.unitPrice ?? item.price ?? 0),
+        })),
+      })),
+    ];
     const defaultName = {
       table: `طاولة ${context?.tableNumber || ''}`.trim(),
       takeout: `زبون ${context?.takeoutNumber || ''}`.trim(),
@@ -1346,9 +1400,43 @@ function NewOrderModal({ products, context, onClose, onSubmit }) {
         {/* الجسم: مستطيل مقسم على اثنين */}
         <div className="flex-1 min-h-0 px-5 pb-3 overflow-hidden">
           <div className="h-full rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden flex">
-            {/* اليمين (HTML أول = يمين في RTL): المنتجات */}
+            {/* اليمين (HTML أول = يمين في RTL): المنتجات أو العروض */}
             <div className="flex-1 min-w-0 overflow-y-auto p-3">
-              {filteredProducts.length === 0 ? (
+              {activeCat === 'offers' ? (
+                offers.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-10">لا توجد عروض نشطة</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {offers.map(offer => {
+                      const qty = offerCart[offer.id] || 0;
+                      const img = offer.image || offer.items?.find(i => i.image)?.image || '/burger-classic.png';
+                      return (
+                        <button
+                          key={offer.id}
+                          type="button"
+                          onClick={() => addOffer(offer.id)}
+                          className={`relative rounded-2xl border-2 p-2.5 text-right transition-all ${
+                            qty > 0 ? 'border-omega-orange bg-omega-orange/[0.07]' : 'border-gray-200 bg-white hover:border-omega-orange/40'
+                          }`}
+                        >
+                          <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
+                            <img src={img} alt={offer.title} className="w-full h-full object-cover" />
+                          </div>
+                          <p className="text-gray-900 font-bold text-sm truncate leading-snug">{offer.title}</p>
+                          <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(offer.offerPrice)}</p>
+                          {qty > 0 && (
+                            <div className="absolute top-2 left-2 flex items-center gap-1 bg-omega-orange text-white rounded-full px-1.5 py-0.5">
+                              <button type="button" onClick={(e) => { e.stopPropagation(); removeOffer(offer.id); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"><IoRemove size={13} /></button>
+                              <span className="font-black text-xs min-w-[1ch] text-center">{qty}</span>
+                              <button type="button" onClick={(e) => { e.stopPropagation(); addOffer(offer.id); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"><IoAdd size={13} /></button>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
+              ) : filteredProducts.length === 0 ? (
                 <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
