@@ -31,10 +31,10 @@ import {
 import toast from 'react-hot-toast';
 
 const fallbackProducts = [
-  { id: 'classic-burger', name: 'برغر لحم كلاسيك', price: 850, image: '/burger-classic.png', isAvailable: true },
-  { id: 'fries', name: 'بطاطا مقلية كبيرة', price: 450, image: '/fried-chicken.png', isAvailable: true },
-  { id: 'drink', name: 'مشروب غازي', price: 300, image: '/drink-cola.png', isAvailable: true },
-  { id: 'nuggets', name: 'ناجت الدجاج (6 قطع)', price: 650, image: '/appetizer-gratin.png', isAvailable: true },
+  { id: 'classic-burger', name: 'برغر لحم كلاسيك', price: 850, image: './burger-classic.png', isAvailable: true },
+  { id: 'fries', name: 'بطاطا مقلية كبيرة', price: 450, image: './fried-chicken.png', isAvailable: true },
+  { id: 'drink', name: 'مشروب غازي', price: 300, image: './drink-cola.png', isAvailable: true },
+  { id: 'nuggets', name: 'ناجت الدجاج (6 قطع)', price: 650, image: './appetizer-gratin.png', isAvailable: true },
 ];
 
 function getMoney(value) {
@@ -43,12 +43,12 @@ function getMoney(value) {
 
 function categoryImage(category) {
   return {
-    burger: '/burger-classic.png',
-    pizza: '/pizza-pepperoni.png',
-    tacos: '/tacos-wrap.png',
-    drinks: '/drink-cola.png',
-    appetizers: '/fried-chicken.png',
-  }[category] || '/burger-classic.png';
+    burger: './burger-classic.png',
+    pizza: './pizza-pepperoni.png',
+    tacos: './tacos-wrap.png',
+    drinks: './drink-cola.png',
+    appetizers: './fried-chicken.png',
+  }[category] || './burger-classic.png';
 }
 
 function StatCard({ icon: Icon, label, value, hint, tone = 'gold', wide = false }) {
@@ -360,7 +360,7 @@ export default function AdminDashboard() {
             </section>
 
             <section className="omega-products-banner">
-              <img src="/burger-classic.png" alt="" />
+              <img src="./burger-classic.png" alt="" />
               <div>
                 <h2>منتجات متوفرة</h2>
                 <p>كل المنتجات متاحة خلال ساعات العمل</p>

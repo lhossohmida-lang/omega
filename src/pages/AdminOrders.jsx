@@ -1042,14 +1042,14 @@ function RoutingModal({ order, onClose, onConfirm }) {
 /* ─── Fallback Images for Categories ──────────────────────── */
 function fallbackImg(cat) {
   return {
-    burger: '/burger-classic.png',
-    pizza:  '/pizza-pepperoni.png',
-    tacos:  '/tacos-wrap.png',
-    drinks: '/drink-cola.png',
-    appetizers: '/fried-chicken.png',
-    desserts: '/dessert.png',
-    sofli: '/sofli.png',
-  }[cat] || '/burger-classic.png';
+    burger: './burger-classic.png',
+    pizza:  './pizza-pepperoni.png',
+    tacos:  './tacos-wrap.png',
+    drinks: './drink-cola.png',
+    appetizers: './fried-chicken.png',
+    desserts: './dessert.png',
+    sofli: './sofli.png',
+  }[cat] || './burger-classic.png';
 }
 
 /* ─── Product Tile (grid layout) ─────────────────────────── */
@@ -1409,7 +1409,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {offers.map(offer => {
                       const qty = offerCart[offer.id] || 0;
-                      const img = offer.image || offer.items?.find(i => i.image)?.image || '/burger-classic.png';
+                      const img = offer.image || offer.items?.find(i => i.image)?.image || './burger-classic.png';
                       return (
                         <button
                           key={offer.id}

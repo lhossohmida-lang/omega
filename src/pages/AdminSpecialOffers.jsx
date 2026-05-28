@@ -43,12 +43,12 @@ const emptyForm = {
 };
 
 const LOCAL_IMAGES = [
-  '/burger-classic.png',
-  '/pizza-pepperoni.png',
-  '/tacos-wrap.png',
-  '/drink-cola.png',
-  '/fried-chicken.png',
-  '/appetizer-gratin.png',
+  './burger-classic.png',
+  './pizza-pepperoni.png',
+  './tacos-wrap.png',
+  './drink-cola.png',
+  './fried-chicken.png',
+  './appetizer-gratin.png',
 ];
 
 function itemsLabel(items = []) {

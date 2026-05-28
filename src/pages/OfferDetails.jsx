@@ -23,7 +23,7 @@ function saveCart(cart) {
 }
 
 function offerImage(offer) {
-  return offer?.image || offer?.items?.find(item => item.image)?.image || '/burger-classic.png';
+  return offer?.image || offer?.items?.find(item => item.image)?.image || './burger-classic.png';
 }
 
 function componentName(item) {

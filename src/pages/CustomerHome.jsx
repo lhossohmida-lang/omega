@@ -39,18 +39,18 @@ function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
 function fallbackImg(cat) {
   return {
-    burger: '/burger-classic.png',
-    pizza:  '/pizza-pepperoni.png',
-    tacos:  '/tacos-wrap.png',
-    drinks: '/drink-cola.png',
-    appetizers: '/fried-chicken.png',
-    desserts: '/dessert.png',
-    sofli: '/sofli.png',
-  }[cat] || '/burger-classic.png';
+    burger: './burger-classic.png',
+    pizza:  './pizza-pepperoni.png',
+    tacos:  './tacos-wrap.png',
+    drinks: './drink-cola.png',
+    appetizers: './fried-chicken.png',
+    desserts: './dessert.png',
+    sofli: './sofli.png',
+  }[cat] || './burger-classic.png';
 }
 
 function offerImage(offer) {
-  return offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png';
+  return offer.image || offer.items?.find(item => item.image)?.image || './burger-classic.png';
 }
 
 function offerItemsLabel(items = []) {

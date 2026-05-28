@@ -24,14 +24,14 @@ const categoryEmoji = (cat) =>
 
 function fallbackImg(cat) {
   return {
-    burger: '/burger-classic.png',
-    pizza:  '/pizza-pepperoni.png',
-    tacos:  '/tacos-wrap.png',
-    drinks: '/drink-cola.png',
-    appetizers: '/fried-chicken.png',
-    desserts: '/dessert.png',
-    sofli: '/sofli.png',
-  }[cat] || '/burger-classic.png';
+    burger: './burger-classic.png',
+    pizza:  './pizza-pepperoni.png',
+    tacos:  './tacos-wrap.png',
+    drinks: './drink-cola.png',
+    appetizers: './fried-chicken.png',
+    desserts: './dessert.png',
+    sofli: './sofli.png',
+  }[cat] || './burger-classic.png';
 }
 
 export default function ProductDetails() {

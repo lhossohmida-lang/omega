@@ -8,7 +8,20 @@ function processImage(src) {
 
   const promise = new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    
+    // Check if the source is a remote URL
+    const isRemote = typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'));
+    
+    if (isRemote) {
+      // Set crossOrigin BEFORE src
+      img.crossOrigin = 'anonymous';
+      
+      // Append cache-buster so a CORS failure on this test request does NOT poison the cache of the main URL
+      const separator = src.includes('?') ? '&' : '?';
+      img.src = `${src}${separator}cors_bypass=${Date.now()}`;
+    } else {
+      img.src = src;
+    }
 
     img.onload = () => {
       try {
@@ -42,12 +55,15 @@ function processImage(src) {
         ctx.putImageData(imageData, 0, 0);
         resolve(canvas.toDataURL('image/png'));
       } catch {
+        // Safe fallback in case of canvas taint (CORS issue)
         resolve(src);
       }
     };
 
-    img.onerror = () => resolve(src);
-    img.src = src;
+    img.onerror = () => {
+      // Safe fallback if loading the cache-busted URL fails due to CORS
+      resolve(src);
+    };
   });
 
   cache.set(src, promise);
