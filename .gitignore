@@ -28,3 +28,14 @@ dist-ssr
 .env.*
 *.tmp
 .vercel
+
+# Electron & Mobile installers/builds
+/dist-exe
+/apk
+/public/*.exe
+/public/*.apk
+/dist/*.exe
+/dist/*.apk
+**/*.exe
+**/*.apk
+/.claude

@@ -80,7 +80,7 @@ export default function MyOrders() {
           </button>
           <div className="omega-mobile-title">
             <div className="omega-mini-logo mx-auto mb-2">
-              <img src="/logo.png?v=2" alt="OMEGA" />
+              <img src="./logo.png?v=2" alt="OMEGA" />
             </div>
             <h1>طلباتي</h1>
             <p>{orders.length} طلب متتبَّع</p>

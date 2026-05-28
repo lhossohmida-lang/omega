@@ -525,7 +525,7 @@ export default function CustomerHome() {
           {ordersCount > 0 && <span className="ch-notif-dot">{ordersCount > 9 ? '9+' : ordersCount}</span>}
         </button>
         <div className="ch-header-logo">
-          <img src="/logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
+          <img src="./logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
         </div>
         <button type="button" className="ch-cart-btn" onClick={() => openWithTapTransition('/cart')} aria-label="السلة">
           <IoBagHandleOutline size={24}/>

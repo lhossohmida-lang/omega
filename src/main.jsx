@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, HashRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 import { Toaster } from 'react-hot-toast'
@@ -21,9 +21,14 @@ enableIndexedDbPersistence(db).catch((err) => {
 // ── LocalSync: اتصال تلقائي بسيرفر الشبكة المحلية ──
 localSync.connect();
 
+// Choose HashRouter under file:// (Electron / local packages) and BrowserRouter on Web (http / https)
+const Router = typeof window !== 'undefined' && window.location.protocol === 'file:'
+  ? HashRouter
+  : BrowserRouter;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
         <App />
         <Toaster 
@@ -46,6 +51,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           }}
         />
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   </React.StrictMode>
 )
