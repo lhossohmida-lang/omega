@@ -24,6 +24,7 @@ import MyOrders from './pages/MyOrders';
 import Favorites from './pages/Favorites';
 import MyInfo from './pages/MyInfo';
 import PublicAttendance from './pages/PublicAttendance';
+import Kiosk from './pages/Kiosk';
 
 // Worker
 import WorkerOrders from './pages/WorkerOrders';
@@ -111,6 +112,7 @@ export default function App() {
       <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/my-info" element={<MyInfo />} />
       <Route path="/attendance" element={<PublicAttendance />} />
+      <Route path="/kiosk" element={<Kiosk />} />
 
       {/* Worker Routes */}
       <Route path="/staff" element={<Navigate to="/worker" replace />} />
