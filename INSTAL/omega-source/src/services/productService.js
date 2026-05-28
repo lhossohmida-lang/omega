@@ -7,11 +7,26 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const PRODUCTS_COL = 'products';
 
+function fixLocalPath(src) {
+  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
+    return `.${src}`;
+  }
+  return src;
+}
+
+function processProduct(product) {
+  if (!product) return product;
+  return {
+    ...product,
+    image: fixLocalPath(product.image),
+  };
+}
+
 // جلب جميع المنتجات
 export async function getAllProducts() {
   const q = query(collection(db, PRODUCTS_COL), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map(d => processProduct({ id: d.id, ...d.data() }));
 }
 
 // جلب المنتجات حسب الفئة
@@ -23,7 +38,7 @@ export async function getProductsByCategory(category) {
     orderBy('createdAt', 'desc')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map(d => processProduct({ id: d.id, ...d.data() }));
 }
 
 // جلب المنتجات المتوفرة فقط
@@ -34,7 +49,7 @@ export async function getAvailableProducts() {
     orderBy('createdAt', 'desc')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map(d => processProduct({ id: d.id, ...d.data() }));
 }
 
 // جلب منتج واحد
@@ -42,7 +57,7 @@ export async function getProduct(productId) {
   const docRef = doc(db, PRODUCTS_COL, productId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() };
+    return processProduct({ id: docSnap.id, ...docSnap.data() });
   }
   return null;
 }
@@ -87,5 +102,5 @@ export async function uploadProductImage(file, adminId) {
 export async function getLowStockProducts(threshold = 5) {
   const q = query(collection(db, PRODUCTS_COL), where('stock', '<=', threshold));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map(d => processProduct({ id: d.id, ...d.data() }));
 }

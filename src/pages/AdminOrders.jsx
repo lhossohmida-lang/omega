@@ -19,6 +19,7 @@ import { calculateOrderProfit } from '../utils/calculateProfit';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
 import CategoryIcon from '../components/CategoryIcon';
+import TransparentImg from '../components/TransparentImg';
 import localSync, { SYNC_EVENTS } from '../services/localSync';
 import {
   IoAdd,
@@ -1075,7 +1076,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
           }`}
         >
           <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-            <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
+            <TransparentImg src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
           </div>
           <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
           <p className="text-gray-500 text-[11px] font-black mt-0.5">{sz.label}</p>
@@ -1112,7 +1113,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
       >
         <div>
           <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-            <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
+            <TransparentImg src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
           </div>
           <p className="text-gray-900 font-bold text-sm truncate leading-snug text-right mb-3">{p.name}</p>
         </div>
@@ -1165,7 +1166,7 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
       }`}
     >
       <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-        <img src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
+        <TransparentImg src={p.image || fallbackImg(p.category)} alt={p.name} className="w-full h-full object-cover" />
       </div>
       <p className="text-gray-900 font-bold text-sm truncate leading-snug">{p.name}</p>
       <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(p.price)}</p>
@@ -1420,7 +1421,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
                           }`}
                         >
                           <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-                            <img src={img} alt={offer.title} className="w-full h-full object-cover" />
+                            <TransparentImg src={img} alt={offer.title} className="w-full h-full object-cover" />
                           </div>
                           <p className="text-gray-900 font-bold text-sm truncate leading-snug">{offer.title}</p>
                           <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(offer.offerPrice)}</p>

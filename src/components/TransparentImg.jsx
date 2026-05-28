@@ -2,25 +2,33 @@ import { useEffect, useState } from 'react';
 
 const cache = new Map();
 
+function fixLocalPath(src) {
+  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
+    return `.${src}`;
+  }
+  return src;
+}
+
 function processImage(src) {
-  if (!src) return Promise.resolve(src);
-  if (cache.has(src)) return cache.get(src);
+  const correctedSrc = fixLocalPath(src);
+  if (!correctedSrc) return Promise.resolve(correctedSrc);
+  if (cache.has(correctedSrc)) return cache.get(correctedSrc);
 
   const promise = new Promise((resolve) => {
     const img = new Image();
     
     // Check if the source is a remote URL
-    const isRemote = typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'));
+    const isRemote = typeof correctedSrc === 'string' && (correctedSrc.startsWith('http://') || correctedSrc.startsWith('https://'));
     
     if (isRemote) {
       // Set crossOrigin BEFORE src
       img.crossOrigin = 'anonymous';
       
       // Append cache-buster so a CORS failure on this test request does NOT poison the cache of the main URL
-      const separator = src.includes('?') ? '&' : '?';
-      img.src = `${src}${separator}cors_bypass=${Date.now()}`;
+      const separator = correctedSrc.includes('?') ? '&' : '?';
+      img.src = `${correctedSrc}${separator}cors_bypass=${Date.now()}`;
     } else {
-      img.src = src;
+      img.src = correctedSrc;
     }
 
     img.onload = () => {
@@ -56,17 +64,17 @@ function processImage(src) {
         resolve(canvas.toDataURL('image/png'));
       } catch {
         // Safe fallback in case of canvas taint (CORS issue)
-        resolve(src);
+        resolve(correctedSrc);
       }
     };
 
     img.onerror = () => {
       // Safe fallback if loading the cache-busted URL fails due to CORS
-      resolve(src);
+      resolve(correctedSrc);
     };
   });
 
-  cache.set(src, promise);
+  cache.set(correctedSrc, promise);
   return promise;
 }
 

@@ -13,6 +13,25 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const OFFERS_COL = 'special_offers';
 
+function fixLocalPath(src) {
+  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
+    return `.${src}`;
+  }
+  return src;
+}
+
+function processOffer(offer) {
+  if (!offer) return offer;
+  return {
+    ...offer,
+    image: fixLocalPath(offer.image),
+    items: (offer.items || []).map(item => ({
+      ...item,
+      image: fixLocalPath(item.image),
+    })),
+  };
+}
+
 function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -85,7 +104,7 @@ function cleanOfferData(offerData) {
 
 export async function getAllSpecialOffers() {
   const snapshot = await getDocs(collection(db, OFFERS_COL));
-  return sortOffers(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  return sortOffers(snapshot.docs.map(d => processOffer({ id: d.id, ...d.data() })));
 }
 
 export async function getActiveSpecialOffers() {
@@ -96,7 +115,7 @@ export async function getActiveSpecialOffers() {
 export async function getSpecialOffer(offerId) {
   const docSnap = await getDoc(doc(db, OFFERS_COL, offerId));
   if (!docSnap.exists()) return null;
-  return { id: docSnap.id, ...docSnap.data() };
+  return processOffer({ id: docSnap.id, ...docSnap.data() });
 }
 
 export async function addSpecialOffer(offerData) {

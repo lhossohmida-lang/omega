@@ -4,7 +4,13 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.exe",
+      "dist/**/*.exe",
+      "dist/omega-installer.exe",
+      "**/*.apk",
+      "dist/**/*.apk",
+      "dist/omega-app.apk"
     ],
     "rewrites": [
       {
