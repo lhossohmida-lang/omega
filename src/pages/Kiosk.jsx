@@ -57,6 +57,16 @@ export default function Kiosk() {
   // خيار طريقة الدفع المختار وحالة المعالجة
   const [paymentMethod, setPaymentMethod] = useState(null); // 'ccp' or 'cash'
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [paymentSimulating, setPaymentSimulating] = useState(false);
+  const [simulatedPinEntered, setSimulatedPinEntered] = useState(true);
+
+  const startPaymentSimulation = () => {
+    setPaymentSimulating(true);
+    setPaymentMethod('ccp');
+    setTimeout(() => {
+      handleCcpSuccess();
+    }, 1800);
+  };
 
   // تحميل المنتجات من Firebase (نفس مصدر البيانات المستخدم في واجهة الإدارة)
   useEffect(() => {
@@ -203,6 +213,8 @@ export default function Kiosk() {
     setNote('');
     setIsReceiptReady(false);
     setPaymentMethod(null);
+    setPaymentSimulating(false);
+    setSimulatedPinEntered(true);
     setPhase(1);
   };
 
