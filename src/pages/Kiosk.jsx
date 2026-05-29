@@ -391,34 +391,86 @@ export default function Kiosk() {
           المرحلة 1: شاشة الترحيب (WelcomeScreen)
           ======================================================= */}
       {phase === 1 && (
-        <div className="absolute inset-0 bg-particles flex flex-col justify-between items-center py-16 px-6 z-10 animate-fadeIn animate-duration-300">
-          <div className="flex flex-col items-center mt-6 text-center">
-            {/* اللوغو في المقدمة تماماً ويكون واضح وكبير جداً ومشع */}
-            <div className="w-60 h-60 md:w-72 md:h-72 bg-white rounded-full p-5 shadow-[0_0_60px_rgba(234,179,8,0.5)] flex items-center justify-center mb-8 border-4 border-yellow-400 hover:rotate-6 transition-transform duration-500 transform hover:scale-105">
-              <img src="/logo.png" alt="OMEGA Logo" className="w-full h-full object-contain filter drop-shadow-lg" />
+        <div className="absolute inset-0 bg-[#faf9f6] flex flex-col justify-between items-center py-10 px-6 z-10 animate-fadeIn animate-duration-300 overflow-hidden font-['Cairo'] text-gray-900 select-none">
+          {/* خلفيات المنحنيات المموجة طبق الأصل من الصورة */}
+          <div className="absolute -top-24 -right-24 w-80 h-80 bg-gradient-to-br from-red-600 to-red-700 rounded-full opacity-95 pointer-events-none z-0"></div>
+          <div className="absolute -top-16 -left-16 w-60 h-60 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full opacity-90 pointer-events-none z-0"></div>
+          <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full opacity-95 pointer-events-none z-0"></div>
+          <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-gradient-to-br from-red-650 to-red-700 rounded-full opacity-95 pointer-events-none z-0"></div>
+
+          {/* زينة الأطعمة الجانبية */}
+          <div className="absolute left-[-80px] bottom-[15%] w-72 h-72 opacity-90 pointer-events-none z-0 hover:rotate-3 transition-transform duration-700">
+            <img src="/pizza-pepperoni.png" alt="Pizza Tray" className="w-full h-full object-contain filter drop-shadow-2xl" />
+          </div>
+          <div className="absolute right-[-100px] top-[25%] w-80 h-80 opacity-90 pointer-events-none z-0 rotate-12 hover:rotate-6 transition-transform duration-700">
+            <img src="/pizza-pepperoni.png" alt="Pizza Slice" className="w-full h-full object-contain filter drop-shadow-2xl" />
+          </div>
+
+          {/* المحتوى الرئيسي */}
+          <div className="flex flex-col items-center mt-6 text-center z-10">
+            {/* اللوغو الدائري المذهل */}
+            <div className="w-52 h-52 md:w-60 h-60 bg-white rounded-full p-4 shadow-2xl flex items-center justify-center mb-6 border-[8px] border-yellow-450 relative hover:scale-[1.03] hover:rotate-3 transition-all duration-500">
+              <img src="/logo.png" alt="OMEGA Logo" className="w-full h-full object-contain" />
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-black mb-4 tracking-tight leading-tight text-white">
-              مرحباً بك في <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-white to-yellow-400">OMEGA</span>
+            <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight text-gray-900">
+              مرحباً بك في <span className="text-red-600">OMEGA</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-200 font-light max-w-lg leading-relaxed">
-              الطعم الذي تعشقه بلمسة زر واحدة. اختر، ادفع، واستمتع بوجبتك الساخنة!
+            <p className="text-lg md:text-xl text-gray-600 font-extrabold max-w-lg mb-1 leading-relaxed">
+              الطعم الذي تعشقه بلمسة <span className="text-red-600 border-b-2 border-red-500/20">واحدة</span>.
+            </p>
+            <p className="text-lg md:text-xl text-gray-600 font-extrabold max-w-lg leading-relaxed">
+              اختر ادفع، واستمتع بوجبتك <span className="text-yellow-500 border-b-2 border-yellow-450/20">الساخنة</span>!
             </p>
           </div>
 
-          <button
-            onClick={() => setPhase(2)}
-            className="pulse-btn w-64 h-64 rounded-full bg-gradient-to-tr from-red-600 to-yellow-500 hover:from-red-700 hover:to-yellow-650 flex flex-col items-center justify-center text-white font-extrabold text-3xl shadow-[0_0_40px_rgba(220,38,38,0.6)] transition-all duration-300 transform active:scale-95 cursor-pointer select-none"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-14 h-14 mb-2 animate-bounce text-white">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-6 6m0 0l-6-6m6 6V9a9 9 0 0118 0v12" />
-            </svg>
-            <span className="text-white drop-shadow-md">اضغط للبدء</span>
-            <span className="text-sm font-medium text-white/95 mt-1">ابدأ طلبك الآن</span>
-          </button>
+          {/* زر الترحيب التفاعلي الضخم */}
+          <div className="flex flex-col items-center gap-4 z-10 my-4">
+            <button
+              onClick={() => setPhase(2)}
+              className="flex items-center gap-4 px-12 py-5 rounded-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-black text-3xl shadow-2xl hover:scale-[1.04] active:scale-95 transition-all duration-300 border-[5px] border-yellow-400 cursor-pointer shadow-red-600/30"
+            >
+              <div className="w-12 h-12 rounded-full bg-white text-red-600 flex items-center justify-center shadow-inner font-black text-2xl">
+                ↓
+              </div>
+              <span>اضغط للبدء</span>
+            </button>
 
-          <div className="text-yellow-400 text-sm font-black tracking-wide bg-red-650/30 px-6 py-2 rounded-full border border-red-500/20">
-            شاشة طلب ذاتي ذكية وآمنة 100% 🛡️
+            {/* خطوط ذهبية مميزة */}
+            <div className="flex items-center gap-4 text-gray-500 mt-1 font-bold">
+              <div className="w-10 h-[2.5px] bg-yellow-400 rounded-full"></div>
+              <span className="text-red-950 text-sm tracking-widest font-black">ابدأ طلبك الآن</span>
+              <div className="w-10 h-[2.5px] bg-yellow-400 rounded-full"></div>
+            </div>
+          </div>
+
+          {/* البانر السفلي للخصائص */}
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-gray-150 py-4 px-8 flex justify-around items-center z-10">
+            <div className="flex items-center gap-3 text-right">
+              <span className="text-red-600 text-3xl">🍽️</span>
+              <div>
+                <p className="text-gray-900 font-black text-sm">طازجة دائماً</p>
+              </div>
+            </div>
+            <div className="h-8 w-[1.5px] bg-gray-250"></div>
+            <div className="flex items-center gap-3 text-right">
+              <span className="text-red-600 text-3xl">🏍️</span>
+              <div>
+                <p className="text-gray-900 font-black text-sm">توصيل سريع</p>
+              </div>
+            </div>
+            <div className="h-8 w-[1.5px] bg-gray-250"></div>
+            <div className="flex items-center gap-3 text-right">
+              <span className="text-yellow-500 text-3xl">🏅</span>
+              <div>
+                <p className="text-gray-900 font-black text-sm">جودة 100%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 z-10 flex items-center gap-2 bg-red-950 text-yellow-400 text-xs font-black tracking-wide px-6 py-2 rounded-full border border-red-800 shadow-md">
+            <span>🛡️</span>
+            <span>شاشة طلب ذكية وآمنة 100%</span>
           </div>
         </div>
       )}
@@ -427,65 +479,101 @@ export default function Kiosk() {
           المرحلة 2: اختيار طريقة الاستلام (OrderTypeScreen)
           ======================================================= */}
       {phase === 2 && (
-        <div className="absolute inset-0 bg-[#141414] flex flex-col z-10 animate-fadeIn animate-duration-300">
-          {/* شريط علوي بسيط للعودة */}
-          <div className="p-6 flex justify-between items-center border-b border-white/5 bg-[#1c0202]">
-            <button 
-              onClick={() => setPhase(1)}
-              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-lg cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-              <span>رجوع</span>
-            </button>
-            <span className="text-xl font-bold text-yellow-400 font-sans">خطوة 1 من 4</span>
+        <div className="absolute inset-0 bg-[#faf9f6] flex flex-col justify-between p-6 z-10 animate-fadeIn animate-duration-300 overflow-hidden font-['Cairo'] text-gray-900 select-none">
+          {/* منحنيات الخلفية من الصورة تماماً */}
+          {/* المنحنى الأحمر الجانبي الأيمن */}
+          <div className="absolute right-0 top-0 bottom-0 w-[140px] pointer-events-none z-0 overflow-hidden">
+            <svg viewBox="0 0 100 200" className="h-full w-full object-cover" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M100 0 C 35 50, 45 150, 100 200 Z" fill="#dc2626" />
+              <path d="M100 15 C 50 65, 55 135, 100 185 Z" fill="#b91c1c" opacity="0.3" />
+            </svg>
+          </div>
+          {/* المنحنى الأصفر الجانبي الأيسر السفلي */}
+          <div className="absolute left-0 bottom-0 w-[180px] h-[150px] pointer-events-none z-0 overflow-hidden">
+            <svg viewBox="0 0 180 150" className="h-full w-full" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 150 Q 75 125, 45 45 T 0 0 Z" fill="#facc15" />
+            </svg>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center items-center px-8 py-12">
-            <h2 className="text-4xl md:text-5xl font-black text-center mb-16 tracking-tight text-white">
-              أين ترغب في تناول وجبتك؟ 🍽️
-            </h2>
+          {/* شريط علوي بسيط للعودة */}
+          <div className="w-full flex justify-between items-center z-10 pb-4">
+            <button 
+              onClick={() => setPhase(1)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-gray-50 border border-gray-200 text-red-650 font-black text-sm shadow-sm transition-all cursor-pointer"
+            >
+              <span>←</span>
+              <span>رجوع</span>
+            </button>
+            <span className="px-5 py-2 rounded-full bg-yellow-400 text-gray-950 font-black text-sm shadow-sm">
+              خطوة 1 من 4
+            </span>
+          </div>
 
-            <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 flex-1 max-h-[500px]">
-              {/* خيار: أكل هنا */}
+          <div className="flex-1 flex flex-col justify-center items-center px-4 z-10">
+            {/* عنوان الواجهة مع الشوكة والملعقة والزخارف الصفراء */}
+            <div className="flex items-center gap-3 mb-12">
+              <span className="text-yellow-500 text-2xl animate-pulse">⚡</span>
+              <span className="text-3xl text-gray-500">🍽️</span>
+              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 text-center">
+                أين ترغب في تناول وجبتك؟
+              </h2>
+              <span className="text-3xl text-gray-500">🍽️</span>
+              <span className="text-yellow-500 text-2xl animate-pulse">⚡</span>
+            </div>
+
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+              {/* خيار: أكل في المطعم */}
               <button
                 onClick={() => {
                   setOrderType('dine-in');
                   setPhase(3);
                 }}
-                className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#2a1212] to-[#140505] border-2 border-white/5 hover:border-yellow-400 hover:shadow-[0_0_50px_rgba(234,179,8,0.25)] flex flex-col justify-center items-center p-8 transition-all duration-500 transform hover:-translate-y-2 cursor-pointer text-center"
+                className="group rounded-3xl bg-white border border-gray-150 hover:border-yellow-450 hover:shadow-2xl flex flex-col justify-between items-center p-8 transition-all duration-350 cursor-pointer text-center relative shadow-md min-h-[360px]"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-bl-full group-hover:bg-yellow-400/10 transition-colors"></div>
-                <div className="w-32 h-32 bg-yellow-450/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                  <span className="text-7xl group-hover:animate-bounce">🍽️</span>
+                {/* الأيقونة داخل دائرة صفراء */}
+                <div className="w-28 h-28 bg-yellow-400 rounded-full flex items-center justify-center mb-6 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                  <span className="text-5xl">🍽️</span>
                 </div>
-                <h3 className="text-3xl font-black text-white mb-3">أكل في المطعم</h3>
-                <p className="text-gray-300 text-lg max-w-xs">
-                  استمتع بوجبتك الساخنة طازجة داخل صالة الطعام المريحة لدينا.
-                </p>
-                <span className="mt-8 px-6 py-2.5 rounded-full bg-white/5 text-yellow-400 font-bold group-hover:bg-yellow-400 group-hover:text-red-950 transition-all duration-300">
+                
+                <div className="flex-1 flex flex-col justify-center">
+                  <h3 className="text-2xl font-black text-red-950 mb-3">أكل في المطعم</h3>
+                  <p className="text-gray-500 text-sm max-w-xs leading-relaxed font-bold">
+                    استمتع بوجبتك الشهية طازجة داخل صالة المطعم المريحة لدينا.
+                  </p>
+                </div>
+                
+                {/* خط فاصل منقط وزر الاختيار */}
+                <div className="w-full border-t border-dashed border-gray-250 my-6"></div>
+                
+                <span className="px-8 py-2.5 rounded-full bg-yellow-400 text-gray-950 font-black text-sm group-hover:bg-yellow-450 transition-colors shadow-md">
                   اختيار الخدمة
                 </span>
               </button>
 
-              {/* خيار: يـؤخذ معه */}
+              {/* خيار: سفري / للمنازل */}
               <button
                 onClick={() => {
                   setOrderType('takeaway');
                   setPhase(3);
                 }}
-                className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#2a1212] to-[#140505] border-2 border-white/5 hover:border-red-500 hover:shadow-[0_0_50px_rgba(220,38,38,0.25)] flex flex-col justify-center items-center p-8 transition-all duration-500 transform hover:-translate-y-2 cursor-pointer text-center"
+                className="group rounded-3xl bg-white border border-gray-150 hover:border-yellow-450 hover:shadow-2xl flex flex-col justify-between items-center p-8 transition-all duration-350 cursor-pointer text-center relative shadow-md min-h-[360px]"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-red-650/5 rounded-bl-full group-hover:bg-red-650/10 transition-colors"></div>
-                <div className="w-32 h-32 bg-red-650/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                  <span className="text-7xl group-hover:animate-bounce">🥡</span>
+                {/* الأيقونة داخل دائرة صفراء */}
+                <div className="w-28 h-28 bg-yellow-400 rounded-full flex items-center justify-center mb-6 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                  <span className="text-5xl">🥡</span>
                 </div>
-                <h3 className="text-3xl font-black text-white mb-3">سفري / للمنزل</h3>
-                <p className="text-gray-300 text-lg max-w-xs">
-                  سنقوم بتغليف وجبتك بشكل محكم ومثالي لتأخذها معك أينما تشاء.
-                </p>
-                <span className="mt-8 px-6 py-2.5 rounded-full bg-white/5 text-red-400 font-bold group-hover:bg-red-600 group-hover:text-white transition-all duration-300">
+                
+                <div className="flex-1 flex flex-col justify-center">
+                  <h3 className="text-2xl font-black text-red-950 mb-3">سفري / للمنازل</h3>
+                  <p className="text-gray-500 text-sm max-w-xs leading-relaxed font-bold">
+                    سنقوم بتجهيز طلبك بشكل محكم ومثالي لتأخذه معك أينما تشاء.
+                  </p>
+                </div>
+                
+                {/* خط فاصل منقط وزر الاختيار */}
+                <div className="w-full border-t border-dashed border-gray-250 my-6"></div>
+                
+                <span className="px-8 py-2.5 rounded-full bg-yellow-400 text-gray-950 font-black text-sm group-hover:bg-yellow-450 transition-colors shadow-md">
                   اختيار الخدمة
                 </span>
               </button>
