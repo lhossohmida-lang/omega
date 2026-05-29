@@ -725,8 +725,8 @@ export default function Kiosk() {
             </div>
           </div>
 
-          {/* قاع: ملاحظة + الإجمالي + الإرسال */}
-          <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50 space-y-2">
+          {/* قاع: ملاحظة فقط */}
+          <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50">
             <textarea
               value={note}
               onChange={e => setNote(e.target.value)}
@@ -734,21 +734,21 @@ export default function Kiosk() {
               rows={1}
               className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right resize-none focus:border-red-500/50"
             />
-            {cartItemCount > 0 && (
-              <div className="flex items-center justify-between rounded-2xl bg-yellow-400/10 border border-yellow-400/35 px-4 py-2.5">
-                <span className="text-red-600 font-black text-xl">{formatCurrency(cartTotal)}</span>
-                <span className="text-gray-700 text-sm font-bold">{cartItemCount} صنف</span>
-              </div>
-            )}
+          </div>
+
+          {/* زر تأكيد الطلب الدائري العائم */}
+          {cartItemCount > 0 && (
             <button
               type="button"
-              onClick={() => { if (cartItemCount > 0) setPhase(3.5); }}
-              disabled={cartItemCount === 0}
-              className="w-full rounded-2xl bg-gradient-to-l from-red-600 to-yellow-500 hover:from-red-700 hover:to-yellow-600 text-white font-black text-xl shadow-lg shadow-red-600/20 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              onClick={() => setPhase(3.5)}
+              style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999, width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #dc2626, #eab308)', boxShadow: '0 8px 32px rgba(220,38,38,0.45)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff', cursor: 'pointer', animation: 'float-btn 2s ease-in-out infinite' }}
             >
-              تأكيد الطلب وإنشائه ✓
+              <style>{`@keyframes float-btn { 0%,100%{transform:translateX(-50%) translateY(0);box-shadow:0 8px 32px rgba(220,38,38,0.45);} 50%{transform:translateX(-50%) translateY(-6px);box-shadow:0 16px 40px rgba(220,38,38,0.6);} }`}</style>
+              <span style={{ fontSize: '20px', lineHeight: 1 }}>✓</span>
+              <span style={{ fontSize: '9px', fontWeight: 900, color: '#fff', marginTop: '2px', textAlign: 'center', lineHeight: 1.2 }}>تأكيد<br/>الطلب</span>
+              {cartItemCount > 0 && <span style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#eab308', color: '#000', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 900, border: '2px solid #fff' }}>{cartItemCount}</span>}
             </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -756,304 +756,188 @@ export default function Kiosk() {
           المرحلة 3.5: اختيار طريقة الدفع (PaymentMethodSelectionScreen)
           ======================================================= */}
       {phase === 3.5 && (
-        <div className="absolute inset-0 bg-[#141414] flex flex-col z-10 animate-fadeIn animate-duration-300">
-          {/* شريط علوي بسيط للعودة */}
-          <div className="p-6 flex justify-between items-center border-b border-white/5 bg-[#1c0202]">
-            <button 
-              onClick={() => setPhase(3)}
-              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-lg cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-              <span>رجوع لتعديل الطلب</span>
+        <div className="absolute inset-0 bg-[#faf9f6] flex flex-col z-10 animate-fadeIn animate-duration-300 font-['Cairo']" dir="rtl">
+          {/* منحنيات الخلفية */}
+          <div className="absolute right-0 top-0 bottom-0 w-[120px] pointer-events-none z-0 overflow-hidden">
+            <svg viewBox="0 0 100 200" className="h-full w-full" preserveAspectRatio="none" fill="none"><path d="M100 0 C 35 50, 45 150, 100 200 Z" fill="#dc2626" /></svg>
+          </div>
+          <div className="absolute left-0 bottom-0 w-[160px] h-[130px] pointer-events-none z-0 overflow-hidden">
+            <svg viewBox="0 0 160 130" className="h-full w-full" preserveAspectRatio="none" fill="none"><path d="M0 130 Q 70 110, 40 40 T 0 0 Z" fill="#facc15" /></svg>
+          </div>
+
+          {/* شريط علوي */}
+          <div className="w-full flex justify-between items-center px-6 pt-5 pb-2 z-10">
+            <button onClick={() => setPhase(3)} className="flex items-center gap-2 text-red-600 font-black text-sm cursor-pointer hover:opacity-80">
+              <span>→</span><span>رجوع لتعديل الطلب</span>
             </button>
-            <span className="text-xl font-bold text-yellow-400 font-sans">خطوة 2 من 4</span>
+            <span className="px-4 py-1.5 rounded-full bg-yellow-400 text-gray-900 font-black text-sm">خطوة 2 من 4</span>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center items-center px-8 py-12">
-            <h2 className="text-4xl md:text-5xl font-black text-center mb-6 tracking-tight text-white">
-              اختر طريقة الدفع المناسبة 💳
-            </h2>
-            <p className="text-gray-400 text-lg text-center mb-16 max-w-xl">
-              يمكنك الدفع مباشرة بالبطاقة البنكية أو الدفع نقداً عند صندوق المحل
-            </p>
-
-            {submittingOrder ? (
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xl text-yellow-400 font-bold">جاري إرسال وتسجيل طلبك، يرجى الانتظار...</p>
+          {submittingOrder ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 z-10">
+              <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xl text-gray-800 font-bold">جاري إرسال وتسجيل طلبك، يرجى الانتظار...</p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center z-10 px-8 py-10">
+              {/* قسم طريقة الدفع فقط */}
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-3xl">💳</span>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900">اختر <span className="text-red-600">طريقة الدفع</span> المناسبة</h2>
               </div>
-            ) : (
-              <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 flex-1 max-h-[500px]">
-                {/* خيار: الدفع الإلكتروني بالبطاقة / CCP */}
-                <button
-                  onClick={() => setPhase(4)} // Goes to simulated scan screen then sends order to kitchen
-                  className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#2a1212] to-[#140505] border-2 border-white/5 hover:border-yellow-400 hover:shadow-[0_0_50px_rgba(234,179,8,0.25)] flex flex-col justify-center items-center p-8 transition-all duration-500 transform hover:-translate-y-2 cursor-pointer text-center"
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-bl-full group-hover:bg-yellow-400/10 transition-colors"></div>
-                  <div className="w-32 h-32 bg-yellow-450/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                    <span className="text-7xl group-hover:animate-bounce">💳</span>
-                  </div>
-                  <h3 className="text-3xl font-black text-white mb-3">الدفع CCP / البطاقة</h3>
-                  <p className="text-gray-300 text-lg max-w-xs leading-relaxed">
-                    الدفع الإلكتروني عبر البطاقة الذهبية أو البنكية. يرسل الطلب مباشرة إلى شاشة المطبخ للتجهيز الفوري.
-                  </p>
-                  <span className="mt-8 px-6 py-2.5 rounded-full bg-yellow-450/10 text-yellow-400 font-bold group-hover:bg-yellow-400 group-hover:text-red-950 transition-all duration-300">
-                    ادفع بالبطاقة الآن
-                  </span>
+              <p className="text-gray-500 text-sm font-bold mb-8 text-center">يمكنك الدفع مباشرةً بإضافة البطاقة البنكية أو الدفع نقداً عند صندوق المحل.</p>
+              <div className="w-full max-w-3xl grid grid-cols-2 gap-6 relative">
+                {/* صورة البيتزا الزخرفية */}
+                <div className="absolute -left-16 top-1/2 -translate-y-1/2 w-32 h-32 opacity-80 pointer-events-none">
+                  <img src="/pizza-pepperoni.png" alt="" className="w-full h-full object-contain drop-shadow-xl" />
+                </div>
+                {/* كاش */}
+                <button onClick={() => handleCashSuccess()} className="group rounded-3xl bg-white border-2 border-gray-200 hover:border-red-400 flex flex-col items-center p-6 transition-all cursor-pointer shadow-md hover:shadow-red-400/20">
+                  <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mb-4 shadow-inner"><span className="text-4xl">💵</span></div>
+                  <h3 className="text-lg font-black text-gray-900 mb-1">الدفع نقداً (كاش)</h3>
+                  <p className="text-gray-500 text-xs text-center leading-relaxed font-bold">ادفع لأحد الكاشير عند استلام الطلب أو لأحد مندوبينا عند توصيل الطلب.</p>
+                  <span className="mt-4 text-red-600 font-black text-sm hover:underline">الريح أكثر وادفع كاش</span>
                 </button>
-
-                {/* خيار: الدفع نقداً عند الصندوق */}
-                <button
-                  onClick={() => handleCashSuccess()}
-                  className="group relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#2a1212] to-[#140505] border-2 border-white/5 hover:border-red-500 hover:shadow-[0_0_50px_rgba(220,38,38,0.25)] flex flex-col justify-center items-center p-8 transition-all duration-500 transform hover:-translate-y-2 cursor-pointer text-center"
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-650/5 rounded-bl-full group-hover:bg-red-650/10 transition-colors"></div>
-                  <div className="w-32 h-32 bg-red-650/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                    <span className="text-7xl group-hover:animate-bounce">💵</span>
-                  </div>
-                  <h3 className="text-3xl font-black text-white mb-3">الدفع نقداً (كاش)</h3>
-                  <p className="text-gray-300 text-lg max-w-xs leading-relaxed">
-                    اطبع التذكرة الآن، وادفع نقداً عند الصندوق لتأكيد طلبك وتجهيزه عبر لوحة تحكم الإدارة.
-                  </p>
-                  <span className="mt-8 px-6 py-2.5 rounded-full bg-red-600/10 text-red-400 font-bold group-hover:bg-red-600 group-hover:text-white transition-all duration-300">
-                    اطبع التذكرة وادفع كاش
-                  </span>
+                {/* CCP */}
+                <button onClick={() => setPhase(4)} className="group rounded-3xl bg-white border-2 border-red-500 flex flex-col items-center p-6 transition-all cursor-pointer shadow-md hover:shadow-red-400/20">
+                  <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mb-4 shadow-inner"><span className="text-4xl">💳</span></div>
+                  <h3 className="text-lg font-black text-gray-900 mb-1">الدفع / البطاقة (CCP)</h3>
+                  <p className="text-gray-500 text-xs text-center leading-relaxed font-bold">ادفع إلكترونياً عبر بطاقتك الائتمانية أو الخصم المباشر بأمان تام وسهولة تامة. سريع، آمن وموثوق.</p>
+                  <span className="mt-4 text-red-600 font-black text-sm hover:underline">ادفع ببطاقتك الآن</span>
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
       {/* =======================================================
           المرحلة 4: شاشة الدفع (PaymentScreen) - الدفع عبر الـ TPE
           ======================================================= */}
       {phase === 4 && (
-        <div className="min-h-screen bg-[#141414] py-12 px-6 flex flex-col items-center justify-center animate-fadeIn animate-duration-300">
-          <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-            {/* جهة اليمين: ملخص الطلب والمنتجات الفعلي */}
-            <div className="lg:col-span-5 bg-[#1e1e1e] border border-white/5 rounded-3xl p-6 flex flex-col justify-between space-y-6">
-              <div>
-                <h3 className="text-xl font-black border-b border-white/5 pb-3">ملخص طلبك</h3>
-                
-                <div className="space-y-4 max-h-[350px] overflow-y-auto scrollbar-none pr-1 mt-4">
-                  {cartEntries.map((item) => (
-                    <div key={item.key} className="flex justify-between items-center text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-red-600">{item.quantity}x</span>
-                        <span className="text-gray-300 font-semibold">{item.name}</span>
-                        {item.selectedSize && (
-                          <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded uppercase">
-                            {item.selectedSize}
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-bold text-white">{item.price * item.quantity} د.ج</span>
-                    </div>
-                  ))}
-                </div>
+        <div className="min-h-screen bg-[#faf9f6] flex flex-col animate-fadeIn animate-duration-300 font-['Cairo']" dir="rtl">
+          {/* شريط العنوان العلوي */}
+          <div className="flex items-center justify-between px-8 py-4 border-b border-gray-200 bg-white">
+            <button onClick={() => setPhase(3.5)} className="flex items-center gap-2 text-red-600 font-black text-sm cursor-pointer hover:opacity-80">
+              <span>←</span><span>رجوع</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">💳</span>
+              <h1 className="text-xl font-black text-gray-900">الدفع / CCP</h1>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col lg:flex-row gap-6 px-8 py-6 max-w-5xl mx-auto w-full">
+            {/* اليسار: نموذج الدفع */}
+            <div className="flex-1 bg-white rounded-3xl shadow-md p-8 flex flex-col items-center text-center border border-gray-100">
+              <div className="flex items-center gap-3 mb-1 self-stretch justify-center border-b border-dashed border-gray-200 pb-4">
+                <span className="text-2xl">💳</span>
+                <h2 className="text-2xl font-black text-gray-900">الدفع / CCP</h2>
+              </div>
+              <p className="text-gray-500 text-sm font-bold mt-2 mb-6">استخدام بطاقات الذهبية أو لتأكيد الطلب</p>
+
+              {/* أيقونة القفل */}
+              <div className="w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                <span className="text-4xl">🔐</span>
               </div>
 
-              <div className="border-t border-white/5 pt-4 space-y-3.5 mt-auto">
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>نوع الاستلام</span>
-                  <span className="font-bold text-white">{orderType === 'dine-in' ? 'أكل في الصالة 🍽️' : 'سفري للأخذ 🥡'}</span>
-                </div>
-                {note && (
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>الملاحظة:</span>
-                    <span className="font-bold text-yellow-500 truncate max-w-[180px]">{note}</span>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">أدخل الرقم السري للبطاقة</h3>
+              <p className="text-red-600 font-black text-sm mb-1">خطوة 2: تأكيد الهوية</p>
+              <p className="text-gray-600 text-sm font-bold mb-1">
+                أدخل الرمز السري المتكون من 4 أرقام على لوحة مفاتيح{' '}
+                <span className="font-black">JI TPE</span>
+              </p>
+              <p className="text-gray-500 text-sm font-bold mb-6">المتوفر في جميع فروعنا من رصيدك.</p>
+
+              {/* مربعات الرمز السري */}
+              <div className="flex gap-4 justify-center mb-6">
+                {[0,1,2,3].map(idx => (
+                  <div key={idx} className={`w-14 h-14 border-2 rounded-2xl flex items-center justify-center text-2xl transition-all ${pinDigits.length > idx ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-white'}`}>
+                    {pinDigits.length > idx ? '●' : ''}
                   </div>
-                )}
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>رسوم التحضير والخدمة</span>
-                  <span className="font-bold text-white">{serviceFee} د.ج</span>
-                </div>
-                <div className="flex justify-between text-base font-black border-t border-white/5 pt-3">
-                  <span>المبلغ الإجمالي</span>
-                  <span className="text-xl text-yellow-400">{finalTotal} د.ج</span>
-                </div>
+                ))}
+              </div>
+
+              {/* لوحة الأرقام */}
+              <div className="grid grid-cols-3 gap-3 mb-4 w-full max-w-xs">
+                {[1,2,3,4,5,6,7,8,9].map(n => (
+                  <button key={n} onClick={() => handleKeypadPress(n.toString())} className="py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 font-black text-xl rounded-xl cursor-pointer transition-all active:scale-95">{n}</button>
+                ))}
+                <button onClick={handleClearPin} className="py-3 bg-red-100 hover:bg-red-200 text-red-600 font-black text-sm rounded-xl cursor-pointer transition-all">مسح</button>
+                <button onClick={() => handleKeypadPress('0')} className="py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 font-black text-xl rounded-xl cursor-pointer transition-all active:scale-95">0</button>
+                <button onClick={handlePinSubmit} className="py-3 bg-green-500 hover:bg-green-600 text-white font-black text-sm rounded-xl cursor-pointer transition-all">✓</button>
+              </div>
+
+              {/* زر تأكيد الدفع */}
+              <button
+                onClick={handlePinSubmit}
+                className="w-full max-w-xs py-4 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black text-lg rounded-2xl cursor-pointer flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+              >
+                <span>🔐</span>
+                <span>تأكيد الدفع</span>
+              </button>
+
+              <div className="flex items-center gap-2 mt-4 text-gray-500 text-xs font-bold">
+                <span>🛡️</span>
+                <span>تخضع المعاملة للرقابة والقبيل مباشرة</span>
               </div>
             </div>
 
-            {/* جهة اليسار: بطاقة وجهاز الدفع TPE الذكي والمطوّر */}
-            <div className="lg:col-span-7 bg-[#1e1e1e] border-2 border-yellow-400/30 rounded-3xl p-8 relative overflow-hidden shadow-2xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between mb-6 border-b border-white/5 pb-4">
-                  <div>
-                    <h3 className="text-2xl font-black text-white flex items-center gap-2">
-                      <span className="p-1 bg-yellow-400/10 rounded-lg text-lg">📟</span>
-                      جهاز الدفع الإلكتروني TPE / CCP
-                    </h3>
-                    <p className="text-gray-400 text-xs mt-1">الرجاء استخدام بطاقتك الذهبية أو CIB لتأكيد الطلب</p>
+            {/* اليمين: ملخص الطلب */}
+            <div className="w-full lg:w-80 bg-white rounded-3xl shadow-md border border-gray-100 flex flex-col overflow-hidden">
+              <div className="bg-red-600 px-6 py-4 flex items-center gap-2">
+                <span className="text-2xl">🛒</span>
+                <h3 className="text-white font-black text-lg">ملخص الطلب</h3>
+              </div>
+              <div className="flex-1 p-6 space-y-3 overflow-y-auto">
+                {cartEntries.map(item => (
+                  <div key={item.key} className="flex justify-between items-center text-sm">
+                    <span className="font-black text-gray-900">{item.quantity}x</span>
+                    <span className="text-gray-700 font-bold flex-1 mx-2">{item.name}</span>
+                    <span className="text-gray-900 font-black">{item.price * item.quantity} دج</span>
                   </div>
-                  <div className="bg-red-650 text-white font-extrabold px-3 py-1.5 rounded-xl text-[10px] flex items-center gap-1.5 shadow-md">
-                    <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
-                    <span>TPE متصل</span>
+                ))}
+              </div>
+              <div className="border-t border-gray-100 p-6 space-y-3">
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>نوع الاستلام</span>
+                  <div className="flex items-center gap-1">
+                    <span>🏪</span>
+                    <span className="font-bold text-gray-900">{orderType === 'dine-in' ? 'في المطعم' : 'سفري'}</span>
                   </div>
                 </div>
-
-                {/* جهاز TPE المحاكي بالكامل */}
-                <div className="flex flex-col md:flex-row items-center gap-6 bg-[#141414] p-6 rounded-2xl border border-white/5">
-                  
-                  {/* مجسم جهاز TPE بالـ CSS باللون الأحمر والمطعم بالذهبي */}
-                  <div className="w-48 bg-red-700 rounded-3xl p-4 border-4 border-yellow-400 shadow-[0_0_25px_rgba(220,38,38,0.5)] relative flex flex-col gap-3 shrink-0 transform hover:scale-105 transition-transform duration-300">
-                    {/* قارئ البطاقات من الأعلى */}
-                    <div className="w-36 h-2 bg-gray-800 rounded mx-auto mb-1"></div>
-                    
-                    {/* شاشة الـ TPE المضيئة باللون الأصفر الكلاسيكي */}
-                    <div className="w-full bg-yellow-350 text-red-950 font-mono p-3 rounded-lg border-2 border-red-900 h-24 flex flex-col justify-between text-[10px] font-bold leading-tight select-none shadow-inner">
-                      {tpeStep === 1 && (
-                        <>
-                          <div className="text-center font-bold tracking-wider text-xs border-b border-red-900/25 pb-1">OMEGA PAY</div>
-                          <div className="text-center mt-2 animate-pulse">أدخل البطاقة 💳</div>
-                          <div className="text-right text-xs mt-1 text-red-950/80">{finalTotal}.00 DZD</div>
-                        </>
-                      )}
-                      {tpeStep === 2 && (
-                        <>
-                          <div className="text-center border-b border-red-900/25 pb-1">أدخل الرمز السري</div>
-                          <div className="text-center text-lg tracking-widest mt-1">
-                            {pinDigits.split('').map(() => '*').join(' ') || '_ _ _ _'}
-                          </div>
-                          <div className="text-left text-[9px] text-red-950/70">اضغط OK للتأكيد</div>
-                        </>
-                      )}
-                      {tpeStep === 3 && (
-                        <>
-                          <div className="text-center font-bold">جاري الاتصال...</div>
-                          <div className="flex justify-center items-center mt-2">
-                            <span className="w-5 h-5 border-2 border-t-red-900 border-r-transparent border-b-red-900 border-l-transparent rounded-full animate-spin"></span>
-                          </div>
-                          <div className="text-center text-[8px] text-red-950/70 mt-1">يرجى الانتظار</div>
-                        </>
-                      )}
-                      {tpeStep === 4 && (
-                        <>
-                          <div className="text-center text-xs font-black text-green-950">عملية مقبولة ✓</div>
-                          <div className="text-center text-[8px] mt-1">تم سحب {finalTotal} د.ج</div>
-                          <div className="text-center font-bold mt-1 text-[9px] bg-green-950/10 rounded">شكراً لكم</div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* أزرار الـ TPE */}
-                    <div className="grid grid-cols-3 gap-1.5 mt-1 font-sans text-xs">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                        <button
-                          key={num}
-                          onClick={() => tpeStep === 2 && handleKeypadPress(num.toString())}
-                          className="py-1 bg-[#1e2022] hover:bg-[#343a40] text-gray-300 font-bold rounded shadow border-b-2 border-black active:bg-gray-700 cursor-pointer"
-                        >
-                          {num}
-                        </button>
-                      ))}
-                      {/* الزر الأحمر: إلغاء */}
-                      <button
-                        onClick={handleClearPin}
-                        className="py-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow border-b-2 border-red-900 active:scale-95 cursor-pointer text-[10px]"
-                      >
-                        إلغاء
-                      </button>
-                      {/* الزر 0 */}
-                      <button
-                        onClick={() => tpeStep === 2 && handleKeypadPress('0')}
-                        className="py-1 bg-[#1e2022] hover:bg-[#343a40] text-gray-300 font-bold rounded shadow border-b-2 border-black active:scale-95 cursor-pointer"
-                      >
-                        0
-                      </button>
-                      {/* الزر الأخضر: تأكيد */}
-                      <button
-                        onClick={handlePinSubmit}
-                        className="py-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded shadow border-b-2 border-green-900 active:scale-95 cursor-pointer text-[10px]"
-                      >
-                        موافق
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* التعليمات الجانبية للدفع الرقمي */}
-                  <div className="flex-1 space-y-4">
-                    {tpeStep === 1 && (
-                      <div className="space-y-2">
-                        <span className="text-gray-400 text-xs font-bold block">خطوة 1: البطاقة البنكية</span>
-                        <h4 className="text-lg font-black text-white">الرجاء إدخال بطاقتك الذهبية</h4>
-                        <p className="text-gray-400 text-xs leading-relaxed">
-                          أدخل بطاقة بريد الجزائر أو البطاقة البنكية CIB في قارئ البطاقات لجهاز الـ TPE المرفق بالكشك للبدء بالعملية تلقائياً.
-                        </p>
-                        <div className="pt-2">
-                          <button
-                            onClick={() => setTpeStep(2)}
-                            className="px-4 py-2 bg-gradient-to-r from-red-600 to-yellow-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer hover:shadow-lg transition-all animate-bounce"
-                          >
-                            محاكاة إدخال البطاقة 💳
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {tpeStep === 2 && (
-                      <div className="space-y-2">
-                        <span className="text-gray-400 text-xs font-bold block">خطوة 2: تأكيد الهوية</span>
-                        <h4 className="text-lg font-black text-white">أدخل الرقم السري للبطاقة</h4>
-                        <p className="text-gray-400 text-xs leading-relaxed">
-                          اكتب الرمز السري المتكون من 4 أرقام على لوحة مفاتيح الـ TPE لتفويض خصم مبلغ <span className="text-yellow-500 font-extrabold">{finalTotal} د.ج</span> من رصيدكم.
-                        </p>
-                        <div className="flex gap-2 justify-center py-1">
-                          {[1, 2, 3, 4].map((slot, idx) => (
-                            <div
-                              key={slot}
-                              className={`w-9 h-9 border-2 rounded-xl flex items-center justify-center font-extrabold text-lg transition-all ${
-                                pinDigits.length > idx 
-                                  ? 'border-yellow-450 bg-yellow-450/10 text-white' 
-                                  : 'border-white/10 bg-white/5 text-gray-500'
-                              }`}
-                            >
-                              {pinDigits.length > idx ? '●' : ''}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {tpeStep === 3 && (
-                      <div className="space-y-2 text-center md:text-right">
-                        <span className="text-gray-400 text-xs font-bold block">خطوة 3: التحقق</span>
-                        <h4 className="text-lg font-black text-white">جاري الاتصال بمركز معالجة البيانات...</h4>
-                        <p className="text-gray-400 text-xs leading-relaxed">
-                          الرجاء عدم نزع البطاقة البنكية أو فصل الجهاز حتى اكتمال المعاملة وطباعة التذكرة بنجاح.
-                        </p>
-                      </div>
-                    )}
-
-                    {tpeStep === 4 && (
-                      <div className="space-y-2">
-                        <span className="text-green-400 text-xs font-bold block">تم الدفع بنجاح ✓</span>
-                        <h4 className="text-lg font-black text-white">تمت الموافقة على الدفع الإلكتروني</h4>
-                        <p className="text-gray-400 text-xs leading-relaxed">
-                          تم استلام قيمة الفاتورة بنجاح. سنقوم الآن بتجهيز تذكرة الاستلام الخاصة بك وطلبك في المطبخ مباشرة!
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>رسوم التحضير والخدمة</span>
+                  <span className="font-bold text-gray-900">{serviceFee}.00 دج</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                  <span className="font-black text-gray-900 text-base">الإجمالي</span>
+                  <span className="font-black text-red-600 text-2xl">{finalTotal} دج</span>
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* أزرار الإجراءات للتحكم بالصفحات */}
-              <div className="mt-8 flex gap-4">
-                <button
-                  onClick={() => setPhase(3.5)}
-                  className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-2xl transition-colors cursor-pointer border border-white/5"
-                >
-                  تعديل طريقة الدفع
-                </button>
-                <button
-                  onClick={() => handleCcpSuccess()}
-                  className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-gray-400 font-semibold rounded-2xl transition-colors cursor-pointer border border-white/5 text-xs"
-                >
-                  تخطي المحاكاة والقبول مباشرة
-                </button>
+          {/* شريط المزايا السفلي */}
+          <div className="border-t border-gray-200 bg-white px-8 py-5 flex justify-around items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center"><span className="text-lg">🛡️</span></div>
+              <div>
+                <p className="font-black text-gray-900 text-sm">دفع آمن 100%</p>
+                <p className="text-gray-500 text-xs">جميع المعاملات محمية</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center"><span className="text-lg">⚡</span></div>
+              <div>
+                <p className="font-black text-red-600 text-sm">سريع وموثوق</p>
+                <p className="text-gray-500 text-xs">إتمام العملية في ثوان</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center"><span className="text-lg">🎧</span></div>
+              <div>
+                <p className="font-black text-red-600 text-sm">دعم فروعنا</p>
+                <p className="text-gray-500 text-xs">متوفر في جميع الفروع</p>
               </div>
             </div>
           </div>
