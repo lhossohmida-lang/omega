@@ -92,7 +92,7 @@ export function useTapNav() {
 }
 
 /* ────── الـ Component القديم — للتوافق مع الاستخدام الموجود ────── */
-export default function TapTransition({ active, onDone }) {
+export default function TapTransition({ active, onDone, durationMs = 2600, finishOnEnded = true }) {
   const videoRef   = useRef(null);
   const timerRef   = useRef(null);
   const onDoneRef  = useRef(onDone);
@@ -111,8 +111,8 @@ export default function TapTransition({ active, onDone }) {
     el.muted = true;
     const p = el.play();
     if (p?.catch) p.catch(() => finish());
-    timerRef.current = setTimeout(finish, 2600);
-  }, [active, finish]);
+    timerRef.current = setTimeout(finish, durationMs);
+  }, [active, durationMs, finish]);
 
   if (!active) return null;
 
@@ -131,11 +131,11 @@ export default function TapTransition({ active, onDone }) {
         ref={handleRef}
         src="/tap-transition.mp4"
         muted
-        playsInline
-        preload="auto"
-        disablePictureInPicture
-        onEnded={finish}
-        onError={finish}
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            onEnded={finishOnEnded ? finish : undefined}
+            onError={finish}
         style={{
           width: '100%',
           height: '100%',

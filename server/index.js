@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import chatHandler from '../api/admin-ai/chat.js';
 import executeHandler from '../api/admin-ai/execute-action.js';
+import tpeChargeHandler from '../api/payments/tpe/charge.js';
 import { printHtmlHandler, listPrintersHandler, printHealthHandler } from './print.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,7 @@ function wrap(handler) {
 
 app.post('/api/admin-ai/chat', aiLimiter, wrap(chatHandler));
 app.post('/api/admin-ai/execute-action', wrap(executeHandler));
+app.post('/api/payments/tpe/charge', wrap(tpeChargeHandler));
 
 // ─── خدمة الطباعة الصامتة ───
 app.post('/api/print', wrap(printHtmlHandler));
