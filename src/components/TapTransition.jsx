@@ -131,11 +131,11 @@ export default function TapTransition({ active, onDone, durationMs = 2600, finis
         ref={handleRef}
         src="/tap-transition.mp4"
         muted
-            playsInline
-            preload="auto"
-            disablePictureInPicture
-            onEnded={finishOnEnded ? finish : undefined}
-            onError={finish}
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        onEnded={finishOnEnded ? finish : undefined}
+        onError={finish}
         style={{
           width: '100%',
           height: '100%',
