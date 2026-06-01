@@ -3,6 +3,7 @@ import {
   resetOrdersData,
   subscribeToAllOrders,
   updateOrderStatus,
+  updateOrderPaymentStatus,
   confirmOrder,
   createAdminOrder,
   deleteOrder,
@@ -24,19 +25,14 @@ import localSync, { SYNC_EVENTS } from '../services/localSync';
 import {
   IoAdd,
   IoBagHandleOutline,
-  IoCallOutline,
-  IoCardOutline,
   IoCarOutline,
   IoCheckmarkCircleOutline,
   IoClose,
   IoDocumentTextOutline,
-  IoEllipsisVertical,
-  IoEyeOutline,
   IoFastFoodOutline,
   IoFilterOutline,
   IoList,
   IoLocationOutline,
-  IoNavigateCircleOutline,
   IoPersonOutline,
   IoReceiptOutline,
   IoRemove,
@@ -58,7 +54,28 @@ const statusConfig = {
 };
 
 function paymentLabel(order) {
-  return order.paymentMethod === 'card' ? 'بطاقة' : 'نقداً';
+  if (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') return 'بطاقة';
+  return 'نقداً';
+}
+
+function isOrderPaid(order) {
+  if (!order) return false;
+  if (order.paymentStatus === 'unpaid') return false;
+  if (order.paymentStatus === 'paid' || order.paymentStatus === 'completed') return true;
+  if (order.isPaid === true || order.paid === true) return true;
+  return (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') && order.paymentStatus !== 'unpaid';
+}
+
+function orderNumberLabel(order) {
+  return order.orderNumber != null
+    ? String(order.orderNumber).padStart(3, '0')
+    : `#${order.id?.slice(-4)}`;
+}
+
+function orderTypeLabel(order) {
+  if (order.orderType === 'delivery' || order.isDelivery) return order.driverNumber ? `توصيل · سائق ${order.driverNumber}` : 'توصيل';
+  if (order.orderType === 'takeout') return order.takeoutNumber ? `سفري · زبون ${order.takeoutNumber}` : 'سفري';
+  return order.tableNumber ? `طاولة ${order.tableNumber}` : 'داخل المطعم';
 }
 
 function displayStatus(order) {
@@ -69,10 +86,27 @@ function displayStatus(order) {
   return 'pending';
 }
 
-function nextAction(order) {
-  const s = displayStatus(order);
-  if (s === 'ready') return { key: 'delivered', label: 'تسليم', icon: IoCarOutline };
-  return null;
+function OrderSquare({ order, tone, onOpen }) {
+  const ds = displayStatus(order);
+  const config = statusConfig[ds] || statusConfig.pending;
+  const paid = isOrderPaid(order);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(order)}
+      className={`admin-order-square ${tone}`}
+      title="عرض تفاصيل الطلب"
+    >
+      <span className="admin-order-square-number">{orderNumberLabel(order)}</span>
+      <span className="admin-order-square-total">{formatCurrency(order.totalPrice)}</span>
+      <span className="admin-order-square-meta">{orderTypeLabel(order)}</span>
+      <span className="admin-order-square-foot">
+        <b style={{ color: config.color }}>{config.label}</b>
+        <em>{paid ? 'خالصة' : 'غير خالصة'}</em>
+      </span>
+    </button>
+  );
 }
 
 export default function AdminOrders() {
@@ -228,6 +262,24 @@ export default function AdminOrders() {
     }
   }
 
+  async function handlePaymentToggle(order, paid) {
+    if (!order?.id) return;
+    try {
+      await updateOrderPaymentStatus(order.id, paid);
+      const updates = {
+        paymentStatus: paid ? 'paid' : 'unpaid',
+        isPaid: paid,
+      };
+      setOrders(current => current.map(item => item.id === order.id ? { ...item, ...updates } : item));
+      setSelected(current => current?.id === order.id ? { ...current, ...updates } : current);
+      toast.success(paid ? 'تم تعليم الطلب كخالصة' : 'تم تعليم الطلب كغير خالصة');
+      localSync.emit(SYNC_EVENTS.ORDER_UPDATED, { orderId: order.id, paymentStatus: updates.paymentStatus });
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذر تحديث حالة الدفع');
+    }
+  }
+
   async function handleDeleteOrder(orderId) {
     const ok = confirm('هل تريد حذف هذا الطلب نهائياً؟');
     if (!ok) return;
@@ -263,7 +315,7 @@ export default function AdminOrders() {
       const result = await resetOrdersData();
       setSelected(null);
       setOrders([]);
-      toast.success(`تمت إعادة التعيين: ${result.deletedOrders} طلب`);
+      toast.success(`تمت إعادة التعيين: ${result.deletedOrders} طلب، وسيبدأ الترقيم من 1`);
     } catch (error) {
       console.error(error);
       toast.error('تعذرت إعادة تعيين البيانات');
@@ -282,6 +334,11 @@ export default function AdminOrders() {
         || order.customerPhone?.includes(value);
     });
   }, [orders, filter, search]);
+
+  const paymentGroups = useMemo(() => ({
+    paid: filteredOrders.filter(isOrderPaid),
+    unpaid: filteredOrders.filter(order => !isOrderPaid(order)),
+  }), [filteredOrders]);
 
   const counts = useMemo(() => ({
     all: orders.length,
@@ -410,142 +467,67 @@ export default function AdminOrders() {
           ))}
         </section>
 
-        <section>
-          <h2 className="mb-4 text-right text-2xl font-black text-white">أحدث الطلبات</h2>
+        <section className="admin-payment-board">
+          <div className="admin-payment-heading">
+            <div className="admin-payment-count paid">
+              الخالصة: {formatNumber(paymentGroups.paid.length)}
+            </div>
+            <h2>مربعات الطلبات حسب الدفع</h2>
+            <div className="admin-payment-count unpaid">
+              غير الخالصة: {formatNumber(paymentGroups.unpaid.length)}
+            </div>
+          </div>
 
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="h-28 rounded-[1.35rem] skeleton" />
-              ))}
+            <div className="admin-payment-split">
+              <div className="admin-payment-column paid">
+                {Array.from({ length: 6 }).map((__, index) => (
+                  <div key={index} className="h-28 rounded-xl skeleton" />
+                ))}
+              </div>
+              <div className="admin-payment-column unpaid">
+                {Array.from({ length: 6 }).map((__, index) => (
+                  <div key={index} className="h-28 rounded-xl skeleton" />
+                ))}
+              </div>
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="admin-glass rounded-[1.55rem] p-10 text-center text-omega-text-muted">
               لا توجد طلبات مطابقة
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredOrders.map(order => {
-                const ds = displayStatus(order);
-                const config = statusConfig[ds] || statusConfig.pending;
-                const action = nextAction(order);
-                const ActionIcon = action?.icon;
-                return (
-                  <article key={order.id} className="admin-glass p-3.5">
-                    <div className="grid gap-3 lg:grid-cols-[1.1fr_1.25fr_1fr_1.1fr] lg:items-center">
-                      <div className="flex items-center justify-between gap-3 border-b border-white/6 pb-3 lg:border-b-0 lg:border-l lg:pb-0 lg:pl-5">
-                        <div className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full bg-omega-orange" />
-                            <p className="text-xl font-black text-omega-orange">
-                              {order.orderNumber != null
-                                ? `رقم ${String(order.orderNumber).padStart(3, '0')}`
-                                : `#${order.id?.slice(-4)}`}
-                            </p>
-                          </div>
-                          <span
-                            className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold"
-                            style={{ color: config.color, backgroundColor: config.bg, borderColor: `${config.color}55` }}
-                          >
-                            {config.label}
-                            <config.icon size={18} />
-                          </span>
-                          <span
-                            className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black border"
-                            style={
-                              order.isDelivery
-                                ? { color: '#4ade80', background: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.4)' }
-                                : { color: '#fca5a5', background: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' }
-                            }
-                          >
-                            {order.isDelivery ? '🚗 توصيل' : '🍽️ داخل المطعم'}
-                          </span>
-                        </div>
-                      </div>
+            <div className="admin-payment-split">
+              <section className="admin-payment-column paid" dir="rtl">
+                <header>
+                  <span>خالصة</span>
+                  <b>{formatNumber(paymentGroups.paid.length)}</b>
+                </header>
+                {paymentGroups.paid.length ? (
+                  <div className="admin-order-square-grid">
+                    {paymentGroups.paid.map(order => (
+                      <OrderSquare key={order.id} order={order} tone="paid" onOpen={setSelected} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="admin-payment-empty">لا توجد طلبات خالصة</p>
+                )}
+              </section>
 
-                      <div className="text-right lg:border-l lg:border-white/6 lg:pl-5">
-                        <div className="mb-2 flex items-center justify-end gap-2 text-white">
-                          <p className="text-lg font-bold">{order.customerName || 'عميل'}</p>
-                          <IoPersonOutline className="text-omega-text-muted" />
-                        </div>
-                        <div className="flex items-center justify-end gap-2 text-omega-text-muted" dir="ltr">
-                          <span>{order.customerPhone || '---'}</span>
-                          <IoCallOutline />
-                        </div>
-                      </div>
-
-                      <div className="text-right lg:border-l lg:border-white/6 lg:pl-5">
-                        <p className="text-sm text-omega-text-muted">المبلغ الإجمالي</p>
-                        <p className="mt-1 text-2xl font-black text-white">{formatCurrency(order.totalPrice)}</p>
-                        <p className="mt-2 flex items-center justify-end gap-2 text-sm text-emerald-400">
-                          {paymentLabel(order)}
-                          <IoCardOutline />
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm text-omega-text-muted">
-                          <div className="flex items-center gap-2">
-                            <IoTimeOutline />
-                            {timeAgo(order.createdAt)}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelected(order)}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
-                            aria-label="عرض الطلب"
-                            title="عرض تفاصيل الطلب"
-                          >
-                            <IoEyeOutline size={22} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              printOrderTicket(order, { type: 'admin' });
-                              toast.success('تم إرسال تيكيت الإدارة للطباعة! 🖨️');
-                            }}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-omega-orange/35 bg-omega-orange/8 text-omega-orange transition-transform active:scale-95"
-                            aria-label="طباعة الطلب"
-                            title="طباعة تيكيت الطلب"
-                          >
-                            <IoReceiptOutline size={20} />
-                          </button>
-                          {ds === 'pending' ? (
-                            <button
-                              type="button"
-                              onClick={() => setRoutingOrder(order)}
-                              className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-omega-orange/40 bg-omega-orange/15 px-3 text-omega-orange text-sm font-black transition-transform active:scale-95"
-                              aria-label="تأكيد الطلب"
-                            >
-                              <IoNavigateCircleOutline size={20} />
-                              تأكيد
-                            </button>
-                          ) : action ? (
-                            <button
-                              type="button"
-                              onClick={() => handleStatusChange(order.id, action.key)}
-                              className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 transition-transform active:scale-95"
-                              aria-label={action.label}
-                            >
-                              <ActionIcon size={21} />
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/8 text-red-400 transition-transform active:scale-95"
-                            aria-label="حذف الطلب"
-                          >
-                            <IoTrashOutline size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              <section className="admin-payment-column unpaid" dir="rtl">
+                <header>
+                  <span>غير خالصة</span>
+                  <b>{formatNumber(paymentGroups.unpaid.length)}</b>
+                </header>
+                {paymentGroups.unpaid.length ? (
+                  <div className="admin-order-square-grid">
+                    {paymentGroups.unpaid.map(order => (
+                      <OrderSquare key={order.id} order={order} tone="unpaid" onOpen={setSelected} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="admin-payment-empty">كل الطلبات خالصة</p>
+                )}
+              </section>
             </div>
           )}
         </section>
@@ -601,7 +583,7 @@ export default function AdminOrders() {
           <button className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setSelected(null)} aria-label="إغلاق" />
           <div className="admin-glass relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-[1.8rem] p-6">
             <div className="mb-5 flex items-start justify-between">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSelected(null)}
                   className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-omega-text-muted transition-transform active:scale-95"
@@ -619,6 +601,28 @@ export default function AdminOrders() {
                 >
                   <IoReceiptOutline size={18} />
                   <span>طباعة تيكيت</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePaymentToggle(selected, !isOrderPaid(selected))}
+                  className={`flex h-11 items-center justify-center gap-1.5 rounded-2xl border px-4 text-sm font-black transition-transform active:scale-95 ${
+                    isOrderPaid(selected)
+                      ? 'border-red-500/35 bg-red-500/10 text-red-400'
+                      : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400'
+                  }`}
+                  title="تغيير حالة الدفع"
+                >
+                  <IoCheckmarkCircleOutline size={18} />
+                  <span>{isOrderPaid(selected) ? 'تعليم كغير خالصة' : 'تعليم كخالصة'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteOrder(selected.id)}
+                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/25 bg-red-500/10 text-red-400 transition-transform active:scale-95"
+                  title="حذف الطلب"
+                  aria-label="حذف الطلب"
+                >
+                  <IoTrashOutline size={19} />
                 </button>
               </div>
               <div className="text-right">
@@ -656,6 +660,28 @@ export default function AdminOrders() {
                 {selected.customerNote ? (
                   <p className="mt-2 text-right text-sm text-omega-text-muted">📝 {selected.customerNote}</p>
                 ) : null}
+              </div>
+
+              <div className="admin-control rounded-[1.25rem] p-4">
+                <div className="mb-3 flex items-center justify-end gap-2">
+                  <h4 className="font-black text-white">حالة الدفع</h4>
+                  <IoCheckmarkCircleOutline className={isOrderPaid(selected) ? 'text-emerald-400' : 'text-red-400'} />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span
+                    className={`inline-flex rounded-full border px-4 py-2 text-sm font-black ${
+                      isOrderPaid(selected)
+                        ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400'
+                        : 'border-red-500/35 bg-red-500/10 text-red-400'
+                    }`}
+                  >
+                    {isOrderPaid(selected) ? 'خالصة' : 'غير خالصة'}
+                  </span>
+                  <div className="text-right">
+                    <p className="text-sm text-omega-text-muted">طريقة الدفع</p>
+                    <p className="mt-1 text-lg font-black text-white">{paymentLabel(selected)}</p>
+                  </div>
+                </div>
               </div>
 
               <div className="admin-control rounded-[1.25rem] p-4">

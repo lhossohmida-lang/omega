@@ -370,6 +370,14 @@ export async function updateOrderStatus(orderId, status) {
   await updateDoc(doc(db, ORDERS_COL, orderId), updates);
 }
 
+export async function updateOrderPaymentStatus(orderId, paid) {
+  await updateDoc(doc(db, ORDERS_COL, orderId), {
+    paymentStatus: paid ? 'paid' : 'unpaid',
+    isPaid: Boolean(paid),
+    paidAt: paid ? serverTimestamp() : null,
+  });
+}
+
 // تأكيد الطلب من قبل الإدارة (تحويله إلى حالة "تحضير")
 // destination: 'table' | 'delivery'
 export async function confirmOrder(orderId, { destination = 'table', adminUid = null } = {}) {
@@ -523,11 +531,18 @@ export async function resetOrdersData() {
     }));
   }
 
+  await enqueue(batch => batch.set(
+    doc(db, COUNTERS_COL, ORDER_NUMBER_DOC),
+    { value: 0, updatedAt: serverTimestamp() },
+    { merge: true },
+  ));
+
   await commitBatchSafely(batchState);
 
   return {
     deletedOrders: ordersSnap.size,
     resetProducts: productsSnap.size,
+    resetOrderNumber: true,
   };
 }
 
