@@ -38,7 +38,7 @@ const payload = JSON.stringify({
   backgroundColor: '#f8f9fa',
   display: 'standalone',
   orientation: 'portrait',
-  startUrl: '/',
+  startUrl: '/?launch=kiosk',
   iconUrl: `${SITE_URL}/logo.png`,
   maskableIconUrl: `${SITE_URL}/logo.png`,
   versionCode: 1,

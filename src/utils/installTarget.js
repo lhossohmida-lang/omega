@@ -19,6 +19,12 @@ export const INSTALL_TARGETS = {
     buttonLabel: 'تحميل تطبيق العمال',
     path: '/worker',
   },
+  kiosk: {
+    key: 'kiosk',
+    label: 'تطبيق الكشك',
+    buttonLabel: 'تحميل تطبيق الكشك',
+    path: '/kiosk',
+  },
 };
 
 export function normalizeInstallTarget(target) {
@@ -28,6 +34,7 @@ export function normalizeInstallTarget(target) {
 export function getInstallTargetFromPath(pathname = '/') {
   if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/worker') || pathname.startsWith('/staff')) return 'worker';
+  if (pathname.startsWith('/kiosk')) return 'kiosk';
   return 'customer';
 }
 
@@ -38,6 +45,9 @@ export function saveInstallTarget(target) {
 }
 
 export function getSavedInstallTarget() {
+  if (window.Capacitor) {
+    return 'kiosk';
+  }
   try {
     return normalizeInstallTarget(localStorage.getItem(INSTALL_TARGET_KEY) || 'customer');
   } catch {
@@ -57,6 +67,7 @@ export function getLaunchTargetFromSearch(search = '') {
 
 export function isStandaloneApp() {
   return (
+    !!window.Capacitor ||
     window.matchMedia?.('(display-mode: standalone)').matches ||
     window.navigator.standalone === true
   );
