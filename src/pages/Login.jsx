@@ -46,7 +46,7 @@ export default function Login() {
       <div className="w-full max-w-md animate-slide-up">
         <div className="text-center mb-8">
           <div className="w-24 h-24 mx-auto rounded-full overflow-hidden bg-white flex items-center justify-center mb-4 shadow-lg shadow-omega-orange/20">
-            <img src="./logo.png?v=2" alt="OMEGA" className="w-full h-full object-cover" />
+            <img src="/logo.png?v=2" alt="OMEGA" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-black text-white mb-1">OMEGA</h1>
           <p className="text-omega-text-muted text-sm">دخول الإدارة والمطبخ</p>

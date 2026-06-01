@@ -1043,14 +1043,15 @@ function RoutingModal({ order, onClose, onConfirm }) {
 /* ─── Fallback Images for Categories ──────────────────────── */
 function fallbackImg(cat) {
   return {
-    burger: './burger-classic.png',
-    pizza:  './pizza-pepperoni.png',
-    tacos:  './tacos-wrap.png',
-    drinks: './drink-cola.png',
-    appetizers: './fried-chicken.png',
-    desserts: './dessert.png',
-    sofli: './sofli.png',
-  }[cat] || './burger-classic.png';
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/appetizer-gratin.png',
+    sofli: '/sofli.png',
+    box: '/burger-classic.png',
+  }[cat] || '/burger-classic.png';
 }
 
 /* ─── Product Tile (grid layout) ─────────────────────────── */
@@ -1189,6 +1190,11 @@ function ProductTile({ p, cart, addItem, removeItem, activeSize = 'all' }) {
   );
 }
 
+function isSellableProduct(product) {
+  if (product.hasSizes && product.sizes?.length > 0) return product.sizes.some(sz => Number(sz.price || 0) > 0);
+  return Number(product.price || 0) > 0;
+}
+
 /* ─── New Walk-in Order Modal ───────────────────────────── */
 function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
   const [cart, setCart] = useState({});
@@ -1202,21 +1208,20 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
 
   const CAT_META = {
     all:        { label: 'الكل',    emoji: '🍽️' },
-    offers:     { label: 'box',    emoji: '🏷️' },
     pizza:      { label: 'بيتزا',   emoji: '🍕' },
     burger:     { label: 'برغر',    emoji: '🍔' },
     tacos:      { label: 'تاكوس',   emoji: '🌮' },
-    drinks:     { label: 'مشروبات', emoji: '🥤' },
-    desserts:   { label: 'حلويات',  emoji: '🍰' },
-    appetizers: { label: 'مقبلات',  emoji: '🍟' },
     sofli:      { label: 'سوفلي',   emoji: '🥟', iconUrl: '/sofli-icon.png' },
+    box:        { label: 'box',     emoji: '📦' },
+    drinks:     { label: 'مشروبات', emoji: '🥤' },
+    appetizers: { label: 'مقبلات',  emoji: '🍟' },
+    desserts:   { label: 'حلويات',  emoji: '🍰' },
   };
 
-  const availableProducts = products.filter(p => p.isAvailable !== false);
+  const availableProducts = products.filter(p => p.isAvailable !== false && isSellableProduct(p));
   const existingCats = ['all',
-    ...(offers.length > 0 ? ['offers'] : []),
     ...Object.keys(CAT_META).filter(k =>
-      k !== 'all' && k !== 'offers' && availableProducts.some(p => p.category === k)
+      k !== 'all' && availableProducts.some(p => p.category === k)
     )
   ];
 
@@ -1410,7 +1415,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {offers.map(offer => {
                       const qty = offerCart[offer.id] || 0;
-                      const img = offer.image || offer.items?.find(i => i.image)?.image || './burger-classic.png';
+                      const img = offer.image || offer.items?.find(i => i.image)?.image || '/burger-classic.png';
                       return (
                         <button
                           key={offer.id}

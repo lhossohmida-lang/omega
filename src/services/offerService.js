@@ -14,8 +14,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 const OFFERS_COL = 'special_offers';
 
 function fixLocalPath(src) {
-  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
-    return `.${src}`;
+  if (typeof src === 'string' && src.startsWith('./')) {
+    return `/${src.slice(2)}`;
   }
   return src;
 }

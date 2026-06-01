@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 const cache = new Map();
 
 function fixLocalPath(src) {
-  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
-    return `.${src}`;
+  if (typeof src === 'string' && src.startsWith('./')) {
+    return `/${src.slice(2)}`;
   }
   return src;
 }

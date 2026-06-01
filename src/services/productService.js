@@ -8,17 +8,22 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 const PRODUCTS_COL = 'products';
 
 function fixLocalPath(src) {
-  if (typeof src === 'string' && src.startsWith('/') && !src.startsWith('//')) {
-    return `.${src}`;
+  if (typeof src === 'string' && src.startsWith('./')) {
+    return `/${src.slice(2)}`;
   }
   return src;
 }
 
 function processProduct(product) {
   if (!product) return product;
+  const sizes = Array.isArray(product.sizes)
+    ? product.sizes.filter(size => Number(size?.price || 0) > 0)
+    : [];
   return {
     ...product,
     image: fixLocalPath(product.image),
+    sizes,
+    hasSizes: product.hasSizes === true && sizes.length > 0,
   };
 }
 

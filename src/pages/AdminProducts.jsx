@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addProduct, deleteProduct, getAllProducts, updateProduct, uploadProductImage } from '../services/productService';
+import { deleteSpecialOffer, getAllSpecialOffers, patchSpecialOffer } from '../services/offerService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
@@ -18,6 +19,7 @@ import {
   IoTrashOutline,
   IoCube,
   IoLeaf,
+  IoPricetagOutline,
 } from 'react-icons/io5';
 import { getStatusMessage } from '../utils/businessHours';
 import toast from 'react-hot-toast';
@@ -26,11 +28,12 @@ const categories = {
   all: { label: 'الكل', emoji: '', color: '#ff6b00' },
   pizza: { label: 'بيتزا', emoji: '🍕', color: '#ff6b00' },
   burger: { label: 'برغر', emoji: '🍔', color: '#f59e0b' },
-  drinks: { label: 'مشروبات', emoji: '🥤', color: '#3b82f6' },
-  desserts: { label: 'حلويات', emoji: '🍰', color: '#ec4899' },
   tacos: { label: 'تاكوس', emoji: '🌮', color: '#22c55e' },
-  appetizers: { label: 'مقبلات', emoji: '🍟', color: '#a855f7' },
   sofli: { label: 'سوفلي', emoji: '🥟', iconUrl: '/sofli-icon.png', color: '#eab308' },
+  box: { label: 'box', emoji: '📦', color: '#f97316' },
+  drinks: { label: 'مشروبات', emoji: '🥤', color: '#3b82f6' },
+  appetizers: { label: 'مقبلات', emoji: '🍟', color: '#a855f7' },
+  desserts: { label: 'حلويات', emoji: '🍰', color: '#ec4899' },
 };
 
 const emptyForm = {
@@ -48,19 +51,89 @@ const emptyForm = {
 };
 
 const LOCAL_IMAGES = [
-  './burger-classic.png',
-  './pizza-pepperoni.png',
-  './tacos-wrap.png',
-  './drink-cola.png',
-  './fried-chicken.png',
-  './appetizer-gratin.png',
+  '/burger-classic.png',
+  '/pizza-pepperoni.png',
+  '/tacos-wrap.png',
+  '/drink-cola.png',
+  '/fried-chicken.png',
+  '/appetizer-gratin.png',
 ];
+
+function defaultImageForCategory(category) {
+  return {
+    burger: '/burger-classic.png',
+    pizza: '/pizza-pepperoni.png',
+    tacos: '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/appetizer-gratin.png',
+    sofli: '/sofli.png',
+    box: '/burger-classic.png',
+  }[category] || '/burger-classic.png';
+}
+
+function offerImage(offer) {
+  return offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png';
+}
+
+function offerItemsLabel(items = []) {
+  if (!items.length) return 'منتج box خاص';
+  return items.map(item => `${item.quantity || 1} ${item.productName || item.name}`).join(' + ');
+}
+
+function isPositivePrice(value) {
+  return Number(value || 0) > 0;
+}
+
+function sellableSizes(product) {
+  return product.hasSizes && Array.isArray(product.sizes)
+    ? product.sizes.filter(size => isPositivePrice(size?.price))
+    : [];
+}
+
+function hasSellableProductPrice(product) {
+  return sellableSizes(product).length > 0 || isPositivePrice(product.price);
+}
+
+function productDisplayPrice(product) {
+  const sizes = sellableSizes(product);
+  if (sizes.length) return Math.min(...sizes.map(size => Number(size.price)));
+  return Number(product.price || 0);
+}
+
+function ProductCardImage({ src, alt, categoryInfo }) {
+  const [errored, setErrored] = useState(false);
+
+  if (src && !errored) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="eager"
+        decoding="async"
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06] p-4">
+      <CategoryIcon
+        iconUrl={categoryInfo.iconUrl}
+        emoji={categoryInfo.emoji || '🍽️'}
+        className={categoryInfo.iconUrl ? 'h-full w-full object-contain' : 'text-8xl'}
+      />
+    </div>
+  );
+}
 
 function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onToggle, formatCurrency }) {
   const [expanded, setExpanded] = useState(false);
   const categoryInfo = categories[product.category] || categories.burger;
   const isBest = mostSoldId === product.id && (product.soldCount || 0) > 0;
   const available = product.isAvailable !== false;
+  const displayPrice = productDisplayPrice(product);
 
   return (
     <article
@@ -69,22 +142,11 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
       onClick={() => setExpanded(v => !v)}
     >
       {/* ── صورة كاملة ── */}
-      {product.image ? (
-        <img
-          src={product.image}
-          alt={product.name}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/[0.06] p-4">
-          <CategoryIcon
-            iconUrl={categoryInfo.iconUrl}
-            emoji={categoryInfo.emoji || '🍽️'}
-            className={categoryInfo.iconUrl ? 'h-full w-full object-contain' : 'text-8xl'}
-          />
-        </div>
-      )}
+      <ProductCardImage
+        src={product.image || defaultImageForCategory(product.category)}
+        alt={product.name}
+        categoryInfo={categoryInfo}
+      />
 
       {/* gradient دائم */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
@@ -109,7 +171,7 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
       {/* ── الوضع الافتراضي: اسم + سعر فقط ── */}
       <div className={`absolute bottom-0 left-0 right-0 p-3.5 transition-all duration-300 ${expanded ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
         <p className="text-right text-lg font-black text-white leading-tight">{product.name}</p>
-        <p className="text-right text-2xl font-black text-omega-orange mt-0.5">{formatCurrency(product.price)}</p>
+        <p className="text-right text-2xl font-black text-omega-orange mt-0.5">{formatCurrency(displayPrice)}</p>
       </div>
 
       {/* ── عند الضغط: لوحة تنزلق للأعلى ── */}
@@ -119,7 +181,7 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
       >
         {/* اسم وسعر */}
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xl font-black text-omega-orange">{formatCurrency(product.price)}</span>
+          <span className="text-xl font-black text-omega-orange">{formatCurrency(displayPrice)}</span>
           <h3 className="text-right text-base font-black text-white leading-tight">{product.name}</h3>
         </div>
 
@@ -163,9 +225,86 @@ function ProductCard({ product, categories, mostSoldId, onEdit, onDelete, onTogg
   );
 }
 
+function BoxOfferCard({ offer, onDelete, onToggle, formatCurrency }) {
+  const [expanded, setExpanded] = useState(false);
+  const available = offer.isActive !== false;
+  const categoryInfo = categories.box;
+
+  return (
+    <article
+      className="relative cursor-pointer overflow-hidden rounded-xl"
+      style={{ aspectRatio: '3 / 4' }}
+      onClick={() => setExpanded(v => !v)}
+    >
+      <ProductCardImage
+        src={offerImage(offer)}
+        alt={offer.title}
+        categoryInfo={categoryInfo}
+      />
+
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+
+      <div className="absolute left-3 top-3">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-black backdrop-blur-sm ${available ? 'bg-emerald-500/75 text-white' : 'bg-omega-red/75 text-white'}`}>
+          {available ? '● متاح' : '⏸ موقوف'}
+        </span>
+      </div>
+
+      <div className="absolute right-3 top-3">
+        <span className="inline-flex items-center gap-1 rounded-full bg-omega-orange/85 px-2.5 py-1 text-xs font-black text-white backdrop-blur-sm">
+          <IoPricetagOutline size={12} />
+          box
+        </span>
+      </div>
+
+      <div className={`absolute bottom-0 left-0 right-0 p-3.5 transition-all duration-300 ${expanded ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+        <p className="text-right text-lg font-black text-white leading-tight">{offer.title}</p>
+        <p className="text-right text-2xl font-black text-omega-orange mt-0.5">{formatCurrency(offer.offerPrice)}</p>
+      </div>
+
+      <div
+        className={`absolute bottom-0 left-0 right-0 rounded-b-xl bg-black/82 p-3.5 backdrop-blur-md transition-all duration-300 ease-out ${expanded ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-xl font-black text-omega-orange">{formatCurrency(offer.offerPrice)}</span>
+          <h3 className="text-right text-base font-black text-white leading-tight">{offer.title}</h3>
+        </div>
+
+        <p className="mb-3 line-clamp-2 text-right text-xs text-white/65">
+          {offer.description || offerItemsLabel(offer.items)}
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onToggle(offer)}
+            className={`flex-1 rounded-xl border py-2 text-sm font-black transition-all ${
+              available
+                ? 'border-omega-red/35 bg-omega-red/10 text-omega-red'
+                : 'border-emerald-500/35 bg-emerald-500/10 text-emerald-400'
+            }`}
+          >
+            {available ? 'إيقاف' : 'تفعيل'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(offer)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-omega-red/30 bg-omega-red/10 text-omega-red"
+            aria-label="حذف"
+          >
+            <IoTrashOutline size={19} />
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function AdminProducts() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [specialOffers, setSpecialOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -180,7 +319,26 @@ export default function AdminProducts() {
 
   async function loadProducts() {
     try {
-      setProducts(await getAllProducts());
+      let [productData, offersData] = await Promise.all([
+        getAllProducts(),
+        getAllSpecialOffers(),
+      ]);
+
+      const zeroPriceProducts = productData.filter(product => !hasSellableProductPrice(product));
+      const zeroPriceOffers = offersData.filter(offer => !isPositivePrice(offer.offerPrice));
+
+      if (zeroPriceProducts.length || zeroPriceOffers.length) {
+        await Promise.all([
+          ...zeroPriceProducts.map(product => deleteProduct(product.id)),
+          ...zeroPriceOffers.map(offer => deleteSpecialOffer(offer.id)),
+        ]);
+        productData = productData.filter(product => hasSellableProductPrice(product));
+        offersData = offersData.filter(offer => isPositivePrice(offer.offerPrice));
+        toast.success(`تم حذف ${formatNumber(zeroPriceProducts.length + zeroPriceOffers.length)} منتج بسعر صفر`);
+      }
+
+      setProducts(productData);
+      setSpecialOffers(offersData);
     } catch (error) {
       console.error(error);
       toast.error('تعذر جلب المنتجات');
@@ -228,12 +386,12 @@ export default function AdminProducts() {
       toast.error('يرجى إدخال اسم المنتج');
       return;
     }
-    if (!form.hasSizes && form.price === '') {
-      toast.error('يرجى إدخال سعر المنتج');
+    if (!form.hasSizes && !isPositivePrice(form.price)) {
+      toast.error('يرجى إدخال سعر أكبر من صفر');
       return;
     }
-    if (form.hasSizes && (form.lPrice === '' || form.xlPrice === '' || form.xxlPrice === '')) {
-      toast.error('يرجى إدخال سعر L وXL وXXL');
+    if (form.hasSizes && (!isPositivePrice(form.lPrice) || !isPositivePrice(form.xlPrice) || !isPositivePrice(form.xxlPrice))) {
+      toast.error('يرجى إدخال أسعار أكبر من صفر لكل الأحجام');
       return;
     }
 
@@ -312,6 +470,19 @@ export default function AdminProducts() {
     }
   }
 
+  async function handleOfferDelete(offer) {
+    if (!confirm(`هل تريد حذف "${offer.title}" من box؟`)) return;
+
+    try {
+      await deleteSpecialOffer(offer.id);
+      toast.success('تم حذف منتج box');
+      loadProducts();
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذر حذف منتج box');
+    }
+  }
+
   async function toggleAvailability(product) {
     try {
       await updateProduct(product.id, { isAvailable: product.isAvailable === false });
@@ -320,6 +491,17 @@ export default function AdminProducts() {
     } catch (error) {
       console.error(error);
       toast.error('تعذر تحديث الحالة');
+    }
+  }
+
+  async function toggleOfferAvailability(offer) {
+    try {
+      await patchSpecialOffer(offer.id, { isActive: offer.isActive === false });
+      toast.success(offer.isActive === false ? 'تم تفعيل منتج box' : 'تم إيقاف منتج box');
+      loadProducts();
+    } catch (error) {
+      console.error(error);
+      toast.error('تعذر تحديث حالة منتج box');
     }
   }
 
@@ -348,11 +530,27 @@ export default function AdminProducts() {
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
     return products.filter(product => {
+      if (!hasSellableProductPrice(product)) return false;
       if (category !== 'all' && product.category !== category) return false;
       if (!query) return true;
       return product.name?.toLowerCase().includes(query) || product.description?.toLowerCase().includes(query);
     });
   }, [products, search, category]);
+
+  const filteredOffers = useMemo(() => {
+    if (category !== 'all' && category !== 'box') return [];
+    const query = search.trim().toLowerCase();
+    return specialOffers.filter(offer => {
+      if (!isPositivePrice(offer.offerPrice)) return false;
+      if (!query) return true;
+      const itemNames = (offer.items || []).map(item => item.productName || item.name || '').join(' ');
+      return offer.title?.toLowerCase().includes(query)
+        || offer.description?.toLowerCase().includes(query)
+        || itemNames.toLowerCase().includes(query);
+    });
+  }, [specialOffers, search, category]);
+
+  const visibleItemsCount = filteredProducts.length + filteredOffers.length;
 
   const businessStatus = getStatusMessage();
 
@@ -417,8 +615,8 @@ export default function AdminProducts() {
           </button>
         </section>
 
-        <section className="mb-4 grid grid-cols-5 gap-1.5 sm:gap-2">
-          {Object.entries(categories).slice(0, 5).map(([key, item]) => {
+        <section className="mb-4 grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2 lg:grid-cols-9">
+          {Object.entries(categories).map(([key, item]) => {
             const active = category === key;
             return (
               <button
@@ -442,7 +640,7 @@ export default function AdminProducts() {
         <section className="admin-glass mb-4 p-4">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-omega-text-muted">ترتيب: الأكثر مبيعاً</p>
-            <h2 className="text-xl font-black text-white">جميع المنتجات ({formatNumber(filteredProducts.length)})</h2>
+            <h2 className="text-xl font-black text-white">جميع المنتجات ({formatNumber(visibleItemsCount)})</h2>
           </div>
 
           {loading ? (
@@ -451,7 +649,7 @@ export default function AdminProducts() {
                 <div key={index} className="skeleton rounded-[1.25rem]" style={{ aspectRatio: '3/4' }} />
               ))}
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : visibleItemsCount === 0 ? (
             <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-10 text-center text-omega-text-muted">
               لا توجد منتجات مطابقة
             </div>
@@ -466,6 +664,15 @@ export default function AdminProducts() {
                   onEdit={openEdit}
                   onDelete={handleDelete}
                   onToggle={toggleAvailability}
+                  formatCurrency={formatCurrency}
+                />
+              ))}
+              {filteredOffers.map(offer => (
+                <BoxOfferCard
+                  key={`offer_${offer.id}`}
+                  offer={offer}
+                  onDelete={handleOfferDelete}
+                  onToggle={toggleOfferAvailability}
                   formatCurrency={formatCurrency}
                 />
               ))}

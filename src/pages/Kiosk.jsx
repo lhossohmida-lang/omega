@@ -27,6 +27,7 @@ import {
   IoTrashOutline,
 } from 'react-icons/io5';
 import { getAllProducts } from '../services/productService';
+import { getActiveSpecialOffers } from '../services/offerService';
 import TransparentImg from '../components/TransparentImg';
 import TapTransition from '../components/TapTransition';
 import { createOrder, createAdminOrder, getOrder } from '../services/orderService';
@@ -41,8 +42,26 @@ const CAT_META = {
   desserts: { label: 'حلويات', icon: IoStarOutline },
   appetizers: { label: 'مقبلات', icon: IoFastFoodOutline },
   sofli: { label: 'سوفلي', icon: IoFastFoodOutline },
-  box: { label: 'بوكس', icon: IoBagHandleOutline },
+  box: { label: 'box', icon: IoBagHandleOutline },
 };
+
+const MENU_CATEGORY_ORDER = ['pizza', 'tacos', 'sofli', 'box', 'drinks'];
+const SINGLE_SIZE_VALUE = '__single_size__';
+
+function isPositivePrice(value) {
+  return Number(value || 0) > 0;
+}
+
+function sellableSizes(product) {
+  return product.hasSizes && Array.isArray(product.sizes)
+    ? product.sizes.filter((size) => isPositivePrice(size?.price))
+    : [];
+}
+
+function hasSellablePrice(product) {
+  const sizes = sellableSizes(product);
+  return sizes.length > 0 || isPositivePrice(product.price);
+}
 
 function fallbackImg(cat) {
   return {
@@ -55,6 +74,33 @@ function fallbackImg(cat) {
     sofli: '/sofli.png',
     box: '/burger-classic.png',
   }[cat] || '/pizza-pepperoni.png';
+}
+
+function offerImage(offer) {
+  return offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png';
+}
+
+function offerItemsLabel(items = []) {
+  if (!items.length) return 'منتج box خاص من OMEGA';
+  return items.map(item => `${item.quantity || 1} ${item.productName || item.name}`).join(' + ');
+}
+
+function offerToBoxProduct(offer) {
+  return {
+    id: `offer_${offer.id}`,
+    type: 'offer',
+    offerId: offer.id,
+    name: offer.title,
+    description: offer.description || offerItemsLabel(offer.items),
+    price: Number(offer.offerPrice || 0),
+    costPrice: 0,
+    image: offerImage(offer),
+    category: 'box',
+    isAvailable: offer.isActive !== false,
+    hasSizes: false,
+    sizes: [],
+    components: offer.items || [],
+  };
 }
 
 function money(amount) {
@@ -104,7 +150,7 @@ function KioskDecor() {
   );
 }
 
-function KioskShell({ children, phase, onBack, showStatus = false, wide = false, className = '' }) {
+function KioskShell({ children, phase, onBack, showStatus = false, wide = false, className = '', floatingAction = null }) {
   const showTopBar = phase !== 1;
 
   return (
@@ -125,6 +171,7 @@ function KioskShell({ children, phase, onBack, showStatus = false, wide = false,
           {children}
         </section>
       </main>
+      {floatingAction}
     </div>
   );
 }
@@ -227,7 +274,7 @@ function ProductImage({ product }) {
   );
 }
 
-function ReceiptForPrint({ orderNumber, currentDateTime, orderType, note, cartEntries, cartTotal, serviceFee, finalTotal, paymentMethod, paymentReceipt }) {
+function ReceiptForPrint({ orderNumber, currentDateTime, orderType, note, cartEntries, cartTotal, finalTotal, paymentMethod, paymentReceipt }) {
   return (
     <div id="print-receipt-section" className="kiosk-print-receipt" dir="rtl">
       <div className="receipt-head">
@@ -262,10 +309,6 @@ function ReceiptForPrint({ orderNumber, currentDateTime, orderType, note, cartEn
         <div className="receipt-row">
           <span>المجموع الفرعي</span>
           <strong>{money(cartTotal)}</strong>
-        </div>
-        <div className="receipt-row">
-          <span>رسوم التحضير والخدمة</span>
-          <strong>{money(serviceFee)}</strong>
         </div>
         <div className="receipt-row grand">
           <span>الإجمالي</span>
@@ -302,15 +345,22 @@ export default function Kiosk() {
   const [allProducts, setAllProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [cart, setCart] = useState({});
-  const [activeCat, setActiveCat] = useState('all');
-  const [activeSize, setActiveSize] = useState('all');
+  const [activeCat, setActiveCat] = useState(null);
+  const [activeSize, setActiveSize] = useState(null);
+  const [menuStep, setMenuStep] = useState('category');
+  const [lastAddedItem, setLastAddedItem] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [showStartTransition, setShowStartTransition] = useState(false);
 
   useEffect(() => {
-    getAllProducts()
-      .then((firebaseProducts) => setAllProducts(firebaseProducts))
+    Promise.all([getAllProducts(), getActiveSpecialOffers()])
+      .then(([firebaseProducts, activeOffers]) => {
+        setAllProducts([
+          ...firebaseProducts,
+          ...activeOffers.map(offerToBoxProduct),
+        ]);
+      })
       .catch((err) => {
         console.error('فشل تحميل المنتجات في الكيوسك:', err);
       })
@@ -350,34 +400,61 @@ export default function Kiosk() {
   }, [phase]);
 
   const availableProducts = useMemo(
-    () => allProducts.filter((product) => product.isAvailable !== false),
+    () => allProducts.filter((product) => product.isAvailable !== false && hasSellablePrice(product)),
     [allProducts],
   );
 
   const existingCats = useMemo(() => {
     const cats = Object.keys(CAT_META).filter((cat) => (
-      cat === 'all' || availableProducts.some((product) => product.category === cat)
+      cat !== 'all' && availableProducts.some((product) => product.category === cat)
     ));
-    return cats.length ? cats : ['all'];
+    const priorityCats = MENU_CATEGORY_ORDER.filter((cat) => cats.includes(cat));
+    const otherCats = cats.filter((cat) => !MENU_CATEGORY_ORDER.includes(cat));
+    return [...priorityCats, ...otherCats];
   }, [availableProducts]);
+
+  const selectedCategoryProducts = useMemo(() => (
+    activeCat ? availableProducts.filter((product) => product.category === activeCat) : []
+  ), [activeCat, availableProducts]);
 
   const availableSizes = useMemo(() => {
-    const sizes = new Set();
-    availableProducts.forEach((product) => {
-      if (product.hasSizes && Array.isArray(product.sizes)) {
-        product.sizes.forEach((size) => {
-          if (size?.label) sizes.add(size.label);
+    if (!activeCat) return [];
+
+    const sizeOptions = new Map();
+    let hasSingleSizeProducts = false;
+
+    selectedCategoryProducts.forEach((product) => {
+      const productSizes = sellableSizes(product);
+      if (productSizes.length) {
+        productSizes.forEach((size) => {
+          if (size?.label && !sizeOptions.has(size.label)) {
+            sizeOptions.set(size.label, {
+              label: size.label,
+              value: size.label,
+            });
+          }
         });
+      } else {
+        hasSingleSizeProducts = true;
       }
     });
-    return ['all', ...sizes];
-  }, [availableProducts]);
 
-  const filteredProducts = useMemo(() => availableProducts.filter((product) => {
-    if (activeCat !== 'all' && product.category !== activeCat) return false;
-    if (activeSize === 'all') return true;
-    return product.hasSizes && product.sizes?.some((size) => size.label === activeSize);
-  }), [availableProducts, activeCat, activeSize]);
+    const options = [...sizeOptions.values()];
+    if (hasSingleSizeProducts || !options.length) {
+      options.push({ label: 'حجم واحد', value: SINGLE_SIZE_VALUE });
+    }
+    return options;
+  }, [activeCat, selectedCategoryProducts]);
+
+  const filteredProducts = useMemo(() => {
+    if (!activeCat || !activeSize) return [];
+
+    return selectedCategoryProducts.filter((product) => {
+      const sizes = sellableSizes(product);
+      if (activeSize === SINGLE_SIZE_VALUE) return !sizes.length;
+      return sizes.some((size) => size.label === activeSize);
+    });
+  }, [activeCat, activeSize, selectedCategoryProducts]);
 
   const cartEntries = useMemo(() => Object.entries(cart).map(([key, entry]) => {
     const product = allProducts.find((item) => item.id === entry.productId);
@@ -398,8 +475,27 @@ export default function Kiosk() {
 
   const cartTotal = cartEntries.reduce((sum, entry) => sum + entry.price * entry.quantity, 0);
   const cartItemCount = cartEntries.reduce((sum, entry) => sum + entry.quantity, 0);
-  const serviceFee = 50;
-  const finalTotal = cartTotal + serviceFee;
+  const finalTotal = cartTotal;
+
+  const selectedCategoryMeta = activeCat ? CAT_META[activeCat] : null;
+
+  const getProductSize = (product, sizeValue = activeSize) => {
+    const sizes = sellableSizes(product);
+    if (!sizes.length || sizeValue === SINGLE_SIZE_VALUE) return null;
+    return sizes.find((size) => size.label === sizeValue) || null;
+  };
+
+  const getProductPrice = (product, sizeValue = activeSize) => {
+    const size = getProductSize(product, sizeValue);
+    return Number(size?.price ?? product.price ?? 0);
+  };
+
+  const resetMenuPicker = () => {
+    setActiveCat(null);
+    setActiveSize(null);
+    setLastAddedItem(null);
+    setMenuStep('category');
+  };
 
   const addItem = (id, sizeLabel, sizePrice) => {
     if (sizeLabel !== undefined) {
@@ -451,13 +547,16 @@ export default function Kiosk() {
     setPaymentMethod(null);
     setPaymentReceipt(null);
     setPinError('');
+    resetMenuPicker();
   };
 
   const resetKiosk = () => {
     setCart({});
     setOrderType(null);
-    setActiveCat('all');
-    setActiveSize('all');
+    setActiveCat(null);
+    setActiveSize(null);
+    setMenuStep('category');
+    setLastAddedItem(null);
     setNote('');
     setIsReceiptReady(false);
     setPaymentMethod(null);
@@ -473,7 +572,12 @@ export default function Kiosk() {
   const goBack = () => {
     if (terminalBusy || submittingOrder) return;
     if (phase === 2) setPhase(1);
-    else if (phase === 3) setPhase(2);
+    else if (phase === 3) {
+      if (menuStep === 'after-add') setMenuStep('product');
+      else if (menuStep === 'product') setMenuStep('size');
+      else if (menuStep === 'size') setMenuStep('category');
+      else setPhase(2);
+    }
     else if (phase === 3.25) setPhase(3);
     else if (phase === 3.5) setPhase(3.25);
     else if (phase === 4) setPhase(3.5);
@@ -493,12 +597,44 @@ export default function Kiosk() {
 
   const startService = (type) => {
     setOrderType(type);
+    resetMenuPicker();
     setPhase(3);
   };
 
   const goToSummary = () => {
     if (!cartItemCount) return;
     setPhase(3.25);
+  };
+
+  const selectMenuCategory = (cat) => {
+    setActiveCat(cat);
+    setActiveSize(null);
+    setLastAddedItem(null);
+    setMenuStep('size');
+  };
+
+  const selectMenuSize = (sizeValue) => {
+    setActiveSize(sizeValue);
+    setLastAddedItem(null);
+    setMenuStep('product');
+  };
+
+  const addProductFromMenu = (product) => {
+    const selectedSize = getProductSize(product);
+    const price = getProductPrice(product);
+    if (!isPositivePrice(price)) return;
+
+    if (selectedSize) {
+      addItem(product.id, selectedSize.label, price);
+    } else {
+      addItem(product.id);
+    }
+
+    setLastAddedItem({
+      name: selectedSize ? `${product.name} (${selectedSize.label})` : product.name,
+      price,
+    });
+    setMenuStep('after-add');
   };
 
   const createOrderItems = () => cartEntries.map((entry) => {
@@ -511,6 +647,12 @@ export default function Kiosk() {
       image: entry.product.image || '',
       category: entry.product.category || '',
     };
+
+    if (entry.product.type === 'offer') {
+      item.type = 'offer';
+      item.offerId = entry.product.offerId;
+      item.components = entry.product.components || [];
+    }
 
     if (entry.selectedSize) {
       item.selectedSize = entry.selectedSize;
@@ -536,7 +678,6 @@ export default function Kiosk() {
         note: note || '',
         customerName: 'زبون الكشك',
         deliveryFee: 0,
-        serviceFee,
         status: 'preparing',
       };
 
@@ -567,7 +708,6 @@ export default function Kiosk() {
         note: note || '',
         customerName: 'زبون الكشك',
         deliveryFee: 0,
-        serviceFee,
         status: 'pending',
       };
 
@@ -686,163 +826,249 @@ export default function Kiosk() {
     </KioskShell>
   );
 
-  const renderMenu = () => (
-    <KioskShell phase={3} onBack={goBack} wide>
-      <ScreenHeader
-        compact
-        title="اختر "
-        redWord="وجبتك"
-        subtitle="أضف المنتجات إلى السلة ثم راجع ملخص الطلب"
-        icon={IoCartOutline}
-      />
+  const renderMenu = () => {
+    const stepTitle = {
+      category: 'اختر نوع الطبق',
+      size: `اختر حجم ${selectedCategoryMeta?.label || 'الطبق'}`,
+      product: `اختر طبق ${selectedCategoryMeta?.label || ''}`,
+      'after-add': 'تمت إضافة الطبق',
+    }[menuStep];
 
-      <div className="kiosk-menu-layout">
-        <section className="kiosk-products-zone">
-          <div className="kiosk-chip-row">
-            {existingCats.map((cat) => {
-              const Icon = CAT_META[cat]?.icon || IoFastFoodOutline;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`kiosk-chip ${activeCat === cat ? 'active' : ''}`}
-                  onClick={() => setActiveCat(cat)}
-                >
-                  <Icon aria-hidden="true" />
-                  <span>{CAT_META[cat]?.label || cat}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {availableSizes.length > 1 && (
-            <div className="kiosk-chip-row small">
-              {availableSizes.map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  className={`kiosk-chip ${activeSize === size ? 'active' : ''}`}
-                  onClick={() => setActiveSize(size)}
-                >
-                  <span>{size === 'all' ? 'كل الأحجام' : size}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {loadingProducts ? (
-            <div className="kiosk-loading-card">
-              <span className="kiosk-spinner" />
-              <strong>جاري تحميل المنتجات...</strong>
-            </div>
-          ) : filteredProducts.length ? (
-            <div className="kiosk-product-grid">
-              {filteredProducts.map((product) => {
-                const sizes = product.hasSizes && Array.isArray(product.sizes) ? product.sizes : [];
-                const minSizePrice = sizes.length ? Math.min(...sizes.map((size) => Number(size.price || 0))) : Number(product.price || 0);
-
-                return (
-                  <article className="kiosk-product-card" key={product.id}>
-                    <div className="kiosk-product-image-wrap">
-                      <ProductImage product={product} />
-                    </div>
-                    <div className="kiosk-product-body">
-                      <h2>{product.name}</h2>
-                      <p>{product.description || CAT_META[product.category]?.label || 'وجبة لذيذة من OMEGA'}</p>
-                      <strong>{sizes.length ? `ابتداءً من ${money(minSizePrice)}` : money(product.price)}</strong>
-                    </div>
-                    <div className="kiosk-product-actions">
-                      {sizes.length ? sizes.map((size) => (
-                        <button
-                          key={size.label}
-                          type="button"
-                          onClick={() => addItem(product.id, size.label, Number(size.price || 0))}
-                        >
-                          <IoAdd aria-hidden="true" />
-                          <span>{size.label}</span>
-                          <small>{money(size.price)}</small>
-                        </button>
-                      )) : (
-                        <button type="button" onClick={() => addItem(product.id)}>
-                          <IoAdd aria-hidden="true" />
-                          <span>إضافة</span>
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="kiosk-loading-card">
-              <strong>لا توجد منتجات متاحة حالياً</strong>
-              <span>يمكنك الرجوع أو تحديث المنتجات من لوحة الإدارة.</span>
-            </div>
-          )}
-        </section>
-
-        <aside className="kiosk-cart-panel">
-          <div className="kiosk-cart-head">
+    return (
+      <KioskShell
+        phase={3}
+        onBack={goBack}
+        wide
+        floatingAction={(
+          <button
+            type="button"
+            className="kiosk-floating-checkout"
+            onClick={goToSummary}
+            aria-label="إتمام الطلب"
+            disabled={!cartItemCount}
+          >
             <IoReceiptOutline aria-hidden="true" />
-            <div>
-              <h2>سلتك الحالية</h2>
-              <span>{cartItemCount} منتج</span>
-            </div>
-          </div>
+            <span>{cartItemCount}</span>
+          </button>
+        )}
+      >
+        <ScreenHeader
+          compact
+          title="اختر "
+          redWord="وجبتك"
+          subtitle="ابدأ بنوع الطبق، ثم الحجم، ثم اختر الطبق المناسب"
+          icon={IoCartOutline}
+        />
 
-          <div className="kiosk-cart-items">
-            {cartEntries.length ? cartEntries.map((item) => (
-              <div className="kiosk-cart-item" key={item.key}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{money(item.price * item.quantity)}</span>
-                </div>
-                <div className="kiosk-qty">
-                  <button type="button" onClick={() => removeItem(item.key)} aria-label="إنقاص الكمية">
-                    {item.quantity > 1 ? <IoRemove aria-hidden="true" /> : <IoTrashOutline aria-hidden="true" />}
-                  </button>
-                  <b>{item.quantity}</b>
-                  <button type="button" onClick={() => addCartEntry(item)} aria-label="زيادة الكمية">
-                    <IoAdd aria-hidden="true" />
-                  </button>
-                </div>
+        <div className="kiosk-menu-layout">
+          <section className="kiosk-products-zone">
+            <div className="kiosk-menu-progress" aria-label="مراحل اختيار الطلب">
+              <span className={menuStep === 'category' ? 'active' : ''}>1. النوع</span>
+              <span className={menuStep === 'size' ? 'active' : ''}>2. الحجم</span>
+              <span className={menuStep === 'product' ? 'active' : ''}>3. الطبق</span>
+              <span className={menuStep === 'after-add' ? 'active' : ''}>4. القرار</span>
+            </div>
+
+            {loadingProducts ? (
+              <div className="kiosk-loading-card">
+                <span className="kiosk-spinner" />
+                <strong>جاري تحميل المنتجات...</strong>
               </div>
-            )) : (
-              <div className="kiosk-empty-cart">
-                <IoCartOutline aria-hidden="true" />
-                <span>اختر منتجاً لبدء الطلب</span>
+            ) : (
+              <div className="kiosk-picker-panel">
+                <div className="kiosk-picker-head">
+                  <span>{stepTitle}</span>
+                  {activeCat && menuStep !== 'category' && (
+                    <strong>{selectedCategoryMeta?.label}</strong>
+                  )}
+                </div>
+
+                {menuStep === 'category' && (
+                  existingCats.length ? (
+                    <div className="kiosk-category-grid">
+                      {existingCats.map((cat) => {
+                        const Icon = CAT_META[cat]?.icon || IoFastFoodOutline;
+                        const count = availableProducts.filter((product) => product.category === cat).length;
+
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            className="kiosk-category-card"
+                            onClick={() => selectMenuCategory(cat)}
+                          >
+                            <span className="kiosk-category-icon"><Icon aria-hidden="true" /></span>
+                            <strong>{CAT_META[cat]?.label || cat}</strong>
+                            <small>{count} أطباق متاحة</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="kiosk-loading-card">
+                      <strong>لا توجد أنواع أطباق متاحة حالياً</strong>
+                      <span>يمكنك تحديث المنتجات من لوحة الإدارة.</span>
+                    </div>
+                  )
+                )}
+
+                {menuStep === 'size' && (
+                  availableSizes.length ? (
+                    <div className="kiosk-size-grid">
+                      {availableSizes.map((size) => {
+                        const count = selectedCategoryProducts.filter((product) => {
+                          const sizes = product.hasSizes && Array.isArray(product.sizes) ? product.sizes : [];
+                          if (size.value === SINGLE_SIZE_VALUE) return !sizes.length;
+                          return sizes.some((productSize) => productSize.label === size.value);
+                        }).length;
+
+                        return (
+                          <button
+                            key={size.value}
+                            type="button"
+                            className="kiosk-size-card"
+                            onClick={() => selectMenuSize(size.value)}
+                          >
+                            <IoFastFoodOutline aria-hidden="true" />
+                            <strong>{size.label}</strong>
+                            <small>{count} أطباق</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="kiosk-loading-card">
+                      <strong>لا توجد أحجام متاحة لهذا النوع</strong>
+                      <span>ارجع واختر نوعاً آخر.</span>
+                    </div>
+                  )
+                )}
+
+                {menuStep === 'product' && (
+                  filteredProducts.length ? (
+                    <div className="kiosk-product-grid">
+                      {filteredProducts.map((product) => {
+                        const selectedSize = getProductSize(product);
+                        const productPrice = getProductPrice(product);
+
+                        return (
+                          <article className="kiosk-product-card" key={product.id}>
+                            <div className="kiosk-product-image-wrap">
+                              <ProductImage product={product} />
+                            </div>
+                            <div className="kiosk-product-body">
+                              <h2>{product.name}</h2>
+                              <p>{product.description || selectedCategoryMeta?.label || 'وجبة لذيذة من OMEGA'}</p>
+                              {selectedSize && <span className="kiosk-product-size">{selectedSize.label}</span>}
+                              <strong>{money(productPrice)}</strong>
+                            </div>
+                            <div className="kiosk-product-actions">
+                              <button type="button" onClick={() => addProductFromMenu(product)}>
+                                <IoAdd aria-hidden="true" />
+                                <span>إضافة إلى الطلب</span>
+                                <small>{money(productPrice)}</small>
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="kiosk-loading-card">
+                      <strong>لا توجد أطباق بهذا الحجم حالياً</strong>
+                      <span>ارجع واختر حجماً آخر.</span>
+                    </div>
+                  )
+                )}
+
+                {menuStep === 'after-add' && (
+                  <div className="kiosk-after-add">
+                    <div className="kiosk-success-check compact">
+                      <IoCheckmarkOutline aria-hidden="true" />
+                    </div>
+                    <h2>تمت إضافة الطبق إلى الطلب</h2>
+                    {lastAddedItem && (
+                      <p>
+                        <strong>{lastAddedItem.name}</strong>
+                        <span>{money(lastAddedItem.price)}</span>
+                      </p>
+                    )}
+                    <div className="kiosk-after-actions">
+                      <PrimaryButton onClick={goToSummary} disabled={!cartItemCount} icon={IoReceiptOutline}>
+                        إتمام الطلب
+                      </PrimaryButton>
+                      <button type="button" className="kiosk-white-action" onClick={resetMenuPicker}>
+                        طلب طبق آخر
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
+          </section>
 
-          <label className="kiosk-note">
-            <span>ملاحظة للطلب</span>
-            <textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="مثلاً: بدون صلصة، أكثر جبن..."
-              rows={3}
-            />
-          </label>
+          <aside className="kiosk-cart-panel">
+            <div className="kiosk-cart-head">
+              <IoReceiptOutline aria-hidden="true" />
+              <div>
+                <h2>سلتك الحالية</h2>
+                <span>{cartItemCount} منتج</span>
+              </div>
+            </div>
 
-          <div className="kiosk-cart-total">
-            <div><span>المجموع</span><strong>{money(cartTotal)}</strong></div>
-            <div><span>رسوم الخدمة</span><strong>{money(serviceFee)}</strong></div>
-            <div className="grand"><span>الإجمالي</span><strong>{money(finalTotal)}</strong></div>
-          </div>
+            <div className="kiosk-cart-items">
+              {cartEntries.length ? cartEntries.map((item) => (
+                <div className="kiosk-cart-item" key={item.key}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{money(item.price * item.quantity)}</span>
+                  </div>
+                  <div className="kiosk-qty">
+                    <button type="button" onClick={() => removeItem(item.key)} aria-label="إنقاص الكمية">
+                      {item.quantity > 1 ? <IoRemove aria-hidden="true" /> : <IoTrashOutline aria-hidden="true" />}
+                    </button>
+                    <b>{item.quantity}</b>
+                    <button type="button" onClick={() => addCartEntry(item)} aria-label="زيادة الكمية">
+                      <IoAdd aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div className="kiosk-empty-cart">
+                  <IoCartOutline aria-hidden="true" />
+                  <span>اختر منتجاً لبدء الطلب</span>
+                </div>
+              )}
+            </div>
 
-          <PrimaryButton onClick={goToSummary} disabled={!cartItemCount} icon={IoReceiptOutline}>
-            مراجعة الطلب
-          </PrimaryButton>
-          {cartItemCount > 0 && (
-            <button type="button" className="kiosk-link-btn" onClick={clearOrder}>
-              إفراغ السلة
-            </button>
-          )}
-        </aside>
-      </div>
-    </KioskShell>
-  );
+            <label className="kiosk-note">
+              <span>ملاحظة للطلب</span>
+              <textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="مثلاً: بدون صلصة، أكثر جبن..."
+                rows={3}
+              />
+            </label>
+
+            <div className="kiosk-cart-total">
+              <div className="grand"><span>المجموع</span><strong>{money(finalTotal)}</strong></div>
+            </div>
+
+            <PrimaryButton onClick={goToSummary} disabled={!cartItemCount} icon={IoReceiptOutline}>
+              إتمام الطلب
+            </PrimaryButton>
+            {cartItemCount > 0 && (
+              <button type="button" className="kiosk-link-btn" onClick={clearOrder}>
+                إفراغ السلة
+              </button>
+            )}
+          </aside>
+        </div>
+
+      </KioskShell>
+    );
+  };
 
   const renderSummary = () => (
     <KioskShell phase={3.25} onBack={goBack}>
@@ -870,10 +1096,6 @@ export default function Kiosk() {
         <div>
           <span>نوع الطلب</span>
           <strong>{orderType === 'dine-in' ? 'أكل في المطعم' : 'طلب للتوصيل / سفري'}</strong>
-        </div>
-        <div>
-          <span>رسوم التحضير والخدمة</span>
-          <strong>{money(serviceFee)}</strong>
         </div>
         <div>
           <span>المجموع</span>
@@ -1061,7 +1283,6 @@ export default function Kiosk() {
         note={note}
         cartEntries={cartEntries}
         cartTotal={cartTotal}
-        serviceFee={serviceFee}
         finalTotal={finalTotal}
         paymentMethod={paymentMethod}
         paymentReceipt={paymentReceipt}

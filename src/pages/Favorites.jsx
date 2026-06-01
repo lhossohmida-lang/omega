@@ -17,6 +17,11 @@ function getCart() {
   try { return JSON.parse(localStorage.getItem('omega_cart') || '[]'); } catch { return []; }
 }
 function saveCart(cart) { localStorage.setItem('omega_cart', JSON.stringify(cart)); }
+
+function isSellableProduct(product) {
+  if (product.hasSizes && product.sizes?.length > 0) return product.sizes.some(sz => Number(sz.price || 0) > 0);
+  return Number(product.price || 0) > 0;
+}
 function getFav() {
   try { return JSON.parse(localStorage.getItem('tarken_fav') || '[]'); } catch { return []; }
 }
@@ -24,14 +29,15 @@ function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
 function fallbackImg(cat) {
   return {
-    burger: './burger-classic.png',
-    pizza:  './pizza-pepperoni.png',
-    tacos:  './tacos-wrap.png',
-    drinks: './drink-cola.png',
-    appetizers: './fried-chicken.png',
-    desserts: './dessert.png',
-    sofli: './sofli.png',
-  }[cat] || './burger-classic.png';
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/appetizer-gratin.png',
+    sofli: '/sofli.png',
+    box: '/burger-classic.png',
+  }[cat] || '/burger-classic.png';
 }
 
 function GridCard({ product, fav, onFav, onAdd, onOpen }) {
@@ -73,7 +79,7 @@ export default function Favorites() {
 
   useEffect(() => {
     getAllProducts()
-      .then(d => setProducts(d.filter(p => p.isAvailable !== false)))
+      .then(d => setProducts(d.filter(p => p.isAvailable !== false && isSellableProduct(p))))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);

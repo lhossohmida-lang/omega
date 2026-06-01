@@ -39,18 +39,19 @@ function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
 function fallbackImg(cat) {
   return {
-    burger: './burger-classic.png',
-    pizza:  './pizza-pepperoni.png',
-    tacos:  './tacos-wrap.png',
-    drinks: './drink-cola.png',
-    appetizers: './fried-chicken.png',
-    desserts: './dessert.png',
-    sofli: './sofli.png',
-  }[cat] || './burger-classic.png';
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/appetizer-gratin.png',
+    sofli: '/sofli.png',
+    box: '/burger-classic.png',
+  }[cat] || '/burger-classic.png';
 }
 
 function offerImage(offer) {
-  return offer.image || offer.items?.find(item => item.image)?.image || './burger-classic.png';
+  return offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png';
 }
 
 function offerItemsLabel(items = []) {
@@ -69,15 +70,21 @@ function offerDiscount(offer) {
   return { original, discountValue, discountPercent };
 }
 
+function isSellableProduct(product) {
+  if (product.hasSizes && product.sizes?.length > 0) return product.sizes.some(sz => Number(sz.price || 0) > 0);
+  return Number(product.price || 0) > 0;
+}
+
 /* ─── data ─────────────────────────────────── */
 const CATS = [
   { id: 'all',        label: 'الكل',       emoji: '🍔' },
   { id: 'pizza',      label: 'بيتزا',      emoji: '🍕' },
   { id: 'tacos',      label: 'تاكوس',      emoji: '🌮' },
+  { id: 'sofli',      label: 'سوفلي',      emoji: '🥟', iconUrl: '/sofli-icon.png' },
+  { id: 'box',        label: 'box',        emoji: '📦' },
   { id: 'drinks',     label: 'مشروبات',    emoji: '🥤' },
   { id: 'appetizers', label: 'مقبلات',     emoji: '🍟' },
   { id: 'desserts',   label: 'حلويات',     emoji: '🍰' },
-  { id: 'sofli',      label: 'سوفلي',      emoji: '🥟', iconUrl: '/sofli-icon.png' },
 ];
 
 /* ─── sub-components ───────────────────────── */
@@ -363,7 +370,7 @@ export default function CustomerHome() {
   useEffect(() => {
     getAllProducts()
       .then(d => {
-        setProducts(d.filter(p => p.isAvailable !== false));
+        setProducts(d.filter(p => p.isAvailable !== false && isSellableProduct(p)));
         setLoadError(null);
       })
       .catch(err => {
@@ -396,6 +403,7 @@ export default function CustomerHome() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(p => {
+      if (!isSellableProduct(p)) return false;
       if (activeCat !== 'all' && p.category !== activeCat) return false;
       return !q || p.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
     });
@@ -525,7 +533,7 @@ export default function CustomerHome() {
           {ordersCount > 0 && <span className="ch-notif-dot">{ordersCount > 9 ? '9+' : ordersCount}</span>}
         </button>
         <div className="ch-header-logo">
-          <img src="./logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
+          <img src="/logo.png?v=2" alt="OMEGA" className="ch-header-logo-img"/>
         </div>
         <button type="button" className="ch-cart-btn" onClick={() => openWithTapTransition('/cart')} aria-label="السلة">
           <IoBagHandleOutline size={24}/>

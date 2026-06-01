@@ -75,10 +75,20 @@ async function normalizeProductItem(item) {
     throw new Error(`المنتج ${item.name} غير متاح حالياً`);
   }
 
+  const productSizes = product.hasSizes && Array.isArray(product.sizes) ? product.sizes : [];
+  const selectedSize = item.selectedSize
+    ? productSizes.find((size) => size.label === item.selectedSize)
+    : null;
+  const selectedSizeLabel = selectedSize?.label || item.selectedSize || null;
+  const price = selectedSize
+    ? toNumber(selectedSize.price, toNumber(item.price))
+    : toNumber(product.price, toNumber(item.price));
+
   return {
     productId: item.productId,
-    name: product.name || item.name,
-    price: toNumber(product.price, toNumber(item.price)),
+    name: selectedSizeLabel ? `${product.name || item.name} (${selectedSizeLabel})` : product.name || item.name,
+    selectedSize: selectedSizeLabel,
+    price,
     costPrice: toNumber(product.costPrice, toNumber(item.costPrice)),
     image: product.image || item.image || '',
     category: product.category || item.category || '',

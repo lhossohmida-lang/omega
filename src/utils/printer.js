@@ -17,6 +17,7 @@ const CATEGORY_LABEL = {
   desserts: 'حلويات',
   appetizers: 'مقبلات',
   sofli: 'سوفلي',
+  box: 'box',
   offers: 'عرض خاص',
 };
 

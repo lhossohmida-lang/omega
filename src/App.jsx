@@ -36,7 +36,6 @@ import AdminProducts from './pages/AdminProducts';
 import AdminInventory from './pages/AdminInventory';
 import AdminAI from './pages/AdminAI';
 import AdminReports from './pages/AdminReports';
-import AdminSpecialOffers from './pages/AdminSpecialOffers';
 import AdminAttendance from './pages/AdminAttendance';
 
 import AppKeyboard from './components/AppKeyboard';
@@ -82,7 +81,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-omega-dark flex items-center justify-center">
-        <img src="./logo.png?v=2" alt="OMEGA" className="w-32 h-32 rounded-full object-cover" />
+        <img src="/logo.png?v=2" alt="OMEGA" className="w-32 h-32 rounded-full object-cover" />
       </div>
     );
   }
@@ -122,7 +121,7 @@ export default function App() {
       <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/orders" element={<ProtectedRoute allowedRoles={['admin']}><AdminOrders /></ProtectedRoute>} />
       <Route path="/admin/products" element={<ProtectedRoute allowedRoles={['admin']}><AdminProducts /></ProtectedRoute>} />
-      <Route path="/admin/offers" element={<ProtectedRoute allowedRoles={['admin']}><AdminSpecialOffers /></ProtectedRoute>} />
+      <Route path="/admin/offers" element={<Navigate to="/admin/products" replace />} />
       <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventory /></ProtectedRoute>} />
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />

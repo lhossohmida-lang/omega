@@ -20,6 +20,15 @@ const NUMBER_ROWS = [
   ['4', '5', '6'],
   ['7', '8', '9'],
   ['.', '0', '+'],
+  ['-', '_', '@'],
+  ['/', ':', ','],
+];
+
+const SYMBOL_ROWS = [
+  ['!', '?', '#', '$', '%', '&'],
+  ['*', '(', ')', '"', "'", '='],
+  ['-', '_', '+', '/', '\\', '|'],
+  ['.', ',', ':', ';', '@', '~'],
 ];
 
 function isEligible(el) {
@@ -157,10 +166,48 @@ export default function AppKeyboard() {
     ? ARABIC_ROWS
     : mode === 'latin'
       ? (shift ? LATIN_UPPER : LATIN_LOWER)
-      : NUMBER_ROWS;
+      : mode === 'symbols'
+        ? SYMBOL_ROWS
+        : NUMBER_ROWS;
 
   const keyBase = 'rounded-lg bg-white border border-gray-200 text-gray-900 font-bold flex items-center justify-center select-none active:bg-gray-100 active:scale-95 transition-all shadow-sm';
   const keySize = mode === 'numbers' ? 'h-14 text-2xl' : 'h-11 text-base sm:text-lg';
+  const topBarStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    padding: '0.5rem 0.75rem',
+    borderBottom: '1px solid #e5e7eb',
+    background: '#fff',
+  };
+  const closeButtonStyle = {
+    display: 'inline-flex',
+    height: '2.25rem',
+    alignItems: 'center',
+    gap: '0.25rem',
+    borderRadius: '0.5rem',
+    background: '#f3f4f6',
+    color: '#374151',
+    padding: '0 0.75rem',
+    fontSize: '0.875rem',
+    fontWeight: 800,
+  };
+  const modeRowStyle = {
+    display: 'flex',
+    gap: '0.375rem',
+    alignItems: 'center',
+  };
+  const modeButtonStyle = (active) => ({
+    height: '2.25rem',
+    minWidth: '2.85rem',
+    borderRadius: '0.5rem',
+    padding: '0 0.75rem',
+    background: active ? '#ff6b00' : '#f3f4f6',
+    color: active ? '#fff' : '#374151',
+    fontSize: '0.875rem',
+    fontWeight: 900,
+  });
 
   return (
     <div
@@ -170,40 +217,40 @@ export default function AppKeyboard() {
       dir="ltr"
     >
       {/* الشريط العلوي: مفاتيح الأوضاع + إغلاق */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-white">
+      <div style={topBarStyle}>
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={closeKeyboard}
-          className="flex h-9 px-3 items-center gap-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-sm"
+          style={closeButtonStyle}
         >
           <IoChevronDownOutline size={18} />
           إغلاق
         </button>
-        <div className="flex gap-1.5">
+        <div style={modeRowStyle}>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setMode('numbers')}
-            className={`h-9 px-3 rounded-lg font-black text-sm ${
-              mode === 'numbers' ? 'bg-omega-orange text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={modeButtonStyle(mode === 'numbers')}
           >123</button>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setMode('symbols')}
+            style={modeButtonStyle(mode === 'symbols')}
+          >#+=</button>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setMode('arabic')}
-            className={`h-9 px-3 rounded-lg font-black text-sm ${
-              mode === 'arabic' ? 'bg-omega-orange text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={modeButtonStyle(mode === 'arabic')}
           >ع</button>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setMode('latin')}
-            className={`h-9 px-3 rounded-lg font-black text-sm ${
-              mode === 'latin' ? 'bg-omega-orange text-white' : 'bg-gray-100 text-gray-700'
-            }`}
+            style={modeButtonStyle(mode === 'latin')}
           >EN</button>
         </div>
       </div>
@@ -227,6 +274,37 @@ export default function AppKeyboard() {
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={backspace}
                 className={`${keyBase} h-16 col-span-3 text-base bg-gray-200`}
+              >
+                <IoBackspaceOutline size={24} />
+                <span className="mr-2">مسح</span>
+              </button>
+            </div>
+          </div>
+        ) : mode === 'symbols' ? (
+          <div className="flex justify-center">
+            <div className="grid grid-cols-6 gap-1.5 w-full max-w-[620px]">
+              {SYMBOL_ROWS.flat().map((char, idx) => (
+                <button
+                  key={`${char}-${idx}`}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => press(char)}
+                  className={`${keyBase} h-12 text-xl`}
+                >{char}</button>
+              ))}
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => press(' ')}
+                className={`${keyBase} h-12 col-span-3 text-sm`}
+              >
+                المسافة
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={backspace}
+                className={`${keyBase} h-12 col-span-3 text-base bg-gray-200`}
               >
                 <IoBackspaceOutline size={24} />
                 <span className="mr-2">مسح</span>

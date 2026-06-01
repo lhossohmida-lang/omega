@@ -81,7 +81,7 @@ export default function TrackOrder() {
             <p>{timeAgo(order.createdAt)}</p>
           </div>
           <div className="omega-mini-logo">
-            <img src="./logo.png?v=2" alt="OMEGA" />
+            <img src="/logo.png?v=2" alt="OMEGA" />
           </div>
         </header>
 

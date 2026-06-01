@@ -57,6 +57,7 @@ const CATEGORIES = [
   { id: 'drinks',     label: 'مشروبات', emoji: '🥤', tone: 'blue'   },
   { id: 'desserts',   label: 'حلويات',  emoji: '🍰', tone: 'red'    },
   { id: 'sofli',      label: 'سوفلي',   emoji: '🥟', iconUrl: '/sofli-icon.png', tone: 'yellow' },
+  { id: 'box',        label: 'box',     emoji: '📦', tone: 'orange' },
 ];
 
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));

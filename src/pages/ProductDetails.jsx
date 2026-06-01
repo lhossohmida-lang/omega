@@ -16,22 +16,28 @@ function saveCart(cart) { localStorage.setItem('omega_cart', JSON.stringify(cart
 function getFav() { try { return JSON.parse(localStorage.getItem('tarken_fav') || '[]'); } catch { return []; } }
 function saveFav(f) { localStorage.setItem('tarken_fav', JSON.stringify(f)); }
 
+function isSellableProduct(product) {
+  if (product?.hasSizes && product.sizes?.length > 0) return product.sizes.some(sz => Number(sz.price || 0) > 0);
+  return Number(product?.price || 0) > 0;
+}
+
 const categoryLabel = (cat) =>
-  cat === 'burger' ? 'برغر' : cat === 'pizza' ? 'بيتزا' : cat === 'tacos' ? 'تاكوس' : cat === 'sofli' ? 'سوفلي' : 'مشروبات';
+  cat === 'burger' ? 'برغر' : cat === 'pizza' ? 'بيتزا' : cat === 'tacos' ? 'تاكوس' : cat === 'sofli' ? 'سوفلي' : cat === 'box' ? 'box' : 'مشروبات';
 
 const categoryEmoji = (cat) =>
-  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : cat === 'sofli' ? '🥟' : '🥤';
+  cat === 'burger' ? '🍔' : cat === 'pizza' ? '🍕' : cat === 'tacos' ? '🌮' : cat === 'sofli' ? '🥟' : cat === 'box' ? '📦' : '🥤';
 
 function fallbackImg(cat) {
   return {
-    burger: './burger-classic.png',
-    pizza:  './pizza-pepperoni.png',
-    tacos:  './tacos-wrap.png',
-    drinks: './drink-cola.png',
-    appetizers: './fried-chicken.png',
-    desserts: './dessert.png',
-    sofli: './sofli.png',
-  }[cat] || './burger-classic.png';
+    burger: '/burger-classic.png',
+    pizza:  '/pizza-pepperoni.png',
+    tacos:  '/tacos-wrap.png',
+    drinks: '/drink-cola.png',
+    appetizers: '/fried-chicken.png',
+    desserts: '/appetizer-gratin.png',
+    sofli: '/sofli.png',
+    box: '/burger-classic.png',
+  }[cat] || '/burger-classic.png';
 }
 
 export default function ProductDetails() {
@@ -49,16 +55,17 @@ export default function ProductDetails() {
   const loadData = async () => {
     try {
       const [p, all] = await Promise.all([getProduct(id), getAllProducts()]);
-      setProduct(p);
-      if (p) {
+      const visibleProduct = p && p.isAvailable !== false && isSellableProduct(p) ? p : null;
+      setProduct(visibleProduct);
+      if (visibleProduct) {
         setRelated(
           all
-            .filter(x => x.id !== p.id && x.isAvailable !== false && x.category === p.category)
+            .filter(x => x.id !== visibleProduct.id && x.isAvailable !== false && x.category === visibleProduct.category && isSellableProduct(x))
             .slice(0, 3)
         );
         // Auto-select first size if product has sizes
-        if (p.hasSizes && p.sizes?.length > 0) {
-          setSelectedSize(p.sizes[0]);
+        if (visibleProduct.hasSizes && visibleProduct.sizes?.length > 0) {
+          setSelectedSize(visibleProduct.sizes[0]);
         }
       }
     } catch (err) { console.error(err); }

@@ -1,7 +1,7 @@
 export function OmegaMark({ small = false }) {
   return (
     <div className={`omega-mark${small ? ' omega-mark-small' : ''}`}>
-      <img src="./logo.png?v=2" alt="OMEGA Burger" />
+      <img src="/logo.png?v=2" alt="OMEGA Burger" />
     </div>
   );
 }
