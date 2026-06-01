@@ -348,7 +348,6 @@ export default function Kiosk() {
   const [activeCat, setActiveCat] = useState(null);
   const [activeSize, setActiveSize] = useState(null);
   const [menuStep, setMenuStep] = useState('category');
-  const [lastAddedItem, setLastAddedItem] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [showStartTransition, setShowStartTransition] = useState(false);
@@ -493,7 +492,6 @@ export default function Kiosk() {
   const resetMenuPicker = () => {
     setActiveCat(null);
     setActiveSize(null);
-    setLastAddedItem(null);
     setMenuStep('category');
   };
 
@@ -521,14 +519,6 @@ export default function Kiosk() {
     }));
   };
 
-  const addCartEntry = (entry) => {
-    if (entry.selectedSize) {
-      addItem(entry.product.id, entry.selectedSize, entry.price);
-    } else {
-      addItem(entry.product.id);
-    }
-  };
-
   const removeItem = (key) => {
     setCart((current) => {
       const next = { ...current };
@@ -541,22 +531,12 @@ export default function Kiosk() {
     });
   };
 
-  const clearOrder = () => {
-    setCart({});
-    setNote('');
-    setPaymentMethod(null);
-    setPaymentReceipt(null);
-    setPinError('');
-    resetMenuPicker();
-  };
-
   const resetKiosk = () => {
     setCart({});
     setOrderType(null);
     setActiveCat(null);
     setActiveSize(null);
     setMenuStep('category');
-    setLastAddedItem(null);
     setNote('');
     setIsReceiptReady(false);
     setPaymentMethod(null);
@@ -573,8 +553,7 @@ export default function Kiosk() {
     if (terminalBusy || submittingOrder) return;
     if (phase === 2) setPhase(1);
     else if (phase === 3) {
-      if (menuStep === 'after-add') setMenuStep('product');
-      else if (menuStep === 'product') setMenuStep('size');
+      if (menuStep === 'product') setMenuStep('size');
       else if (menuStep === 'size') setMenuStep('category');
       else setPhase(2);
     }
@@ -609,13 +588,11 @@ export default function Kiosk() {
   const selectMenuCategory = (cat) => {
     setActiveCat(cat);
     setActiveSize(null);
-    setLastAddedItem(null);
     setMenuStep('size');
   };
 
   const selectMenuSize = (sizeValue) => {
     setActiveSize(sizeValue);
-    setLastAddedItem(null);
     setMenuStep('product');
   };
 
@@ -629,12 +606,6 @@ export default function Kiosk() {
     } else {
       addItem(product.id);
     }
-
-    setLastAddedItem({
-      name: selectedSize ? `${product.name} (${selectedSize.label})` : product.name,
-      price,
-    });
-    setMenuStep('after-add');
   };
 
   const createOrderItems = () => cartEntries.map((entry) => {
@@ -831,7 +802,6 @@ export default function Kiosk() {
       category: 'اختر نوع الطبق',
       size: `اختر حجم ${selectedCategoryMeta?.label || 'الطبق'}`,
       product: `اختر طبق ${selectedCategoryMeta?.label || ''}`,
-      'after-add': 'تمت إضافة الطبق',
     }[menuStep];
 
     return (
@@ -866,7 +836,6 @@ export default function Kiosk() {
               <span className={menuStep === 'category' ? 'active' : ''}>1. النوع</span>
               <span className={menuStep === 'size' ? 'active' : ''}>2. الحجم</span>
               <span className={menuStep === 'product' ? 'active' : ''}>3. الطبق</span>
-              <span className={menuStep === 'after-add' ? 'active' : ''}>4. القرار</span>
             </div>
 
             {loadingProducts ? (
@@ -981,89 +950,9 @@ export default function Kiosk() {
                   )
                 )}
 
-                {menuStep === 'after-add' && (
-                  <div className="kiosk-after-add">
-                    <div className="kiosk-success-check compact">
-                      <IoCheckmarkOutline aria-hidden="true" />
-                    </div>
-                    <h2>تمت إضافة الطبق إلى الطلب</h2>
-                    {lastAddedItem && (
-                      <p>
-                        <strong>{lastAddedItem.name}</strong>
-                        <span>{money(lastAddedItem.price)}</span>
-                      </p>
-                    )}
-                    <div className="kiosk-after-actions">
-                      <PrimaryButton onClick={goToSummary} disabled={!cartItemCount} icon={IoReceiptOutline}>
-                        إتمام الطلب
-                      </PrimaryButton>
-                      <button type="button" className="kiosk-white-action" onClick={resetMenuPicker}>
-                        طلب طبق آخر
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </section>
-
-          <aside className="kiosk-cart-panel">
-            <div className="kiosk-cart-head">
-              <IoReceiptOutline aria-hidden="true" />
-              <div>
-                <h2>سلتك الحالية</h2>
-                <span>{cartItemCount} منتج</span>
-              </div>
-            </div>
-
-            <div className="kiosk-cart-items">
-              {cartEntries.length ? cartEntries.map((item) => (
-                <div className="kiosk-cart-item" key={item.key}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{money(item.price * item.quantity)}</span>
-                  </div>
-                  <div className="kiosk-qty">
-                    <button type="button" onClick={() => removeItem(item.key)} aria-label="إنقاص الكمية">
-                      {item.quantity > 1 ? <IoRemove aria-hidden="true" /> : <IoTrashOutline aria-hidden="true" />}
-                    </button>
-                    <b>{item.quantity}</b>
-                    <button type="button" onClick={() => addCartEntry(item)} aria-label="زيادة الكمية">
-                      <IoAdd aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              )) : (
-                <div className="kiosk-empty-cart">
-                  <IoCartOutline aria-hidden="true" />
-                  <span>اختر منتجاً لبدء الطلب</span>
-                </div>
-              )}
-            </div>
-
-            <label className="kiosk-note">
-              <span>ملاحظة للطلب</span>
-              <textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="مثلاً: بدون صلصة، أكثر جبن..."
-                rows={3}
-              />
-            </label>
-
-            <div className="kiosk-cart-total">
-              <div className="grand"><span>المجموع</span><strong>{money(finalTotal)}</strong></div>
-            </div>
-
-            <PrimaryButton onClick={goToSummary} disabled={!cartItemCount} icon={IoReceiptOutline}>
-              إتمام الطلب
-            </PrimaryButton>
-            {cartItemCount > 0 && (
-              <button type="button" className="kiosk-link-btn" onClick={clearOrder}>
-                إفراغ السلة
-              </button>
-            )}
-          </aside>
         </div>
 
       </KioskShell>
@@ -1088,6 +977,14 @@ export default function Kiosk() {
             </div>
             <b>{item.quantity}x</b>
             <strong>{money(item.price * item.quantity)}</strong>
+            <button
+              type="button"
+              className="kiosk-summary-remove"
+              onClick={() => removeItem(item.key)}
+              aria-label={item.quantity > 1 ? 'إنقاص الكمية' : 'حذف الطبق'}
+            >
+              {item.quantity > 1 ? <IoRemove aria-hidden="true" /> : <IoTrashOutline aria-hidden="true" />}
+            </button>
           </article>
         ))}
       </div>
@@ -1110,9 +1007,9 @@ export default function Kiosk() {
 
       <div className="kiosk-action-row">
         <button type="button" className="kiosk-white-action" onClick={() => setPhase(3)}>
-          تعديل الطلب
+          اختيار طلب آخر
         </button>
-        <PrimaryButton onClick={() => setPhase(3.5)}>
+        <PrimaryButton onClick={() => setPhase(3.5)} disabled={!cartItemCount}>
           متابعة للدفع
         </PrimaryButton>
       </div>

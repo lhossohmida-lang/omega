@@ -6407,18 +6407,20 @@ article[class*="rounded-2xl"].admin-glass {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(0.95rem, 2vw, 1.4rem);
   align-items: start;
 }
 
 .kiosk-products-zone {
+  width: min(100%, 1020px);
   min-width: 0;
+  margin-inline: auto;
 }
 
 .kiosk-menu-progress {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
   margin-bottom: 0.85rem;
 }
@@ -6572,7 +6574,7 @@ article[class*="rounded-2xl"].admin-glass {
 
 .kiosk-product-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(0.8rem, 2vw, 1rem);
 }
 
@@ -6958,7 +6960,7 @@ article[class*="rounded-2xl"].admin-glass {
 
 .kiosk-summary-item {
   display: grid;
-  grid-template-columns: 4.6rem minmax(0, 1fr) auto auto;
+  grid-template-columns: 4.6rem minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 0.85rem;
   min-height: 6.6rem;
@@ -6998,6 +7000,28 @@ article[class*="rounded-2xl"].admin-glass {
   font-size: clamp(0.95rem, 2.8vw, 1.18rem);
   font-weight: 900;
   white-space: nowrap;
+}
+
+.kiosk-summary-remove {
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--kiosk-red), var(--kiosk-orange));
+  box-shadow: 0 10px 20px rgba(228, 20, 32, 0.18);
+}
+
+.kiosk-summary-remove svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.kiosk-summary-remove:active {
+  transform: scale(0.96);
 }
 
 .kiosk-summary-box {
@@ -7681,12 +7705,12 @@ article[class*="rounded-2xl"].admin-glass {
   }
 
   .kiosk-summary-item {
-    grid-template-columns: 3.7rem minmax(0, 1fr) auto;
+    grid-template-columns: 3.7rem minmax(0, 1fr) auto auto;
     gap: 0.6rem;
   }
 
   .kiosk-summary-item strong {
-    grid-column: 2 / -1;
+    grid-column: 2 / 4;
     justify-self: start;
   }
 
