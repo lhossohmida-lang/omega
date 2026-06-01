@@ -868,7 +868,6 @@ export default function Kiosk() {
                           >
                             <span className="kiosk-category-icon"><Icon aria-hidden="true" /></span>
                             <strong>{CAT_META[cat]?.label || cat}</strong>
-                            <small>{count} أطباق متاحة</small>
                           </button>
                         );
                       })}
@@ -900,7 +899,6 @@ export default function Kiosk() {
                           >
                             <IoFastFoodOutline aria-hidden="true" />
                             <strong>{size.label}</strong>
-                            <small>{count} أطباق</small>
                           </button>
                         );
                       })}
@@ -1006,7 +1004,14 @@ export default function Kiosk() {
       </div>
 
       <div className="kiosk-action-row">
-        <button type="button" className="kiosk-white-action" onClick={() => setPhase(3)}>
+        <button
+          type="button"
+          className="kiosk-white-action"
+          onClick={() => {
+            resetMenuPicker();
+            setPhase(3);
+          }}
+        >
           اختيار طلب آخر
         </button>
         <PrimaryButton onClick={() => setPhase(3.5)} disabled={!cartItemCount}>
