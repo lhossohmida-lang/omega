@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "generate:apk": "node generate-apk.mjs https://basst-omeeega.web.app",
+    "generate:apk": "node generate-apk.mjs https://omega-gules-nine.vercel.app",
     "build:exe": "npx electron-builder --win --config electron-builder.json && node -e \"const fs = require('fs'); fs.copyFileSync('dist-exe/OMEGA Setup 1.0.0.exe', 'public/omega-installer.exe'); fs.copyFileSync('dist-exe/OMEGA Setup 1.0.0.exe', 'dist/omega-installer.exe'); console.log('EXE copied successfully!');\"",
     "electron:dev": "electron electron-main.cjs"
   },

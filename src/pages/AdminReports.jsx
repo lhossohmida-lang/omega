@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getAllOrders } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
+import { getAllIngredientPurchases, getAllStoreExpenses } from '../services/inventoryService';
 import { getAllWorkers } from '../services/attendanceService';
 import { getAllSchedulePlans, saveWorkerSchedule } from '../services/scheduleService';
 import { formatCurrency } from '../utils/formatCurrency';
-import { isToday, isThisMonth } from '../utils/formatDate';
-import { calculateOrderProfit } from '../utils/calculateProfit';
+import { isToday, isThisMonth, isThisWeek } from '../utils/formatDate';
+import { calculateOperatingCosts, calculateOrderProfit, isFinancialOrder, isFinancialOrderInDate } from '../utils/calculateProfit';
 import AdminNav from '../components/AdminNav';
 import AdminHeader from '../components/AdminHeader';
 import { IoStatsChart, IoTrophy, IoCalendarOutline, IoCloseOutline, IoSaveOutline, IoAddOutline, IoTrashOutline, IoTimeOutline } from 'react-icons/io5';
@@ -43,6 +44,8 @@ const SHIFT_PRESETS = [
 export default function AdminReports() {
   const [orders, setOrders]     = useState([]);
   const [products, setProducts] = useState([]);
+  const [ingredientPurchases, setIngredientPurchases] = useState([]);
+  const [storeExpenses, setStoreExpenses] = useState([]);
   const [workers, setWorkers]   = useState([]);
   const [plans, setPlans]       = useState({});   // uid -> { days: { '0': [{start,end,label}] } }
   const [loading, setLoading]   = useState(true);
@@ -57,10 +60,15 @@ export default function AdminReports() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [o, p, w, sc] = await Promise.all([
-        getAllOrders(), getAllProducts(), getAllWorkers(), getAllSchedulePlans(),
+      const [o, p, purchases, expenses, w, sc] = await Promise.all([
+        getAllOrders(),
+        getAllProducts(),
+        getAllIngredientPurchases(),
+        getAllStoreExpenses(),
+        getAllWorkers(),
+        getAllSchedulePlans(),
       ]);
-      setOrders(o); setProducts(p); setWorkers(w);
+      setOrders(o); setProducts(p); setIngredientPurchases(purchases); setStoreExpenses(expenses); setWorkers(w);
       const map = {};
       sc.forEach(s => { map[s.uid] = s; });
       setPlans(map);
@@ -70,11 +78,18 @@ export default function AdminReports() {
 
   // ─── إحصائيات المبيعات ───
   const delivered = orders.filter(o => o.status === 'delivered');
-  const todayDel  = delivered.filter(o => isToday(o.createdAt));
-  const monthDel  = delivered.filter(o => isThisMonth(o.createdAt));
+  const financialOrders = orders.filter(isFinancialOrder);
+  const todayPaid = orders.filter(o => isFinancialOrderInDate(o, isToday));
+  const weekPaid = orders.filter(o => isFinancialOrderInDate(o, isThisWeek));
+  const monthPaid = orders.filter(o => isFinancialOrderInDate(o, isThisMonth));
+  const todayCosts = calculateOperatingCosts({ ingredientPurchases, expenses: storeExpenses }, isToday);
+  const weekCosts = calculateOperatingCosts({ ingredientPurchases, expenses: storeExpenses }, isThisWeek);
+  const monthCosts = calculateOperatingCosts({ ingredientPurchases, expenses: storeExpenses }, isThisMonth);
+  const allCosts = calculateOperatingCosts({ ingredientPurchases, expenses: storeExpenses });
+  const profitFor = (list) => list.reduce((s, o) => s + calculateOrderProfit(o).profit, 0);
 
   const categorySales = {};
-  delivered.forEach(o => {
+  financialOrders.forEach(o => {
     o.items?.forEach(item => {
       const product = products.find(p => p.id === item.productId);
       const cat = product?.category || 'other';
@@ -86,7 +101,7 @@ export default function AdminReports() {
   });
 
   const productSales = {};
-  delivered.forEach(o => {
+  financialOrders.forEach(o => {
     o.items?.forEach(item => {
       if (!productSales[item.name]) productSales[item.name] = { qty: 0, revenue: 0 };
       productSales[item.name].qty     += item.quantity;
@@ -98,12 +113,13 @@ export default function AdminReports() {
   const totalCategorySales = Object.values(categorySales).reduce((s,c) => s + c.sales, 0);
 
   const summary = [
-    { label: 'مبيعات اليوم',   value: formatCurrency(todayDel.reduce((s,o)=>s+(o.totalPrice||0),0)),  color:'from-emerald-500 to-emerald-700' },
-    { label: 'فائدة اليوم',    value: formatCurrency(todayDel.reduce((s,o)=>s+calculateOrderProfit(o).profit,0)), color:'from-omega-orange to-omega-red' },
-    { label: 'مبيعات الشهر',  value: formatCurrency(monthDel.reduce((s,o)=>s+(o.totalPrice||0),0)),  color:'from-blue-500 to-indigo-700' },
-    { label: 'فائدة الشهر',   value: formatCurrency(monthDel.reduce((s,o)=>s+calculateOrderProfit(o).profit,0)), color:'from-cyan-500 to-teal-700' },
-    { label: 'المبيعات الكلية',value: formatCurrency(delivered.reduce((s,o)=>s+(o.totalPrice||0),0)), color:'from-fuchsia-500 to-purple-700' },
-    { label: 'الفائدة الكلية', value: formatCurrency(delivered.reduce((s,o)=>s+calculateOrderProfit(o).profit,0)), color:'from-amber-500 to-orange-700' },
+    { label: 'مبيعات اليوم',   value: formatCurrency(todayPaid.reduce((s,o)=>s+(o.totalPrice||0),0)),  color:'from-emerald-500 to-emerald-700' },
+    { label: 'فائدة اليوم',    value: formatCurrency(profitFor(todayPaid) - todayCosts.total), color:'from-omega-orange to-omega-red' },
+    { label: 'فائدة الأسبوع',  value: formatCurrency(profitFor(weekPaid) - weekCosts.total), color:'from-amber-500 to-orange-700' },
+    { label: 'مبيعات الشهر',  value: formatCurrency(monthPaid.reduce((s,o)=>s+(o.totalPrice||0),0)),  color:'from-blue-500 to-indigo-700' },
+    { label: 'فائدة الشهر',   value: formatCurrency(profitFor(monthPaid) - monthCosts.total), color:'from-cyan-500 to-teal-700' },
+    { label: 'المبيعات الكلية',value: formatCurrency(financialOrders.reduce((s,o)=>s+(o.totalPrice||0),0)), color:'from-fuchsia-500 to-purple-700' },
+    { label: 'الفائدة الكلية', value: formatCurrency(profitFor(financialOrders) - allCosts.total), color:'from-slate-500 to-slate-700' },
   ];
 
   // ─── فتح مودال تعديل خلية ───

@@ -2,12 +2,12 @@
 //  OMEGA — PWABuilder APK Generator
 // =============================================================================
 //  Uses pwabuilder.com API to build an Android APK from the deployed PWA URL.
-//  Run this after deploying to Firebase Hosting.
+//  Run this after deploying to Vercel.
 //
 //  Usage:
-//    node generate-apk.mjs <your-firebase-url>
+//    node generate-apk.mjs <your-vercel-url>
 //  Example:
-//    node generate-apk.mjs https://basst-omeeega.web.app
+//    node generate-apk.mjs https://omega-gules-nine.vercel.app
 //
 //  Output:
 //    ./apk/omega-app.apk
@@ -22,7 +22,7 @@ import https from 'https';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const SITE_URL = process.argv[2] || 'https://basst-omeeega.web.app';
+const SITE_URL = process.argv[2] || 'https://omega-gules-nine.vercel.app';
 
 console.log(`\n🚀 Building APK for: ${SITE_URL}\n`);
 

@@ -149,6 +149,12 @@ export async function getIngredientPurchases(ingredientId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+export async function getAllIngredientPurchases() {
+  const q = query(collection(db, PURCHASES_COL), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // حذف عملية شراء (يخصم من الإجماليات)
 export async function deleteIngredientPurchase(purchaseId, ingredientId) {
   const { getDoc } = await import('firebase/firestore');
@@ -170,6 +176,41 @@ export async function deleteIngredientPurchase(purchaseId, ingredientId) {
       updatedAt: serverTimestamp(),
     });
   }
+}
+
+// ============================
+// مصاريف المحل
+// ============================
+
+export async function getStoreExpenses(limitCount = 80) {
+  const expenses = await getAllStoreExpenses();
+  return expenses.slice(0, limitCount);
+}
+
+export async function getAllStoreExpenses() {
+  const q = query(collection(db, INVENTORY_COL), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(item => item.type === 'expense');
+}
+
+export async function addStoreExpense({ amount, note, createdBy }) {
+  const value = Number(amount) || 0;
+  return await addDoc(collection(db, INVENTORY_COL), {
+    productId: null,
+    productName: 'مصاريف المحل',
+    type: 'expense',
+    quantity: 0,
+    amount: value,
+    note: note || '',
+    createdBy: createdBy || null,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function deleteStoreExpense(expenseId) {
+  await deleteDoc(doc(db, INVENTORY_COL, expenseId));
 }
 
 // جلب حركات منتج معين

@@ -35,15 +35,15 @@ function createWindow() {
     titleBarStyle: 'default'
   });
 
-  // Load the Firebase-deployed PWA
-  const FIREBASE_URL = 'https://basst-omeeega.web.app';
+  // Load the Vercel-deployed PWA when no local build is bundled.
+  const VERCEL_URL = 'https://omega-gules-nine.vercel.app';
   const LOCAL_BUILD  = path.join(__dirname, 'dist', 'index.html');
 
-  // Try local dist first, fall back to Firebase URL
+  // Try local dist first, fall back to Vercel URL.
   if (fs.existsSync(LOCAL_BUILD)) {
     mainWindow.loadFile(LOCAL_BUILD);
   } else {
-    mainWindow.loadURL(FIREBASE_URL);
+    mainWindow.loadURL(VERCEL_URL);
   }
 
   // Open external links in system browser

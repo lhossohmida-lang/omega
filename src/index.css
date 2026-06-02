@@ -7297,6 +7297,153 @@ article[class*="rounded-2xl"].admin-glass {
   font-size: 1.45rem;
 }
 
+/* Admin order creation uses the kiosk ordering flow inside a modal. */
+.admin-kiosk-order-modal {
+  min-height: 100dvh;
+}
+
+.admin-kiosk-stage {
+  min-height: 100dvh;
+  align-items: flex-start;
+}
+
+.admin-kiosk-phone {
+  max-height: calc(100dvh - 1.4rem);
+  min-height: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.admin-kiosk-success-phone {
+  width: min(100%, 610px);
+}
+
+.admin-kiosk-choice-grid {
+  margin-top: clamp(1rem, 3vw, 1.5rem);
+}
+
+.admin-kiosk-product-grid {
+  margin-top: clamp(0.85rem, 2.5vw, 1.25rem);
+}
+
+.admin-kiosk-qty {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 2;
+  min-width: 2.1rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  color: #fff;
+  background: linear-gradient(100deg, var(--kiosk-red), var(--kiosk-orange));
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(228, 20, 32, 0.24);
+}
+
+.kiosk-product-actions .admin-kiosk-remove-btn {
+  flex: 0 0 auto;
+  color: var(--kiosk-red);
+  border: 1px solid rgba(228, 20, 32, 0.22);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: none;
+}
+
+.admin-kiosk-sticky-actions {
+  position: sticky;
+  bottom: 0.6rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(255,255,255,0.58);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.74);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.admin-kiosk-summary-list {
+  max-height: 42dvh;
+  overflow-y: auto;
+  padding-inline-end: 0.15rem;
+}
+
+.admin-kiosk-customer-box {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-kiosk-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.admin-kiosk-input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1.5px solid rgba(228, 20, 32, 0.16);
+  border-radius: 1rem;
+  padding: 0.8rem 1rem;
+  color: var(--kiosk-ink);
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.95rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.admin-kiosk-input::placeholder {
+  color: rgba(93, 93, 98, 0.66);
+}
+
+.admin-kiosk-input:focus {
+  border-color: rgba(228, 20, 32, 0.44);
+  box-shadow: 0 0 0 4px rgba(228, 20, 32, 0.08);
+}
+
+.admin-kiosk-note {
+  resize: vertical;
+  min-height: 4.1rem;
+}
+
+.admin-kiosk-pay-card {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: center;
+}
+
+.admin-kiosk-pay-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-kiosk-pay-card > .kiosk-main-btn {
+  margin-top: auto;
+  pointer-events: none;
+}
+
+.admin-kiosk-success {
+  padding-block: clamp(1rem, 4vw, 2rem);
+}
+
+@media (max-width: 560px) {
+  .admin-kiosk-phone {
+    max-height: none;
+    min-height: calc(100dvh - 1rem);
+    border-radius: 1.4rem;
+    padding: 1rem;
+  }
+
+  .admin-kiosk-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-kiosk-sticky-actions {
+    border-radius: 1.25rem;
+    grid-template-columns: 1fr;
+  }
+}
+
 .kiosk-payment-card {
   position: relative;
   z-index: 2;

@@ -25,3 +25,49 @@ export function calculateTotalProfit(orders) {
     return total + profit;
   }, 0);
 }
+
+export function isOrderPaid(order) {
+  if (!order) return false;
+  if (order.paymentStatus === 'unpaid') return false;
+  if (order.paymentStatus === 'paid' || order.paymentStatus === 'completed') return true;
+  if (order.isPaid === true || order.paid === true) return true;
+  return (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') && order.paymentStatus !== 'unpaid';
+}
+
+export function isFinancialOrder(order) {
+  return isOrderPaid(order) && order.status !== 'cancelled';
+}
+
+export function getOrderFinancialDate(order) {
+  return order?.paidAt || order?.paymentCompletedAt || order?.createdAt;
+}
+
+export function isFinancialOrderInDate(order, dateFilter = () => true) {
+  return isFinancialOrder(order) && dateFilter(getOrderFinancialDate(order));
+}
+
+export function calculateIngredientPurchasesCost(purchases = [], dateFilter = () => true) {
+  return purchases.reduce((total, purchase) => {
+    if (!dateFilter(purchase.createdAt)) return total;
+    const totalCost = Number(purchase.totalCost);
+    if (Number.isFinite(totalCost)) return total + totalCost;
+    return total + ((Number(purchase.quantity) || 0) * (Number(purchase.unitPrice) || 0));
+  }, 0);
+}
+
+export function calculateStoreExpensesCost(expenses = [], dateFilter = () => true) {
+  return expenses.reduce((total, expense) => {
+    if (!dateFilter(expense.createdAt)) return total;
+    return total + (Number(expense.amount) || 0);
+  }, 0);
+}
+
+export function calculateOperatingCosts({ ingredientPurchases = [], expenses = [] } = {}, dateFilter = () => true) {
+  const ingredientsCost = calculateIngredientPurchasesCost(ingredientPurchases, dateFilter);
+  const expensesCost = calculateStoreExpensesCost(expenses, dateFilter);
+  return {
+    ingredientsCost,
+    expensesCost,
+    total: ingredientsCost + expensesCost,
+  };
+}

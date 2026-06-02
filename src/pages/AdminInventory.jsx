@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   getAllIngredients, addIngredient, updateIngredient, deleteIngredient,
   getIngredientPurchases, addIngredientPurchase, deleteIngredientPurchase,
+  getStoreExpenses, addStoreExpense, deleteStoreExpense,
 } from '../services/inventoryService';
 import { useAuth } from '../hooks/useAuth';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -11,7 +12,8 @@ import AdminNav from '../components/AdminNav';
 import AdminHeader from '../components/AdminHeader';
 import {
   IoCube, IoAdd, IoClose,
-  IoLeaf, IoCreate, IoTrash, IoPricetag, IoSearch, IoCart, IoCalendar
+  IoLeaf, IoCreate, IoTrash, IoPricetag, IoSearch, IoCart, IoCalendar,
+  IoReceipt, IoCash, IoDocumentText
 } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 
@@ -22,6 +24,7 @@ export default function AdminInventory() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('ingredients');
   const [ingredients, setIngredients] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Ingredient state
@@ -31,14 +34,19 @@ export default function AdminInventory() {
   const [purchases, setPurchases] = useState([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState({ quantity: '', totalPrice: '', note: '' });
+  const [expenseForm, setExpenseForm] = useState({ amount: '', note: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const ing = await getAllIngredients();
+      const [ing, exp] = await Promise.all([
+        getAllIngredients(),
+        getStoreExpenses(),
+      ]);
       setIngredients(ing);
+      setExpenses(exp);
     } catch (err) { console.error(err); }
     setLoading(false);
   };
@@ -135,8 +143,39 @@ export default function AdminInventory() {
     } catch (err) { toast.error('خطأ'); }
   };
 
+  const handleAddExpense = async (e) => {
+    e.preventDefault();
+    const amount = Number(expenseForm.amount);
+    if (!amount || amount <= 0) {
+      toast.error('أدخل مبلغ المصروف');
+      return;
+    }
+    setSaving(true);
+    try {
+      await addStoreExpense({
+        amount,
+        note: expenseForm.note.trim(),
+        createdBy: userData?.uid || userData?.id || null,
+      });
+      toast.success('تم تسجيل المصروف');
+      setExpenseForm({ amount: '', note: '' });
+      setExpenses(await getStoreExpenses());
+    } catch (err) { toast.error('خطأ'); console.error(err); }
+    setSaving(false);
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!confirm('حذف هذا المصروف؟')) return;
+    try {
+      await deleteStoreExpense(expenseId);
+      toast.success('تم حذف المصروف');
+      setExpenses(await getStoreExpenses());
+    } catch (err) { toast.error('خطأ'); console.error(err); }
+  };
+
   const totalIngredientsSpent = ingredients.reduce((s, i) => s + (i.totalSpent || 0), 0);
   const totalPurchases = ingredients.reduce((s, i) => s + (i.purchaseCount || 0), 0);
+  const totalExpenses = expenses.reduce((s, exp) => s + (Number(exp.amount) || 0), 0);
 
   const filteredIngredients = ingredients.filter(i =>
     !ingSearch || i.name?.toLowerCase().includes(ingSearch.toLowerCase())
@@ -149,33 +188,49 @@ export default function AdminInventory() {
           <AdminHeader
             title="المخزون"
             accent="إدارة"
-            subtitle={`${ingredients.length} مكوّن • ${totalPurchases} عملية شراء`}
+            subtitle={`${ingredients.length} مكوّن • ${totalPurchases} عملية شراء • ${expenses.length} مصروف`}
           />
 
-          {/* Action button row (only on ingredients) */}
-          <div className="mb-4 flex justify-end">
-            <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
-              <IoAdd size={18} /> <span>خانة جديدة</span>
-            </button>
-          </div>
+          {tab === 'ingredients' && (
+            <div className="mb-4 flex justify-end">
+              <button onClick={openNewIngredient} className="btn-primary flex items-center gap-2 text-sm">
+                <IoAdd size={18} /> <span>خانة جديدة</span>
+              </button>
+            </div>
+          )}
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-md">
+          <div className="flex gap-2 mb-5 p-1 rounded-2xl bg-white/3 border border-white/5 max-w-2xl">
             <button
               onClick={() => navigate('/admin/products')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all text-omega-text-muted hover:text-white"
+              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-omega-text-muted hover:text-white"
             >
               <IoCube size={16} /> المنتجات
             </button>
             <button
               onClick={() => setTab('ingredients')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30"
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                tab === 'ingredients'
+                  ? 'bg-gradient-to-l from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30'
+                  : 'text-omega-text-muted hover:text-white'
+              }`}
             >
               <IoLeaf size={16} /> المواد الخام
+            </button>
+            <button
+              onClick={() => setTab('expenses')}
+              className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                tab === 'expenses'
+                  ? 'bg-gradient-to-l from-rose-500 to-red-700 text-white shadow-lg shadow-red-500/25'
+                  : 'text-omega-text-muted hover:text-white'
+              }`}
+            >
+              <IoReceipt size={16} /> المصاريف
             </button>
           </div>
 
           {/* ============ INGREDIENTS TAB ============ */}
+          {tab === 'ingredients' && (
           <>
             {!loading && ingredients.length > 0 && (
               <div className="grid grid-cols-3 gap-3 mb-5 stagger">
@@ -288,6 +343,111 @@ export default function AdminInventory() {
               </div>
             )}
           </>
+          )}
+
+          {/* ============ EXPENSES TAB ============ */}
+          {tab === 'expenses' && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5 stagger">
+                <div className="stat-card bg-gradient-to-br from-rose-500 to-red-700">
+                  <div className="relative z-10">
+                    <IoCash className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">إجمالي المصاريف</p>
+                    <p className="text-white font-black text-base lg:text-xl">{formatCurrency(totalExpenses)}</p>
+                  </div>
+                </div>
+                <div className="stat-card bg-gradient-to-br from-slate-500 to-slate-700">
+                  <div className="relative z-10">
+                    <IoReceipt className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">عدد المصاريف</p>
+                    <p className="text-white font-black text-xl">{expenses.length}</p>
+                  </div>
+                </div>
+                <div className="stat-card bg-gradient-to-br from-amber-400 to-orange-600">
+                  <div className="relative z-10">
+                    <IoDocumentText className="text-white/80 mb-2" size={20} />
+                    <p className="text-white/85 text-[11px]">آخر مصروف</p>
+                    <p className="text-white font-black text-sm lg:text-base">
+                      {expenses[0] ? formatCurrency(expenses[0].amount || 0) : formatCurrency(0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleAddExpense} className="card-premium p-4 mb-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                    <IoReceipt size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-black text-lg">تسجيل مصروف للمحل</h3>
+                    <p className="text-omega-text-muted text-xs">أدخل المبلغ والملاحظة ليظهر في سجل المصاريف</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-[180px_1fr_auto] gap-3 items-end">
+                  <div>
+                    <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">المبلغ *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0"
+                      value={expenseForm.amount}
+                      onChange={e => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      className="input-modern text-center font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-omega-text-muted text-[11px] block mb-1.5 mr-1">ملاحظة</label>
+                    <input
+                      type="text"
+                      placeholder="مثلاً: كراء، كهرباء، توصيل، تنظيف..."
+                      value={expenseForm.note}
+                      onChange={e => setExpenseForm({ ...expenseForm, note: e.target.value })}
+                      className="input-modern"
+                    />
+                  </div>
+                  <button type="submit" disabled={saving} className="btn-primary flex items-center justify-center gap-2 min-h-[2.75rem]">
+                    {saving
+                      ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <><IoAdd size={16} /> <span>إضافة</span></>}
+                  </button>
+                </div>
+              </form>
+
+              {loading ? (
+                <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="skeleton h-20" />)}</div>
+              ) : expenses.length === 0 ? (
+                <div className="card-premium p-10 text-center">
+                  <IoReceipt className="mx-auto text-red-400 mb-3" size={42} />
+                  <p className="text-white font-bold mb-1">لا توجد مصاريف مسجلة بعد</p>
+                  <p className="text-omega-text-muted text-sm">سجّل مصاريف المحل من الخانة بالأعلى.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 stagger">
+                  {expenses.map(exp => (
+                    <div key={exp.id} className="card-premium p-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 flex-shrink-0">
+                          <IoCash size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-black text-base">{formatCurrency(exp.amount || 0)}</p>
+                          <p className="text-omega-text-dim text-[10px]">{timeAgo(exp.createdAt)}</p>
+                          {exp.note && <p className="text-omega-text-muted text-xs mt-1 truncate">{exp.note}</p>}
+                        </div>
+                      </div>
+                      <button onClick={() => handleDeleteExpense(exp.id)}
+                        className="p-2 rounded-lg text-omega-text-muted hover:text-omega-red hover:bg-omega-red/10 transition-all flex-shrink-0">
+                        <IoTrash size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
       </main>
 
       {/* Ingredient slot form Modal (create/edit) */}

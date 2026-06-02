@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllOrders, resetOrdersData } from '../services/orderService';
 import { getAllProducts } from '../services/productService';
-import { getAllIngredients } from '../services/inventoryService';
+import { getAllIngredientPurchases, getAllStoreExpenses } from '../services/inventoryService';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import { isToday, isThisWeek } from '../utils/formatDate';
-import { calculateOrderProfit } from '../utils/calculateProfit';
+import { calculateOperatingCosts, calculateOrderProfit, isFinancialOrder, isFinancialOrderInDate } from '../utils/calculateProfit';
 import { useAuth } from '../hooks/useAuth';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
@@ -180,7 +180,8 @@ function QuickTools() {
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
-  const [ingredients, setIngredients] = useState([]);
+  const [ingredientPurchases, setIngredientPurchases] = useState([]);
+  const [storeExpenses, setStoreExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [launching, setLaunching] = useState(false);
@@ -188,14 +189,16 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [ordersData, productsData, ingredientsData] = await Promise.all([
+      const [ordersData, productsData, purchasesData, expensesData] = await Promise.all([
         getAllOrders(),
         getAllProducts(),
-        getAllIngredients(),
+        getAllIngredientPurchases(),
+        getAllStoreExpenses(),
       ]);
       setOrders(ordersData);
       setProducts(productsData);
-      setIngredients(ingredientsData);
+      setIngredientPurchases(purchasesData);
+      setStoreExpenses(expensesData);
     } catch (error) {
       console.error(error);
     } finally {
@@ -244,31 +247,40 @@ export default function AdminDashboard() {
   };
 
   const stats = useMemo(() => {
-    const todayOrders = orders.filter((order) => isToday(order.createdAt));
-    const weekOrders = orders.filter((order) => isThisWeek(order.createdAt));
     const deliveredAll = orders.filter((order) => order.status === 'delivered');
-    const deliveredToday = todayOrders.filter((order) => order.status === 'delivered');
-    const deliveredWeek = weekOrders.filter((order) => order.status === 'delivered');
+    const paidAll = orders.filter(isFinancialOrder);
+    const paidToday = orders.filter((order) => isFinancialOrderInDate(order, isToday));
+    const paidWeek = orders.filter((order) => isFinancialOrderInDate(order, isThisWeek));
 
     const getOrderNetOwnerProfit = (order) => calculateOrderProfit(order).profit;
 
-    const todaySales = deliveredToday.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-    const allSales = deliveredAll.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-    const todayProfit = deliveredToday.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
-    const weekProfit = deliveredWeek.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
-    const totalIngredientCost = ingredients.reduce((sum, ing) => sum + (ing.totalSpent || 0), 0);
-    const allOrderProfit = deliveredAll.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const todaySales = paidToday.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const weekSales = paidWeek.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const allSales = paidAll.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const todayOrdersProfit = paidToday.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const weekOrdersProfit = paidWeek.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const allOrderProfit = paidAll.reduce((sum, order) => sum + getOrderNetOwnerProfit(order), 0);
+    const todayCosts = calculateOperatingCosts(
+      { ingredientPurchases, expenses: storeExpenses },
+      isToday
+    );
+    const weekCosts = calculateOperatingCosts(
+      { ingredientPurchases, expenses: storeExpenses },
+      isThisWeek
+    );
+    const allCosts = calculateOperatingCosts({ ingredientPurchases, expenses: storeExpenses });
 
     return {
       todaySales,
-      todayProfit,
-      weekProfit,
-      allProfit: allOrderProfit - totalIngredientCost,
+      weekSales,
+      todayProfit: todayOrdersProfit - todayCosts.total,
+      weekProfit: weekOrdersProfit - weekCosts.total,
+      allProfit: allOrderProfit - allCosts.total,
       allSales,
       deliveredCount: deliveredAll.length,
       activeOrders: orders.filter((order) => !['delivered', 'cancelled'].includes(order.status)).length,
     };
-  }, [orders, ingredients]);
+  }, [orders, ingredientPurchases, storeExpenses]);
 
   const bestProduct = useMemo(() => {
     const sales = {};
@@ -344,10 +356,10 @@ export default function AdminDashboard() {
         ) : (
           <>
             <section className="omega-stats-grid">
-              <StatCard icon={IoCashOutline} label="المبيعات اليوم" value={getMoney(stats.todaySales)} hint="طلبات اليوم المسلمة" tone="red" />
-              <StatCard icon={IoTrendingUpOutline} label="أرباح اليوم" value={getMoney(stats.todayProfit)} hint="حسب تكلفة المنتجات" tone="gold" />
-              <StatCard icon={IoWalletOutline} label="إجمالي الأرباح (الصافي)" value={getMoney(stats.allProfit)} hint="بعد خصم المواد الخام" tone="red" />
-              <StatCard icon={IoTrendingUpOutline} label="الأرباح الأسبوعية" value={getMoney(stats.weekProfit)} hint="أرباح هذا الأسبوع" tone="gold" />
+              <StatCard icon={IoCashOutline} label="المبيعات اليوم" value={getMoney(stats.todaySales)} hint="الطلبات الخالصة اليوم" tone="red" />
+              <StatCard icon={IoTrendingUpOutline} label="أرباح اليوم" value={getMoney(stats.todayProfit)} hint="خالصة بعد المواد الخام والمصاريف" tone="gold" />
+              <StatCard icon={IoWalletOutline} label="إجمالي الأرباح (الصافي)" value={getMoney(stats.allProfit)} hint="بعد خصم المواد الخام والمصاريف" tone="red" />
+              <StatCard icon={IoTrendingUpOutline} label="الأرباح الأسبوعية" value={getMoney(stats.weekProfit)} hint="خالصة بعد مصاريف هذا الأسبوع" tone="gold" />
               <StatCard icon={IoClipboardOutline} label="إجمالي الطلبات" value={formatNumber(stats.deliveredCount + stats.activeOrders)} hint="كل الطلبات المكتملة + قيد التنفيذ" tone="gold" />
               <StatCard icon={IoTimerOutline} label="الطلبات المعلقة" value={formatNumber(stats.activeOrders)} hint="تحتاج متابعة" tone="gold" />
               <StatCard icon={IoBagHandleOutline} label="إجمالي المبيعات" value={getMoney(stats.allSales)} hint="وحدة مباعة" tone="red" />
@@ -359,8 +371,8 @@ export default function AdminDashboard() {
                 <IoBarChartOutline size={30} />
               </div>
               <p>الدخل الأسبوعي</p>
-              <strong>{getMoney(stats.weekProfit + stats.todaySales)}</strong>
-              <span>+12% عن الأسبوع الماضي</span>
+              <strong>{getMoney(stats.weekSales)}</strong>
+              <span>مبيعات هذا الأسبوع</span>
               <i aria-hidden="true" />
             </section>
 

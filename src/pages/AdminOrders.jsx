@@ -16,7 +16,7 @@ import { printOrderTicket } from '../utils/printer';
 import { playLoudAlarm } from '../utils/soundUtils';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
 import { isToday, timeAgo } from '../utils/formatDate';
-import { calculateOrderProfit } from '../utils/calculateProfit';
+import { calculateOrderProfit, isOrderPaid } from '../utils/calculateProfit';
 import AdminHeader from '../components/AdminHeader';
 import AdminNav from '../components/AdminNav';
 import CategoryIcon from '../components/CategoryIcon';
@@ -24,9 +24,13 @@ import TransparentImg from '../components/TransparentImg';
 import localSync, { SYNC_EVENTS } from '../services/localSync';
 import {
   IoAdd,
+  IoArrowForward,
   IoBagHandleOutline,
+  IoCardOutline,
   IoCarOutline,
+  IoCashOutline,
   IoCheckmarkCircleOutline,
+  IoCheckmarkOutline,
   IoClose,
   IoDocumentTextOutline,
   IoFastFoodOutline,
@@ -39,6 +43,7 @@ import {
   IoReloadOutline,
   IoRestaurantOutline,
   IoSearch,
+  IoShieldCheckmarkOutline,
   IoTimeOutline,
   IoTrashOutline,
 } from 'react-icons/io5';
@@ -56,14 +61,6 @@ const statusConfig = {
 function paymentLabel(order) {
   if (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') return 'بطاقة';
   return 'نقداً';
-}
-
-function isOrderPaid(order) {
-  if (!order) return false;
-  if (order.paymentStatus === 'unpaid') return false;
-  if (order.paymentStatus === 'paid' || order.paymentStatus === 'completed') return true;
-  if (order.isPaid === true || order.paid === true) return true;
-  return (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') && order.paymentStatus !== 'unpaid';
 }
 
 function orderNumberLabel(order) {
@@ -233,18 +230,19 @@ export default function AdminOrders() {
 
   async function handleCreateAdminOrder(payload) {
     try {
-      await createAdminOrder({
+      const orderId = await createAdminOrder({
         ...payload,
         customerId: userData?.uid || 'admin',
       });
       toast.success('تم إنشاء الطلب');
-      setNewOrderContext(null);
       setPanelType(null);
       // إشعار المطبخ بطلب جديد
       localSync.emit(SYNC_EVENTS.ORDER_CREATED, { source: 'admin' });
+      return orderId;
     } catch (err) {
       console.error(err);
       toast.error(err.message || 'تعذّر إنشاء الطلب');
+      throw err;
     }
   }
 
@@ -1224,50 +1222,106 @@ function isSellableProduct(product) {
 /* ─── New Walk-in Order Modal ───────────────────────────── */
 function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
   const [cart, setCart] = useState({});
-  const [offerCart, setOfferCart] = useState({});  // { [offerId]: qty }
   const [customerName, setCustomerName] = useState(context?.customerName || '');
   const [customerPhone, setCustomerPhone] = useState(context?.customerPhone || '');
   const [customerNote, setCustomerNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeCat, setActiveCat] = useState('all');
-  const [activeSize, setActiveSize] = useState('all');
+  const [phase, setPhase] = useState('category');
+  const [activeCat, setActiveCat] = useState(null);
+  const [activeSize, setActiveSize] = useState(null);
+  const [createdOrderId, setCreatedOrderId] = useState(null);
+  const [createdPaymentMethod, setCreatedPaymentMethod] = useState(null);
 
+  const SINGLE_SIZE_VALUE = '__single_size__';
+  const MENU_CATEGORY_ORDER = ['pizza', 'tacos', 'sofli', 'box', 'drinks'];
   const CAT_META = {
-    all:        { label: 'الكل',    emoji: '🍽️' },
-    pizza:      { label: 'بيتزا',   emoji: '🍕' },
-    burger:     { label: 'برغر',    emoji: '🍔' },
-    tacos:      { label: 'تاكوس',   emoji: '🌮' },
-    sofli:      { label: 'سوفلي',   emoji: '🥟', iconUrl: '/sofli-icon.png' },
-    box:        { label: 'box',     emoji: '📦' },
-    drinks:     { label: 'مشروبات', emoji: '🥤' },
-    appetizers: { label: 'مقبلات',  emoji: '🍟' },
-    desserts:   { label: 'حلويات',  emoji: '🍰' },
+    pizza:      { label: 'بيتزا', icon: IoFastFoodOutline },
+    burger:     { label: 'برغر', icon: IoFastFoodOutline },
+    tacos:      { label: 'تاكوس', icon: IoFastFoodOutline },
+    sofli:      { label: 'سوفلي', icon: IoFastFoodOutline },
+    box:        { label: 'box', icon: IoBagHandleOutline },
+    drinks:     { label: 'مشروبات', icon: IoFastFoodOutline },
+    appetizers: { label: 'مقبلات', icon: IoFastFoodOutline },
+    desserts:   { label: 'حلويات', icon: IoFastFoodOutline },
   };
 
-  const availableProducts = products.filter(p => p.isAvailable !== false && isSellableProduct(p));
-  const existingCats = ['all',
-    ...Object.keys(CAT_META).filter(k =>
-      k !== 'all' && availableProducts.some(p => p.category === k)
-    )
-  ];
-
-  const filteredProducts = availableProducts.filter(p => {
-    if (activeCat !== 'all' && p.category !== activeCat) return false;
-    if (activeSize === 'all') return true;
-    return p.hasSizes && p.sizes?.some(sz => sz.label === activeSize);
+  const offerToProduct = (offer) => ({
+    id: `offer_${offer.id}`,
+    type: 'offer',
+    offerId: offer.id,
+    name: offer.title,
+    description: offer.description || (offer.items || []).map(item => `${item.quantity || 1} ${item.productName || item.name}`).join(' + '),
+    price: Number(offer.offerPrice || 0),
+    costPrice: 0,
+    image: offer.image || offer.items?.find(item => item.image)?.image || '/burger-classic.png',
+    category: 'box',
+    isAvailable: offer.isActive !== false,
+    hasSizes: false,
+    sizes: [],
+    components: offer.items || [],
   });
 
-  const addOffer = (offerId) => {
-    setOfferCart(c => ({ ...c, [offerId]: (c[offerId] || 0) + 1 }));
-  };
-  const removeOffer = (offerId) => {
-    setOfferCart(c => {
-      const n = { ...c };
-      if (n[offerId] > 1) n[offerId] -= 1;
-      else delete n[offerId];
-      return n;
+  const sellableSizes = (product) => (
+    product.hasSizes && Array.isArray(product.sizes)
+      ? product.sizes.filter(size => Number(size?.price || 0) > 0)
+      : []
+  );
+
+  const allProducts = useMemo(() => ([
+    ...products,
+    ...offers.map(offerToProduct),
+  ]), [products, offers]);
+
+  const availableProducts = useMemo(
+    () => allProducts.filter(p => p.isAvailable !== false && isSellableProduct(p)),
+    [allProducts]
+  );
+
+  const existingCats = useMemo(() => {
+    const cats = Object.keys(CAT_META).filter(cat => availableProducts.some(product => product.category === cat));
+    const priorityCats = MENU_CATEGORY_ORDER.filter(cat => cats.includes(cat));
+    const otherCats = cats.filter(cat => !MENU_CATEGORY_ORDER.includes(cat));
+    return [...priorityCats, ...otherCats];
+  }, [availableProducts]);
+
+  const selectedCategoryProducts = useMemo(() => (
+    activeCat ? availableProducts.filter(product => product.category === activeCat) : []
+  ), [activeCat, availableProducts]);
+
+  const availableSizes = useMemo(() => {
+    if (!activeCat) return [];
+
+    const sizeOptions = new Map();
+    let hasSingleSizeProducts = false;
+
+    selectedCategoryProducts.forEach((product) => {
+      const sizes = sellableSizes(product);
+      if (sizes.length) {
+        sizes.forEach((size) => {
+          if (size?.label && !sizeOptions.has(size.label)) {
+            sizeOptions.set(size.label, { label: size.label, value: size.label });
+          }
+        });
+      } else {
+        hasSingleSizeProducts = true;
+      }
     });
-  };
+
+    const options = [...sizeOptions.values()];
+    if (hasSingleSizeProducts || !options.length) {
+      options.push({ label: 'حجم واحد', value: SINGLE_SIZE_VALUE });
+    }
+    return options;
+  }, [activeCat, selectedCategoryProducts]);
+
+  const filteredProducts = useMemo(() => {
+    if (!activeCat || !activeSize) return [];
+    return selectedCategoryProducts.filter((product) => {
+      const sizes = sellableSizes(product);
+      if (activeSize === SINGLE_SIZE_VALUE) return !sizes.length;
+      return sizes.some(size => size.label === activeSize);
+    });
+  }, [activeCat, activeSize, selectedCategoryProducts]);
 
   const addItem = (id, sizeLabel, sizePrice) => {
     if (sizeLabel !== undefined) {
@@ -1285,40 +1339,80 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
   });
 
   const cartEntries = Object.entries(cart).map(([key, entry]) => {
-    const p = products.find(x => x.id === entry.productId);
+    const p = allProducts.find(x => x.id === entry.productId);
     if (!p) return null;
     const price = entry.sizePrice !== undefined ? entry.sizePrice : (p.price || 0);
     const label = entry.sizeLabel ? ` (${entry.sizeLabel})` : '';
-    return { key, product: p, quantity: entry.qty, price, label, type: 'product' };
+    return { key, product: p, quantity: entry.qty, price, label, selectedSize: entry.sizeLabel || null };
   }).filter(Boolean);
 
-  const offerCartEntries = Object.entries(offerCart).map(([offerId, qty]) => {
-    const offer = offers.find(o => o.id === offerId);
-    if (!offer) return null;
-    return { key: `offer_${offerId}`, offer, quantity: qty, price: Number(offer.offerPrice || 0), type: 'offer' };
-  }).filter(Boolean);
+  const totalPrice = cartEntries.reduce((s, e) => s + (e.price * e.quantity), 0);
+  const itemsCount = cartEntries.reduce((s, e) => s + e.quantity, 0);
 
-  const totalPrice = [
-    ...cartEntries.map(e => e.price * e.quantity),
-    ...offerCartEntries.map(e => e.price * e.quantity),
-  ].reduce((s, v) => s + v, 0);
-  const itemsCount = [
-    ...cartEntries.map(e => e.quantity),
-    ...offerCartEntries.map(e => e.quantity),
-  ].reduce((s, v) => s + v, 0);
-
-  // Header label based on context
   const orderType = context?.orderType || 'table';
   const headerInfo = (() => {
-    if (orderType === 'table') return { label: `طاولة ${context?.tableNumber || '—'}`, icon: IoRestaurantOutline, color: 'text-omega-orange', bg: 'bg-omega-orange/10' };
-    if (orderType === 'takeout') return { label: `يأخذها معه · زبون ${context?.takeoutNumber || '—'}`, icon: IoBagHandleOutline, color: 'text-emerald-600', bg: 'bg-emerald-50' };
-    if (orderType === 'delivery') return { label: `توصيل · سائق ${context?.driverNumber || '—'}`, icon: IoCarOutline, color: 'text-blue-600', bg: 'bg-blue-50' };
-    return { label: 'طلب جديد', icon: IoBagHandleOutline, color: 'text-gray-600', bg: 'bg-gray-50' };
+    if (orderType === 'table') return { label: `أكل في المطعم · طاولة ${context?.tableNumber || '—'}`, icon: IoRestaurantOutline };
+    if (orderType === 'takeout') return { label: `سفري · زبون ${context?.takeoutNumber || '—'}`, icon: IoBagHandleOutline };
+    if (orderType === 'delivery') return { label: `توصيل · سائق ${context?.driverNumber || '—'}`, icon: IoCarOutline };
+    return { label: 'طلب جديد', icon: IoBagHandleOutline };
   })();
   const HeaderIcon = headerInfo.icon;
 
-  const handleSubmit = async () => {
-    if (cartEntries.length === 0) {
+  const stepLabel = {
+    category: 'خطوة 1 من 5',
+    size: 'خطوة 2 من 5',
+    product: 'خطوة 3 من 5',
+    summary: 'خطوة 4 من 5',
+    payment: 'خطوة 5 من 5',
+    success: 'تم الطلب',
+  }[phase];
+
+  const screenTitle = {
+    category: ['اختر ', 'نوع الطبق'],
+    size: ['اختر ', `حجم ${CAT_META[activeCat]?.label || 'الطبق'}`],
+    product: ['اختر ', `طبق ${CAT_META[activeCat]?.label || ''}`],
+    summary: ['ملخص ', 'طلبك'],
+    payment: ['اختر طريقة ', 'الدفع'],
+  }[phase] || ['تم ', 'الطلب'];
+
+  const goBack = () => {
+    if (submitting) return;
+    if (phase === 'category') onClose();
+    else if (phase === 'size') setPhase('category');
+    else if (phase === 'product') setPhase('size');
+    else if (phase === 'summary') setPhase('product');
+    else if (phase === 'payment') setPhase('summary');
+    else onClose();
+  };
+
+  const selectCategory = (cat) => {
+    setActiveCat(cat);
+    setActiveSize(null);
+    setPhase('size');
+  };
+
+  const selectSize = (sizeValue) => {
+    setActiveSize(sizeValue);
+    setPhase('product');
+  };
+
+  const getProductSize = (product) => {
+    const sizes = sellableSizes(product);
+    if (!sizes.length || activeSize === SINGLE_SIZE_VALUE) return null;
+    return sizes.find(size => size.label === activeSize) || null;
+  };
+
+  const addProductFromMenu = (product) => {
+    const size = getProductSize(product);
+    const price = Number(size?.price ?? product.price ?? 0);
+    if (price <= 0) return;
+
+    if (size) addItem(product.id, size.label, price);
+    else addItem(product.id);
+  };
+
+  const handleSubmit = async (paymentMethod) => {
+    if (!cartEntries.length) {
       toast.error('أضف منتجات أولاً');
       return;
     }
@@ -1327,39 +1421,41 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
       return;
     }
     setSubmitting(true);
-    const items = [
-      ...cartEntries.map(({ product, quantity, price, label }) => ({
+
+    const items = cartEntries.map(({ product, quantity, price, selectedSize }) => {
+      if (product.type === 'offer') {
+        return {
+          productId: product.id,
+          offerId: product.offerId,
+          name: product.name,
+          type: 'offer',
+          price,
+          costPrice: 0,
+          image: product.image || '',
+          category: 'offers',
+          quantity,
+          components: product.components || [],
+        };
+      }
+
+      return {
         productId: product.id,
-        name: product.name + label,
+        name: product.name,
+        selectedSize,
         price,
         costPrice: product.costPrice || 0,
         image: product.image || '',
         category: product.category || '',
         quantity,
-      })),
-      ...offerCartEntries.map(({ offer, quantity, price }) => ({
-        productId: `offer_${offer.id}`,
-        offerId: offer.id,
-        name: offer.title,
-        type: 'offer',
-        price,
-        costPrice: 0,
-        image: offer.image || offer.items?.find(i => i.image)?.image || '',
-        category: 'offers',
-        quantity,
-        components: (offer.items || []).map(item => ({
-          productId: item.productId,
-          name: item.productName || item.name,
-          quantity: Number(item.quantity || 1),
-          price: Number(item.unitPrice ?? item.price ?? 0),
-        })),
-      })),
-    ];
+      };
+    });
+
     const defaultName = {
       table: `طاولة ${context?.tableNumber || ''}`.trim(),
       takeout: `زبون ${context?.takeoutNumber || ''}`.trim(),
       delivery: 'زبون توصيل',
     }[orderType] || 'زبون';
+    const isPaid = paymentMethod === 'ccp';
 
     const payload = {
       items,
@@ -1367,199 +1463,346 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
       customerName: customerName.trim() || defaultName,
       customerPhone: customerPhone.trim(),
       customerNote,
+      note: customerNote,
       isDelivery: orderType === 'delivery',
       orderType,
       tableNumber: orderType === 'table' ? context?.tableNumber : null,
       takeoutNumber: orderType === 'takeout' ? context?.takeoutNumber : null,
       driverNumber: orderType === 'delivery' ? context?.driverNumber : null,
+      paymentMethod,
+      paymentStatus: isPaid ? 'paid' : 'unpaid',
+      isPaid,
     };
-    await onSubmit(payload);
-    setSubmitting(false);
+
+    try {
+      const orderId = await onSubmit(payload);
+      setCreatedOrderId(orderId);
+      setCreatedPaymentMethod(paymentMethod);
+      setPhase('success');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const SIZES = [
-    { id: 'all', label: 'الكل' },
-    { id: 'L', label: 'L' },
-    { id: 'XL', label: 'XL' },
-    { id: 'XXL', label: 'XXL' },
-  ];
+  const Head = ({ compact = false, icon: Icon = HeaderIcon }) => (
+    <header className={`kiosk-screen-head ${compact ? 'compact' : ''}`}>
+      <div className="kiosk-logo">
+        <img src="/logo.png?v=2" alt="OMEGA Pizza" />
+      </div>
+      <h1 className="kiosk-screen-title">
+        {screenTitle[0]}
+        <strong>{screenTitle[1]}</strong>
+      </h1>
+      <p className="kiosk-screen-subtitle">{headerInfo.label}</p>
+      {Icon && (
+        <span className="kiosk-title-icon" aria-hidden="true">
+          <Icon />
+        </span>
+      )}
+    </header>
+  );
+
+  const TrustLine = ({ text = 'نظام الطلب الإداري بنفس مراحل الكشك' }) => (
+    <div className="kiosk-trust-line">
+      <IoShieldCheckmarkOutline aria-hidden="true" />
+      <span><strong>100%</strong> {text}</span>
+    </div>
+  );
+
+  const renderCategory = () => (
+    <>
+      <Head compact icon={IoFastFoodOutline} />
+      <div className="kiosk-menu-progress" aria-label="مراحل اختيار الطلب">
+        <span className="active">1. النوع</span>
+        <span>2. الحجم</span>
+        <span>3. الطبق</span>
+      </div>
+      {existingCats.length ? (
+        <div className="kiosk-category-grid admin-kiosk-choice-grid">
+          {existingCats.map((cat) => {
+            const meta = CAT_META[cat];
+            const Icon = meta?.icon || IoFastFoodOutline;
+            return (
+              <button key={cat} type="button" className="kiosk-category-card" onClick={() => selectCategory(cat)}>
+                <span className="kiosk-category-icon"><Icon aria-hidden="true" /></span>
+                <strong>{meta?.label || cat}</strong>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="kiosk-loading-card">
+          <strong>لا توجد منتجات متاحة حالياً</strong>
+          <span>يمكنك تحديث المنتجات من لوحة المنيو.</span>
+        </div>
+      )}
+      <TrustLine />
+    </>
+  );
+
+  const renderSize = () => (
+    <>
+      <Head compact icon={IoFastFoodOutline} />
+      <div className="kiosk-menu-progress" aria-label="مراحل اختيار الطلب">
+        <span>1. النوع</span>
+        <span className="active">2. الحجم</span>
+        <span>3. الطبق</span>
+      </div>
+      <div className="kiosk-size-grid admin-kiosk-choice-grid">
+        {availableSizes.map(size => (
+          <button key={size.value} type="button" className="kiosk-size-card" onClick={() => selectSize(size.value)}>
+            <IoFastFoodOutline aria-hidden="true" />
+            <strong>{size.label}</strong>
+          </button>
+        ))}
+      </div>
+      <TrustLine />
+    </>
+  );
+
+  const renderProducts = () => (
+    <>
+      <Head compact icon={IoReceiptOutline} />
+      <div className="kiosk-menu-progress" aria-label="مراحل اختيار الطلب">
+        <span>1. النوع</span>
+        <span>2. الحجم</span>
+        <span className="active">3. الطبق</span>
+      </div>
+
+      <div className="kiosk-product-grid admin-kiosk-product-grid">
+        {filteredProducts.map((product) => {
+          const size = getProductSize(product);
+          const price = Number(size?.price ?? product.price ?? 0);
+          const key = size ? `${product.id}__${size.label}` : product.id;
+          const qty = cart[key]?.qty || 0;
+          return (
+            <article className="kiosk-product-card" key={key}>
+              <div className="kiosk-product-image-wrap">
+                <TransparentImg
+                  src={product.image || fallbackImg(product.category)}
+                  alt={product.name}
+                  className="kiosk-product-img"
+                />
+                {qty > 0 && <span className="admin-kiosk-qty">{qty}x</span>}
+              </div>
+              <div className="kiosk-product-body">
+                <h2>{product.name}</h2>
+                <p>{product.description || CAT_META[product.category]?.label || 'وجبة من OMEGA'}</p>
+                {size && <span className="kiosk-product-size">{size.label}</span>}
+                <strong>{formatCurrency(price)}</strong>
+              </div>
+              <div className="kiosk-product-actions">
+                <button type="button" onClick={() => addProductFromMenu(product)}>
+                  <IoAdd aria-hidden="true" />
+                  <span>إضافة إلى الطلب</span>
+                  <small>{formatCurrency(price)}</small>
+                </button>
+                {qty > 0 && (
+                  <button type="button" className="admin-kiosk-remove-btn" onClick={() => removeItem(key)}>
+                    <IoRemove aria-hidden="true" />
+                    <span>إنقاص</span>
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="kiosk-action-row admin-kiosk-sticky-actions">
+        <button type="button" className="kiosk-white-action" onClick={() => setPhase('category')}>
+          اختيار صنف آخر
+        </button>
+        <button
+          type="button"
+          className="kiosk-main-btn"
+          onClick={() => setPhase('summary')}
+          disabled={!itemsCount}
+        >
+          <IoReceiptOutline aria-hidden="true" />
+          <span>إتمام الطلب</span>
+        </button>
+      </div>
+    </>
+  );
+
+  const renderSummary = () => (
+    <>
+      <Head icon={IoBagHandleOutline} />
+      <div className="kiosk-summary-list admin-kiosk-summary-list">
+        {cartEntries.map((item) => (
+          <article className="kiosk-summary-item" key={item.key}>
+            <img src={item.product.image || fallbackImg(item.product.category)} alt="" />
+            <div>
+              <h2>{item.product.name}{item.label}</h2>
+              <span>{CAT_META[item.product.category]?.label || 'OMEGA'}</span>
+            </div>
+            <b>{item.quantity}x</b>
+            <strong>{formatCurrency(item.price * item.quantity)}</strong>
+            <button
+              type="button"
+              className="kiosk-summary-remove"
+              onClick={() => removeItem(item.key)}
+              aria-label={item.quantity > 1 ? 'إنقاص الكمية' : 'حذف الطبق'}
+            >
+              {item.quantity > 1 ? <IoRemove aria-hidden="true" /> : <IoTrashOutline aria-hidden="true" />}
+            </button>
+          </article>
+        ))}
+      </div>
+
+      <div className="kiosk-summary-box admin-kiosk-customer-box">
+        <div>
+          <span>نوع الطلب</span>
+          <strong>{headerInfo.label}</strong>
+        </div>
+        {(orderType === 'delivery' || orderType === 'takeout') && (
+          <div className="admin-kiosk-fields">
+            <input
+              type="text"
+              value={customerPhone}
+              onChange={e => setCustomerPhone(e.target.value)}
+              placeholder={orderType === 'delivery' ? 'الهاتف *' : 'الهاتف (اختياري)'}
+              dir="ltr"
+              className="admin-kiosk-input"
+            />
+            <input
+              type="text"
+              value={customerName}
+              onChange={e => setCustomerName(e.target.value)}
+              placeholder="اسم الزبون (اختياري)"
+              className="admin-kiosk-input"
+            />
+          </div>
+        )}
+        <textarea
+          value={customerNote}
+          onChange={e => setCustomerNote(e.target.value)}
+          placeholder="ملاحظة (اختياري)"
+          rows={2}
+          className="admin-kiosk-input admin-kiosk-note"
+        />
+      </div>
+
+      <div className="kiosk-total-card">
+        <span>الإجمالي</span>
+        <strong>{formatCurrency(totalPrice)}</strong>
+      </div>
+
+      <div className="kiosk-action-row">
+        <button
+          type="button"
+          className="kiosk-white-action"
+          onClick={() => {
+            setActiveCat(null);
+            setActiveSize(null);
+            setPhase('category');
+          }}
+        >
+          اختيار طلب آخر
+        </button>
+        <button type="button" className="kiosk-main-btn" onClick={() => setPhase('payment')} disabled={!itemsCount}>
+          <span>متابعة للدفع</span>
+        </button>
+      </div>
+      <TrustLine text="راجع الطلب قبل اختيار طريقة الدفع" />
+    </>
+  );
+
+  const renderPayment = () => (
+    <>
+      <Head icon={IoCardOutline} />
+      <div className="kiosk-option-grid payment">
+        <button
+          type="button"
+          className="kiosk-option-card admin-kiosk-pay-card"
+          onClick={() => handleSubmit('cash')}
+          disabled={submitting}
+        >
+          <div className="kiosk-icon-orb"><IoCashOutline aria-hidden="true" /></div>
+          <h2>الدفع نقداً</h2>
+          <p>يُنشأ الطلب كغير خالصة حتى يتم تحصيل المبلغ.</p>
+          <span className="kiosk-main-btn gold">{submitting ? 'جاري تسجيل الطلب...' : 'اختر هذا الخيار'}</span>
+        </button>
+        <button
+          type="button"
+          className="kiosk-option-card admin-kiosk-pay-card"
+          onClick={() => handleSubmit('ccp')}
+          disabled={submitting}
+        >
+          <div className="kiosk-icon-orb"><IoCardOutline aria-hidden="true" /></div>
+          <h2>الدفع بالبطاقة</h2>
+          <p>يُنشأ الطلب كخالصة ويدخل مباشرة في سجل الطلبات.</p>
+          <span className="kiosk-main-btn">{submitting ? 'جاري تسجيل الطلب...' : 'اختر هذا الخيار'}</span>
+        </button>
+      </div>
+      <div className="kiosk-secure-note">
+        <IoShieldCheckmarkOutline aria-hidden="true" />
+        <span>طريقة الدفع ستظهر في مربعات الخالصة وغير الخالصة.</span>
+      </div>
+    </>
+  );
+
+  const renderSuccess = () => (
+    <div className="kiosk-success admin-kiosk-success">
+      <div className="kiosk-success-check">
+        <IoCheckmarkOutline aria-hidden="true" />
+      </div>
+      <h1>تم إنشاء الطلب بنجاح!</h1>
+      <p><strong>OMEGA</strong> تم إرسال الطلب للمطبخ</p>
+      <span>{createdPaymentMethod === 'ccp' ? 'الطلب خالصة.' : 'الطلب غير خالصة حتى يتم الدفع.'}</span>
+      <div className="kiosk-order-number">
+        <span>معرّف الطلب</span>
+        <strong>{createdOrderId ? `#${String(createdOrderId).slice(-6)}` : '...'}</strong>
+      </div>
+      <button type="button" className="kiosk-main-btn kiosk-home-btn" onClick={onClose}>
+        <IoReceiptOutline aria-hidden="true" />
+        <span>العودة للطلبات</span>
+      </button>
+    </div>
+  );
+
+  const renderContent = () => {
+    if (phase === 'category') return renderCategory();
+    if (phase === 'size') return renderSize();
+    if (phase === 'product') return renderProducts();
+    if (phase === 'summary') return renderSummary();
+    if (phase === 'payment') return renderPayment();
+    return renderSuccess();
+  };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-4xl rounded-t-[1.8rem] sm:rounded-3xl bg-white border border-gray-200 shadow-2xl h-[95vh] max-h-[95vh] flex flex-col">
-
-        {/* رأس */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0 border-b border-gray-100">
-          <button type="button" onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200">
-            <IoClose size={18} />
-          </button>
-          <div className="flex items-center gap-2 text-right">
-            <div>
-              <h2 className="text-gray-900 text-lg font-black">طلب جديد</h2>
-              <p className={`text-xs font-black mt-0.5 ${headerInfo.color}`}>{headerInfo.label}</p>
-            </div>
-            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${headerInfo.bg} ${headerInfo.color}`}>
-              <HeaderIcon size={22} />
-            </div>
-          </div>
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/70 backdrop-blur-sm">
+      <div className="kiosk-v2 admin-kiosk-order-modal" dir="rtl">
+        <div className="kiosk-decor" aria-hidden="true">
+          <span className="kiosk-tomato kiosk-tomato-a" />
+          <span className="kiosk-tomato kiosk-tomato-b" />
+          <span className="kiosk-tomato kiosk-tomato-c" />
+          <span className="kiosk-leaf kiosk-leaf-a" />
+          <span className="kiosk-leaf kiosk-leaf-b" />
+          <span className="kiosk-leaf kiosk-leaf-c" />
+          <span className="kiosk-bokeh kiosk-bokeh-a" />
+          <span className="kiosk-bokeh kiosk-bokeh-b" />
+          <span className="kiosk-bokeh kiosk-bokeh-c" />
         </div>
 
-        {/* أزرار الأحجام — كبيرة وواضحة */}
-        <div className="px-5 pt-4 pb-4 shrink-0">
-          <p className="text-right text-gray-600 text-sm font-black mb-3">فلترة بالحجم</p>
-          <div className="grid grid-cols-4 gap-3">
-            {SIZES.map(sz => {
-              const active = activeSize === sz.id;
-              return (
-                <button
-                  key={sz.id}
-                  type="button"
-                  onClick={() => setActiveSize(sz.id)}
-                  className={`rounded-2xl border-2 py-5 text-2xl font-black transition-all ${
-                    active
-                      ? 'bg-omega-orange text-white border-omega-orange shadow-xl shadow-omega-orange/40 scale-[1.02]'
-                      : 'bg-gray-50 text-gray-800 border-gray-300 hover:bg-white hover:border-omega-orange/50'
-                  }`}
-                >
-                  {sz.label}
+        <main className="kiosk-stage admin-kiosk-stage">
+          <section className={`kiosk-phone kiosk-phone-wide admin-kiosk-phone ${phase === 'success' ? 'admin-kiosk-success-phone' : ''}`}>
+            {phase !== 'success' && (
+              <div className="kiosk-topbar">
+                <button type="button" className="kiosk-back-btn" onClick={goBack}>
+                  <IoArrowForward aria-hidden="true" />
+                  <span>{phase === 'category' ? 'إغلاق' : 'رجوع'}</span>
                 </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* الجسم: مستطيل مقسم على اثنين */}
-        <div className="flex-1 min-h-0 px-5 pb-3 overflow-hidden">
-          <div className="h-full rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden flex">
-            {/* اليمين (HTML أول = يمين في RTL): المنتجات أو العروض */}
-            <div className="flex-1 min-w-0 overflow-y-auto p-3">
-              {activeCat === 'offers' ? (
-                offers.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-10">لا توجد عروض نشطة</p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {offers.map(offer => {
-                      const qty = offerCart[offer.id] || 0;
-                      const img = offer.image || offer.items?.find(i => i.image)?.image || '/burger-classic.png';
-                      return (
-                        <button
-                          key={offer.id}
-                          type="button"
-                          onClick={() => addOffer(offer.id)}
-                          className={`relative rounded-2xl border-2 p-2.5 text-right transition-all ${
-                            qty > 0 ? 'border-omega-orange bg-omega-orange/[0.07]' : 'border-gray-200 bg-white hover:border-omega-orange/40'
-                          }`}
-                        >
-                          <div className="aspect-[4/3] rounded-xl bg-gray-50 mb-2 overflow-hidden flex items-center justify-center">
-                            <TransparentImg src={img} alt={offer.title} className="w-full h-full object-cover" />
-                          </div>
-                          <p className="text-gray-900 font-bold text-sm truncate leading-snug">{offer.title}</p>
-                          <p className="text-omega-orange text-sm font-black mt-1">{formatCurrency(offer.offerPrice)}</p>
-                          {qty > 0 && (
-                            <div className="absolute top-2 left-2 flex items-center gap-1 bg-omega-orange text-white rounded-full px-1.5 py-0.5">
-                              <button type="button" onClick={(e) => { e.stopPropagation(); removeOffer(offer.id); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"><IoRemove size={13} /></button>
-                              <span className="font-black text-xs min-w-[1ch] text-center">{qty}</span>
-                              <button type="button" onClick={(e) => { e.stopPropagation(); addOffer(offer.id); }} className="w-5 h-5 flex items-center justify-center hover:bg-white/20 rounded-full"><IoAdd size={13} /></button>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )
-              ) : filteredProducts.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-10">لا توجد منتجات</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {filteredProducts.map(p => (
-                    <ProductTile
-                      key={p.id}
-                      p={p}
-                      cart={cart}
-                      addItem={addItem}
-                      removeItem={removeItem}
-                      activeSize={activeSize}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* اليسار (HTML ثاني = يسار في RTL): الفئات */}
-            <div className="w-28 sm:w-36 shrink-0 border-r border-gray-200 bg-white overflow-y-auto">
-              <div className="flex flex-col p-2 gap-1.5">
-                {existingCats.map(cat => {
-                  const m = CAT_META[cat];
-                  const active = activeCat === cat;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setActiveCat(cat)}
-                      className={`flex flex-col items-center gap-1 rounded-xl px-1 py-3 text-xs font-black border-2 transition-all ${
-                        active
-                          ? 'bg-omega-orange text-white border-omega-orange shadow-md shadow-omega-orange/25'
-                          : 'bg-gray-50 text-gray-700 border-transparent hover:bg-white hover:border-gray-200'
-                      }`}
-                    >
-                      <CategoryIcon
-                        iconUrl={m.iconUrl}
-                        emoji={m.emoji}
-                        className={m.iconUrl ? 'h-6 w-6 object-contain' : 'text-2xl'}
-                      />
-                      <span className="text-center leading-tight">{m.label}</span>
-                    </button>
-                  );
-                })}
+                <span className="kiosk-step-pill">{stepLabel}</span>
               </div>
-            </div>
-          </div>
-        </div>
+            )}
 
-        {/* قاع: بيانات الزبون + الإجمالي + الإرسال */}
-        <div className="px-5 pt-3 pb-5 shrink-0 border-t border-gray-200 bg-gray-50/50 space-y-2">
-          {(orderType === 'delivery' || orderType === 'takeout') && (
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                placeholder={orderType === 'delivery' ? 'الهاتف *' : 'الهاتف (اختياري)'}
-                dir="ltr"
-                className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50"
-              />
-              <input
-                type="text"
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-                placeholder="اسم الزبون (اختياري)"
-                className="rounded-xl bg-white border border-gray-200 px-3 py-2.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right focus:border-omega-orange/50"
-              />
-            </div>
-          )}
-          <textarea
-            value={customerNote}
-            onChange={e => setCustomerNote(e.target.value)}
-            placeholder="ملاحظة (اختياري)"
-            rows={1}
-            className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-gray-900 text-sm outline-none placeholder:text-gray-400 text-right resize-none focus:border-omega-orange/50"
-          />
-          {itemsCount > 0 && (
-            <div className="flex items-center justify-between rounded-2xl bg-omega-orange/10 border border-omega-orange/30 px-4 py-2.5">
-              <span className="text-omega-orange font-black text-xl">{formatCurrency(totalPrice)}</span>
-              <span className="text-gray-700 text-sm font-bold">{itemsCount} صنف</span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting || itemsCount === 0}
-            className="w-full rounded-2xl bg-gradient-to-l from-omega-orange to-omega-red py-5 text-white font-black text-xl shadow-lg shadow-omega-orange/30 disabled:opacity-40 active:scale-[0.98] transition-transform"
-          >
-            {submitting ? '...جاري إنشاء الطلب' : 'تأكيد الطلب وإنشائه ✓'}
-          </button>
-        </div>
+            {renderContent()}
+          </section>
+        </main>
       </div>
     </div>
   );
