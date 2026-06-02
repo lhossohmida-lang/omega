@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  IoAdd,
   IoArrowDown,
   IoArrowForward,
   IoBagHandleOutline,
@@ -917,11 +916,19 @@ export default function Kiosk() {
                       {filteredProducts.map((product) => {
                         const selectedSize = getProductSize(product);
                         const productPrice = getProductPrice(product);
+                        const cartKey = selectedSize ? `${product.id}__${selectedSize.label}` : product.id;
+                        const qty = cart[cartKey]?.qty || 0;
 
                         return (
-                          <article className="kiosk-product-card" key={product.id}>
+                          <button
+                            type="button"
+                            className="kiosk-product-card kiosk-product-card-clickable"
+                            key={cartKey}
+                            onClick={() => addProductFromMenu(product)}
+                          >
                             <div className="kiosk-product-image-wrap">
                               <ProductImage product={product} />
+                              {qty > 0 && <span className="kiosk-product-qty">{qty}x</span>}
                             </div>
                             <div className="kiosk-product-body">
                               <h2>{product.name}</h2>
@@ -929,14 +936,7 @@ export default function Kiosk() {
                               {selectedSize && <span className="kiosk-product-size">{selectedSize.label}</span>}
                               <strong>{money(productPrice)}</strong>
                             </div>
-                            <div className="kiosk-product-actions">
-                              <button type="button" onClick={() => addProductFromMenu(product)}>
-                                <IoAdd aria-hidden="true" />
-                                <span>إضافة إلى الطلب</span>
-                                <small>{money(productPrice)}</small>
-                              </button>
-                            </div>
-                          </article>
+                          </button>
                         );
                       })}
                     </div>

@@ -28,6 +28,7 @@ import {
   IoBagHandleOutline,
   IoCardOutline,
   IoCarOutline,
+  IoCartOutline,
   IoCashOutline,
   IoCheckmarkCircleOutline,
   IoCheckmarkOutline,
@@ -58,11 +59,6 @@ const statusConfig = {
   cancelled: { label: 'ملغي', icon: IoClose, color: '#e53935', bg: 'rgba(229,57,53,0.12)' },
 };
 
-function paymentLabel(order) {
-  if (order.paymentMethod === 'ccp' || order.paymentMethod === 'card') return 'بطاقة';
-  return 'نقداً';
-}
-
 function orderNumberLabel(order) {
   return order.orderNumber != null
     ? String(order.orderNumber).padStart(3, '0')
@@ -83,6 +79,19 @@ function displayStatus(order) {
   return 'pending';
 }
 
+function getTodayOrderDayKey() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isTodayOrder(order) {
+  if (order.orderDayKey) return order.orderDayKey === getTodayOrderDayKey();
+  return isToday(order.createdAt);
+}
+
 function OrderSquare({ order, tone, onOpen }) {
   const ds = displayStatus(order);
   const config = statusConfig[ds] || statusConfig.pending;
@@ -100,7 +109,7 @@ function OrderSquare({ order, tone, onOpen }) {
       <span className="admin-order-square-meta">{orderTypeLabel(order)}</span>
       <span className="admin-order-square-foot">
         <b style={{ color: config.color }}>{config.label}</b>
-        <em>{paid ? 'خالصة' : 'غير خالصة'}</em>
+        <em>{paid ? 'خالصة' : Number(order.paidAmount || 0) > 0 ? `دفع ${formatCurrency(order.paidAmount)}` : 'غير خالصة'}</em>
       </span>
     </button>
   );
@@ -121,6 +130,7 @@ export default function AdminOrders() {
   const [panelType, setPanelType] = useState(null); // 'dine-in' | 'takeout' | 'delivery'
   const [newOrderContext, setNewOrderContext] = useState(null); // { orderType, tableNumber?, driverNumber?, customerName?, customerPhone? }
   const [driverPhoneStep, setDriverPhoneStep] = useState(null); // { driverNumber }
+  const [paymentAmountDraft, setPaymentAmountDraft] = useState('');
   const previousOrdersRef = useRef([]);
   const deletionTimers = useRef({});
   const printedReadyOrdersRef = useRef(new Set());
@@ -128,9 +138,10 @@ export default function AdminOrders() {
 
   useEffect(() => {
     const unsub = subscribeToAllOrders((data) => {
+      const todayOrders = data.filter(isTodayOrder);
       // On first load, record existing ready orders to avoid reprint
-      if (isFirstLoadRef.current && data.length > 0) {
-        data.forEach((o) => {
+      if (isFirstLoadRef.current && todayOrders.length > 0) {
+        todayOrders.forEach((o) => {
           if (o.workerReady) {
             printedReadyOrdersRef.current.add(o.id);
           }
@@ -139,7 +150,7 @@ export default function AdminOrders() {
       }
 
       // Check for any newly ready order to print automatically
-      data.forEach((o) => {
+      todayOrders.forEach((o) => {
         if (o.workerReady && !printedReadyOrdersRef.current.has(o.id)) {
           printedReadyOrdersRef.current.add(o.id);
           printOrderTicket(o, { type: 'admin' });
@@ -147,17 +158,17 @@ export default function AdminOrders() {
         }
       });
 
-      setOrders(data);
+      setOrders(todayOrders);
       setLoading(false);
 
       const previousPending = previousOrdersRef.current.filter(o => o.status === 'pending');
-      const currentPending = data.filter(o => o.status === 'pending');
+      const currentPending = todayOrders.filter(o => o.status === 'pending');
 
       if (previousOrdersRef.current.length > 0 && currentPending.length > previousPending.length) {
         playLoudAlarm();
       }
 
-      previousOrdersRef.current = data;
+      previousOrdersRef.current = todayOrders;
     });
 
     // استماع لتحديثات الشبكة المحلية (بدون إنترنت)
@@ -200,6 +211,10 @@ export default function AdminOrders() {
   }, [orders]);
 
   useEffect(() => () => Object.values(deletionTimers.current).forEach(clearTimeout), []);
+
+  useEffect(() => {
+    setPaymentAmountDraft(selected ? String(selected.paidAmount || 0) : '');
+  }, [selected?.id, selected?.paidAmount]);
 
   useEffect(() => {
     (async () => {
@@ -260,13 +275,18 @@ export default function AdminOrders() {
     }
   }
 
-  async function handlePaymentToggle(order, paid) {
+  async function handlePaymentToggle(order, paid, paidAmount = 0) {
     if (!order?.id) return;
     try {
-      await updateOrderPaymentStatus(order.id, paid);
+      const normalizedPaidAmount = paid
+        ? Number(order.totalPrice || 0)
+        : Math.min(Number(order.totalPrice || 0), Math.max(0, Number(paidAmount) || 0));
+      await updateOrderPaymentStatus(order.id, paid, normalizedPaidAmount);
       const updates = {
         paymentStatus: paid ? 'paid' : 'unpaid',
         isPaid: paid,
+        paidAmount: normalizedPaidAmount,
+        remainingAmount: Math.max(0, Number(order.totalPrice || 0) - normalizedPaidAmount),
       };
       setOrders(current => current.map(item => item.id === order.id ? { ...item, ...updates } : item));
       setSelected(current => current?.id === order.id ? { ...current, ...updates } : current);
@@ -676,9 +696,49 @@ export default function AdminOrders() {
                     {isOrderPaid(selected) ? 'خالصة' : 'غير خالصة'}
                   </span>
                   <div className="text-right">
-                    <p className="text-sm text-omega-text-muted">طريقة الدفع</p>
-                    <p className="mt-1 text-lg font-black text-white">{paymentLabel(selected)}</p>
+                    <p className="text-sm text-omega-text-muted">الخلاص</p>
+                    <p className="mt-1 text-lg font-black text-white">
+                      {isOrderPaid(selected) ? 'خالصة كاملة' : 'غير خالصة'}
+                    </p>
                   </div>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 text-right">
+                    <p className="text-xs text-omega-text-muted">المدفوع</p>
+                    <p className="mt-1 font-black text-emerald-400">{formatCurrency(selected.paidAmount || 0)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 text-right">
+                    <p className="text-xs text-omega-text-muted">المتبقي</p>
+                    <p className="mt-1 font-black text-red-400">{formatCurrency(selected.remainingAmount ?? Math.max(0, (selected.totalPrice || 0) - (selected.paidAmount || 0)))}</p>
+                  </div>
+                  <label className="rounded-xl border border-white/8 bg-white/[0.03] p-3 text-right">
+                    <span className="text-xs text-omega-text-muted">مبلغ مدفوع جزئي</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max={selected.totalPrice || 0}
+                      step="0.01"
+                      value={paymentAmountDraft}
+                      onChange={(event) => setPaymentAmountDraft(event.target.value)}
+                      className="mt-2 w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-right font-black text-white outline-none focus:border-omega-orange/50"
+                    />
+                  </label>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePaymentToggle(selected, false, paymentAmountDraft)}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-black text-red-400"
+                  >
+                    حفظ كغير خالصة
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePaymentToggle(selected, true)}
+                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-black text-emerald-400"
+                  >
+                    تعليم كخالصة كاملة
+                  </button>
                 </div>
               </div>
 
@@ -1231,6 +1291,8 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
   const [activeSize, setActiveSize] = useState(null);
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const [createdPaymentMethod, setCreatedPaymentMethod] = useState(null);
+  const [settlementStatus, setSettlementStatus] = useState('paid');
+  const [partialPaidAmount, setPartialPaidAmount] = useState('');
 
   const SINGLE_SIZE_VALUE = '__single_size__';
   const MENU_CATEGORY_ORDER = ['pizza', 'tacos', 'sofli', 'box', 'drinks'];
@@ -1363,7 +1425,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
     size: 'خطوة 2 من 5',
     product: 'خطوة 3 من 5',
     summary: 'خطوة 4 من 5',
-    payment: 'خطوة 5 من 5',
+    payment: 'حالة الخلاص',
     success: 'تم الطلب',
   }[phase];
 
@@ -1372,7 +1434,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
     size: ['اختر ', `حجم ${CAT_META[activeCat]?.label || 'الطبق'}`],
     product: ['اختر ', `طبق ${CAT_META[activeCat]?.label || ''}`],
     summary: ['ملخص ', 'طلبك'],
-    payment: ['اختر طريقة ', 'الدفع'],
+    payment: ['حدد حالة ', 'الخلاص'],
   }[phase] || ['تم ', 'الطلب'];
 
   const goBack = () => {
@@ -1411,7 +1473,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
     else addItem(product.id);
   };
 
-  const handleSubmit = async (paymentMethod) => {
+  const handleSubmit = async () => {
     if (!cartEntries.length) {
       toast.error('أضف منتجات أولاً');
       return;
@@ -1455,7 +1517,10 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
       takeout: `زبون ${context?.takeoutNumber || ''}`.trim(),
       delivery: 'زبون توصيل',
     }[orderType] || 'زبون';
-    const isPaid = paymentMethod === 'ccp';
+    const isPaid = settlementStatus === 'paid';
+    const paidAmount = isPaid
+      ? totalPrice
+      : Math.min(totalPrice, Math.max(0, Number(partialPaidAmount) || 0));
 
     const payload = {
       items,
@@ -1469,15 +1534,17 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
       tableNumber: orderType === 'table' ? context?.tableNumber : null,
       takeoutNumber: orderType === 'takeout' ? context?.takeoutNumber : null,
       driverNumber: orderType === 'delivery' ? context?.driverNumber : null,
-      paymentMethod,
+      paymentMethod: 'cash',
       paymentStatus: isPaid ? 'paid' : 'unpaid',
       isPaid,
+      paidAmount,
+      remainingAmount: Math.max(0, totalPrice - paidAmount),
     };
 
     try {
       const orderId = await onSubmit(payload);
       setCreatedOrderId(orderId);
-      setCreatedPaymentMethod(paymentMethod);
+      setCreatedPaymentMethod(isPaid ? 'paid' : 'unpaid');
       setPhase('success');
     } catch (err) {
       console.error(err);
@@ -1578,14 +1645,39 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
           const key = size ? `${product.id}__${size.label}` : product.id;
           const qty = cart[key]?.qty || 0;
           return (
-            <article className="kiosk-product-card" key={key}>
+            <article
+              className="kiosk-product-card kiosk-product-card-clickable"
+              key={key}
+              role="button"
+              tabIndex={0}
+              onClick={() => addProductFromMenu(product)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  addProductFromMenu(product);
+                }
+              }}
+            >
               <div className="kiosk-product-image-wrap">
                 <TransparentImg
                   src={product.image || fallbackImg(product.category)}
                   alt={product.name}
                   className="kiosk-product-img"
                 />
-                {qty > 0 && <span className="admin-kiosk-qty">{qty}x</span>}
+                {qty > 0 && <span className="kiosk-product-qty">{qty}x</span>}
+                {qty > 0 && (
+                  <button
+                    type="button"
+                    className="admin-kiosk-remove-chip"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeItem(key);
+                    }}
+                    aria-label="إنقاص الكمية"
+                  >
+                    <IoRemove aria-hidden="true" />
+                  </button>
+                )}
               </div>
               <div className="kiosk-product-body">
                 <h2>{product.name}</h2>
@@ -1593,37 +1685,9 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
                 {size && <span className="kiosk-product-size">{size.label}</span>}
                 <strong>{formatCurrency(price)}</strong>
               </div>
-              <div className="kiosk-product-actions">
-                <button type="button" onClick={() => addProductFromMenu(product)}>
-                  <IoAdd aria-hidden="true" />
-                  <span>إضافة إلى الطلب</span>
-                  <small>{formatCurrency(price)}</small>
-                </button>
-                {qty > 0 && (
-                  <button type="button" className="admin-kiosk-remove-btn" onClick={() => removeItem(key)}>
-                    <IoRemove aria-hidden="true" />
-                    <span>إنقاص</span>
-                  </button>
-                )}
-              </div>
             </article>
           );
         })}
-      </div>
-
-      <div className="kiosk-action-row admin-kiosk-sticky-actions">
-        <button type="button" className="kiosk-white-action" onClick={() => setPhase('category')}>
-          اختيار صنف آخر
-        </button>
-        <button
-          type="button"
-          className="kiosk-main-btn"
-          onClick={() => setPhase('summary')}
-          disabled={!itemsCount}
-        >
-          <IoReceiptOutline aria-hidden="true" />
-          <span>إتمام الطلب</span>
-        </button>
       </div>
     </>
   );
@@ -1713,34 +1777,68 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
 
   const renderPayment = () => (
     <>
-      <Head icon={IoCardOutline} />
+      <Head icon={IoCheckmarkCircleOutline} />
       <div className="kiosk-option-grid payment">
         <button
           type="button"
-          className="kiosk-option-card admin-kiosk-pay-card"
-          onClick={() => handleSubmit('cash')}
+          className={`kiosk-option-card admin-kiosk-pay-card ${settlementStatus === 'paid' ? 'admin-kiosk-pay-active' : ''}`}
+          onClick={() => setSettlementStatus('paid')}
           disabled={submitting}
         >
-          <div className="kiosk-icon-orb"><IoCashOutline aria-hidden="true" /></div>
-          <h2>الدفع نقداً</h2>
-          <p>يُنشأ الطلب كغير خالصة حتى يتم تحصيل المبلغ.</p>
-          <span className="kiosk-main-btn gold">{submitting ? 'جاري تسجيل الطلب...' : 'اختر هذا الخيار'}</span>
+          <div className="kiosk-icon-orb"><IoCheckmarkCircleOutline aria-hidden="true" /></div>
+          <h2>خالصة</h2>
+          <p>تم دفع قيمة الطلب كاملة. ستدخل تلقائياً في الفائدة.</p>
+          <span className="kiosk-main-btn">{formatCurrency(totalPrice)}</span>
         </button>
         <button
           type="button"
-          className="kiosk-option-card admin-kiosk-pay-card"
-          onClick={() => handleSubmit('ccp')}
+          className={`kiosk-option-card admin-kiosk-pay-card ${settlementStatus === 'unpaid' ? 'admin-kiosk-pay-active' : ''}`}
+          onClick={() => setSettlementStatus('unpaid')}
           disabled={submitting}
         >
-          <div className="kiosk-icon-orb"><IoCardOutline aria-hidden="true" /></div>
-          <h2>الدفع بالبطاقة</h2>
-          <p>يُنشأ الطلب كخالصة ويدخل مباشرة في سجل الطلبات.</p>
-          <span className="kiosk-main-btn">{submitting ? 'جاري تسجيل الطلب...' : 'اختر هذا الخيار'}</span>
+          <div className="kiosk-icon-orb"><IoCashOutline aria-hidden="true" /></div>
+          <h2>غير خالصة</h2>
+          <p>سجّل المبلغ المدفوع فقط، ويبقى الباقي كدين على الطلب.</p>
+          <span className="kiosk-main-btn gold">تسجيل دفع جزئي</span>
         </button>
       </div>
+      {settlementStatus === 'unpaid' && (
+        <div className="kiosk-summary-box admin-kiosk-customer-box">
+          <div>
+            <span>إجمالي الطلب</span>
+            <strong>{formatCurrency(totalPrice)}</strong>
+          </div>
+          <label>
+            <span>كم دفع من قيمة الطلب؟</span>
+            <input
+              type="number"
+              min="0"
+              max={totalPrice}
+              step="0.01"
+              value={partialPaidAmount}
+              onChange={(event) => setPartialPaidAmount(event.target.value)}
+              placeholder="0"
+              className="admin-kiosk-input"
+            />
+          </label>
+          <div>
+            <span>المتبقي</span>
+            <strong>{formatCurrency(Math.max(0, totalPrice - (Number(partialPaidAmount) || 0)))}</strong>
+          </div>
+        </div>
+      )}
+      <button
+        type="button"
+        className="kiosk-main-btn admin-kiosk-submit-settlement"
+        onClick={handleSubmit}
+        disabled={submitting}
+      >
+        <IoCheckmarkOutline aria-hidden="true" />
+        <span>{submitting ? 'جاري إنشاء الطلب...' : 'تأكيد الطلب'}</span>
+      </button>
       <div className="kiosk-secure-note">
         <IoShieldCheckmarkOutline aria-hidden="true" />
-        <span>طريقة الدفع ستظهر في مربعات الخالصة وغير الخالصة.</span>
+        <span>حالة الخلاص ستحدد هل يدخل الطلب في الفائدة أم لا.</span>
       </div>
     </>
   );
@@ -1752,7 +1850,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
       </div>
       <h1>تم إنشاء الطلب بنجاح!</h1>
       <p><strong>OMEGA</strong> تم إرسال الطلب للمطبخ</p>
-      <span>{createdPaymentMethod === 'ccp' ? 'الطلب خالصة.' : 'الطلب غير خالصة حتى يتم الدفع.'}</span>
+      <span>{createdPaymentMethod === 'paid' ? 'الطلب خالصة.' : 'الطلب غير خالصة مع تسجيل المبلغ المدفوع.'}</span>
       <div className="kiosk-order-number">
         <span>معرّف الطلب</span>
         <strong>{createdOrderId ? `#${String(createdOrderId).slice(-6)}` : '...'}</strong>
@@ -1772,6 +1870,7 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
     if (phase === 'payment') return renderPayment();
     return renderSuccess();
   };
+  const showFloatingCart = ['category', 'size', 'product'].includes(phase);
 
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/70 backdrop-blur-sm">
@@ -1803,6 +1902,24 @@ function NewOrderModal({ products, offers = [], context, onClose, onSubmit }) {
             {renderContent()}
           </section>
         </main>
+
+        {showFloatingCart && (
+          <button
+            type="button"
+            className="kiosk-floating-checkout admin-kiosk-floating-cart"
+            onClick={() => {
+              if (!itemsCount) {
+                toast.error('أضف طبقاً إلى السلة أولاً');
+                return;
+              }
+              setPhase('summary');
+            }}
+            aria-label="فتح سلة الطلب"
+          >
+            <IoCartOutline aria-hidden="true" />
+            <span>{itemsCount}</span>
+          </button>
+        )}
       </div>
     </div>
   );

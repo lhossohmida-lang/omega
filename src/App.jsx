@@ -37,6 +37,7 @@ import AdminInventory from './pages/AdminInventory';
 import AdminAI from './pages/AdminAI';
 import AdminReports from './pages/AdminReports';
 import AdminAttendance from './pages/AdminAttendance';
+import AdminHistory from './pages/AdminHistory';
 
 import AppKeyboard from './components/AppKeyboard';
 import { TapTransitionProvider } from './components/TapTransition';
@@ -126,6 +127,7 @@ export default function App() {
       <Route path="/admin/ai" element={<ProtectedRoute allowedRoles={['admin']}><AdminAI /></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AdminReports /></ProtectedRoute>} />
       <Route path="/admin/attendance" element={<ProtectedRoute allowedRoles={['admin']}><AdminAttendance /></ProtectedRoute>} />
+      <Route path="/admin/history" element={<ProtectedRoute allowedRoles={['admin']}><AdminHistory /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />

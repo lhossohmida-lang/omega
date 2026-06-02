@@ -14,17 +14,24 @@ const COUNTERS_COL = 'counters';
 const ORDER_NUMBER_DOC = 'orderNumber';
 const ORDER_NUMBER_MAX = 100;
 
-// عدّاد متسلسل للطلبات: 1 → 100 ثم يعود إلى 1
+function getOrderDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// عدّاد يومي للطلبات: يبدأ من 1 كل يوم، ثم يدور حتى 100 خلال نفس اليوم.
 // يستخدم Firestore transaction لضمان عدم التكرار حتى مع عدة طلبات متزامنة
-export async function getNextOrderNumber() {
-  const counterRef = doc(db, COUNTERS_COL, ORDER_NUMBER_DOC);
+export async function getNextOrderNumber(dayKey = getOrderDayKey()) {
+  const counterRef = doc(db, COUNTERS_COL, `${ORDER_NUMBER_DOC}_${dayKey}`);
   try {
     return await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(counterRef);
       const current = snap.exists() ? Number(snap.data().value || 0) : 0;
       let next = current + 1;
       if (next > ORDER_NUMBER_MAX) next = 1;
-      transaction.set(counterRef, { value: next, updatedAt: serverTimestamp() });
+      transaction.set(counterRef, { value: next, dayKey, updatedAt: serverTimestamp() });
       return next;
     });
   } catch (err) {
@@ -38,7 +45,9 @@ export async function getNextOrderNumber() {
       const snap = await getDocs(q);
       let lastNumber = 0;
       for (const d of snap.docs) {
-        const n = Number(d.data().orderNumber);
+        const data = d.data();
+        if (data.orderDayKey !== dayKey) continue;
+        const n = Number(data.orderNumber);
         if (Number.isFinite(n) && n > 0) { lastNumber = n; break; }
       }
       let next = lastNumber + 1;
@@ -254,7 +263,10 @@ export async function createOrder(orderData) {
   const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
 
   const isDelivery = orderData.orderType === 'delivery';
-  const orderNumber = await getNextOrderNumber();
+  const orderDayKey = getOrderDayKey();
+  const orderNumber = await getNextOrderNumber(orderDayKey);
+  const isPaid = orderData.paymentStatus === 'paid' || orderData.isPaid;
+  const paidAmount = isPaid ? totalPrice : Math.min(totalPrice, Math.max(0, toNumber(orderData.paidAmount, 0)));
 
   const order = {
     ...orderData,
@@ -265,9 +277,14 @@ export async function createOrder(orderData) {
     totalCost,
     profit: totalPrice - totalCost,
     orderNumber,
+    orderDayKey,
     status: 'pending',
     paymentMethod: 'cash',
-    paidAt: orderData.paymentStatus === 'paid' || orderData.isPaid ? serverTimestamp() : null,
+    paymentStatus: isPaid ? 'paid' : 'unpaid',
+    isPaid,
+    paidAmount,
+    remainingAmount: Math.max(0, totalPrice - paidAmount),
+    paidAt: isPaid ? serverTimestamp() : null,
     itemStatuses: {},
     inventoryDeducted: false,
     inventoryDeductedAt: null,
@@ -371,10 +388,19 @@ export async function updateOrderStatus(orderId, status) {
   await updateDoc(doc(db, ORDERS_COL, orderId), updates);
 }
 
-export async function updateOrderPaymentStatus(orderId, paid) {
+export async function updateOrderPaymentStatus(orderId, paid, paidAmount = 0) {
+  const orderRef = doc(db, ORDERS_COL, orderId);
+  const snap = await getDoc(orderRef);
+  const totalPrice = snap.exists() ? toNumber(snap.data().totalPrice, 0) : 0;
+  const normalizedPaidAmount = paid
+    ? totalPrice
+    : Math.min(totalPrice, Math.max(0, toNumber(paidAmount, 0)));
+
   await updateDoc(doc(db, ORDERS_COL, orderId), {
     paymentStatus: paid ? 'paid' : 'unpaid',
     isPaid: Boolean(paid),
+    paidAmount: normalizedPaidAmount,
+    remainingAmount: Math.max(0, totalPrice - normalizedPaidAmount),
     paidAt: paid ? serverTimestamp() : null,
   });
 }
@@ -394,7 +420,10 @@ export async function createAdminOrder(orderData) {
   const deliveryFee = toNumber(orderData.deliveryFee, 0);
   const totalPrice = lineTotal(items) + deliveryFee;
   const totalCost = items.reduce((sum, item) => sum + (toNumber(item.costPrice) * Math.max(1, toNumber(item.quantity, 1))), 0);
-  const orderNumber = await getNextOrderNumber();
+  const orderDayKey = getOrderDayKey();
+  const orderNumber = await getNextOrderNumber(orderDayKey);
+  const isPaid = orderData.paymentStatus === 'paid' || orderData.isPaid;
+  const paidAmount = isPaid ? totalPrice : Math.min(totalPrice, Math.max(0, toNumber(orderData.paidAmount, 0)));
 
   const order = {
     ...orderData,
@@ -404,9 +433,14 @@ export async function createAdminOrder(orderData) {
     totalCost,
     profit: totalPrice - totalCost,
     orderNumber,
+    orderDayKey,
     status: 'preparing',
     paymentMethod: orderData.paymentMethod || 'cash',
-    paidAt: orderData.paymentStatus === 'paid' || orderData.isPaid ? serverTimestamp() : null,
+    paymentStatus: isPaid ? 'paid' : 'unpaid',
+    isPaid,
+    paidAmount,
+    remainingAmount: Math.max(0, totalPrice - paidAmount),
+    paidAt: isPaid ? serverTimestamp() : null,
     createdBy: 'admin',
     itemStatuses: {},
     inventoryDeducted: true,
@@ -534,8 +568,8 @@ export async function resetOrdersData() {
   }
 
   await enqueue(batch => batch.set(
-    doc(db, COUNTERS_COL, ORDER_NUMBER_DOC),
-    { value: 0, updatedAt: serverTimestamp() },
+    doc(db, COUNTERS_COL, `${ORDER_NUMBER_DOC}_${getOrderDayKey()}`),
+    { value: 0, dayKey: getOrderDayKey(), updatedAt: serverTimestamp() },
     { merge: true },
   ));
 
